@@ -1,0 +1,10 @@
+// Copyright 2017
+// Author: Patrick Brosi
+
+#ifndef SRC_PFAEDLE_CONFIG_H_
+#define SRC_PFAEDLE_CONFIG_H_
+
+// version number from cmake version module
+#define VERSION_FULL "@VERSION_GIT_FULL@"
+
+#endif  // SRC_PFAEDLE_CONFIG_H_N

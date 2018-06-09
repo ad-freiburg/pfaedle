@@ -19,14 +19,14 @@ Precise map-matching for public transit feeds.
 
  * `cmake`
  * `gcc`
- * `libbost-system`, `libbost-filesystem`
+ * `libboost-system`, `libboost-filesystem`, `libboost-geometry`
 
 ## Building and Installation
 
 Fetch this repository and init submodules:
 
 ```
-git clone --recurse-submodules https://ad-git.informatik.uni-freiburg.de/ad/pfaedle
+git clone --recurse-submodules https://github.com/ad-freiburg/pfaedle
 ```
 
 ```

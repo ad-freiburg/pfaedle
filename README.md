@@ -42,18 +42,20 @@ make install
 
 # General Usage
 
-## Generating shapes for an entire GTFS feed
+## Generating shapes for a GTFS feed
 
 ```
-./build/pfaedle -c pfaedle.cfg -x <OSM FILE> <GTFS INPUT FOLDER>
+pfaedle -c <CFG FILE> -x <OSM FILE> <GTFS INPUT FOLDER>
 ```
 
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
 
+A default configuration file `pfaedle.cfg` can be found in this repo.
+
 By default, shapes are only calculated for trips that don't have a shape in the
 input feed. To drop all existing shapes, use the `-D` flag.
 
-## Generating shapes for an entire GTFS feed, but only for a specific MOT
+## Generating shapes for a specific MOT
 
 To generate shapes only for a specific mot, use the `-m` option. Possible
 values are either `tram`, `bus`, `rail`, `subway`, `ferry`, `funicular`,
@@ -64,7 +66,7 @@ Multiple values can be specified (comma separated).
 ## OSM filtering
 
 `pfaedle` comes with the ability to filter OpenStreetMap data. If you specify
-the `-X` flag, `pfaedle` will filter the input OSM file and output a now OSM
+the `-X` flag, `pfaedle` will filter the input OSM file and output a new OSM
 file which contains *exactly* the data needed to calculate the shapes for the
 input GTFS feed and the input configuration.
 
@@ -75,7 +77,7 @@ run.
 
 The following flags may be useful for debugging:
 
- * `-T` only calculate shape for a single trip and output it as GeoJSON to
+ * `-T <GTFS TRIP ID>` only calculate shape for a single trip (specified via its GTFS trip id) and output it as GeoJSON to
    `<dbg-path>/path.json`
  * `--write-graph` write the graph used for routing as GeoJSON to
    `<dbg-path>/graph.json`
@@ -90,7 +92,7 @@ parameters
 
 # Evaluation
 
-You may run an entire evaluation of our testing datasets Vitoria-Gasteiz and
+You may run an entire evaluation of our testing datasets Vitoria-Gasteiz, Paris, Switzerland and
 Stuttgart with
 
 ```
@@ -114,7 +116,3 @@ sudo apt-get install zlib1g-dev
 ```
 
 to install the dependencies.
-
-# Known Bugs
-
-None so far \o/

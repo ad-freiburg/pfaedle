@@ -13,7 +13,7 @@
 
 # pfaedle
 
-Precise map-matching for public transit feeds.
+Precise map-matching for public transit schedules (GTFS data).
 
 ## Requirements
 

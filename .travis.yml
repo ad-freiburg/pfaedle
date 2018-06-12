@@ -9,9 +9,7 @@ addons:
     packages:
       - gcc
       - g++
-      - libboost-system-dev
-      - libboost-filesystem-dev
-      - libboost-geometry-dev
+      - libboost-all-dev
       - cmake
 
 before_script:

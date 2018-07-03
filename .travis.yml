@@ -1,0 +1,27 @@
+language: generic
+sudo: false
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc
+      - g++
+      - libboost-all-dev
+      - cmake
+
+before_script:
+  - mkdir build
+  - cd build
+  - cmake ..
+
+script:
+  - make -j
+  - make test
+
+notifications:
+  email:
+    on_success: never
+    on_failure: never

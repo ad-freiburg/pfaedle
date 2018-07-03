@@ -5,11 +5,12 @@ dist: trusty
 addons:
   apt:
     sources:
+      - boost-latest
       - ubuntu-toolchain-r-test
     packages:
       - gcc-5
       - g++-5
-      - libboost-all-dev
+      - libboost1.56-all-dev
       - cmake
 
 env:

@@ -18,8 +18,8 @@ Precise map-matching for public transit schedules (GTFS data).
 ## Requirements
 
  * `cmake`
- * `gcc`
- * `libboost-system`, `libboost-filesystem`, `libboost-geometry`
+ * `gcc` >= 5
+ * `libboost-system` >= 1.56, `libboost-filesystem` >= 1.56, `libboost-geometry` >= 1.56
 
 ## Building and Installation
 

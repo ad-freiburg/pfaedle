@@ -47,7 +47,7 @@ class BezierCurve {
   Point<T> valueAt(double t) const;
 };
 
-#include "util/geo/PolyLine.tpp"
+#include "util/geo/BezierCurve.tpp"
 }
 }
 

@@ -52,6 +52,10 @@ typedef Box<double> DBox;
 typedef Box<float> FBox;
 typedef Box<int> IBox;
 
+typedef Polygon<double> DPolygon;
+typedef Polygon<float> FPolygon;
+typedef Polygon<int> IPolygon;
+
 // _____________________________________________________________________________
 template <typename T>
 inline Line<T> rotate(const Line<T>& geo, double deg, const Point<T>& center) {
@@ -605,7 +609,7 @@ template <typename T>
 inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
   MultiLine<T> orig = ml;
   // get oriented envelope for hull
-  RotatedBox<T> rbox = getFullEnvelope(ml);
+  RotatedBox<T> rbox = getFullEnvelope<T>(ml);
   Point<T> center;
   bgeo::centroid(rbox.b, center);
 

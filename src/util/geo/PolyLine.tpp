@@ -2,9 +2,6 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
-#include "util/geo/Geo.h"
-#include "util/geo/PolyLine.h"
-
 // _____________________________________________________________________________
 template <typename T>
 PolyLine<T>::PolyLine() {}
@@ -101,11 +98,11 @@ void PolyLine<T>::offsetPerp(double units) {
     n1 = n1 / n;
     n2 = n2 / n;
 
-    lastP.set<0>(lastP.template get<0>() + (n1 * units));
-    lastP.set<1>(lastP.template get<1>() + (n2 * units));
+    lastP.template set<0>(lastP.template get<0>() + (n1 * units));
+    lastP.template set<1>(lastP.template get<1>() + (n2 * units));
 
-    curP.set<0>(curP.template get<0>() + (n1 * units));
-    curP.set<1>(curP.template get<1>() + (n2 * units));
+    curP.template set<0>(curP.template get<0>() + (n1 * units));
+    curP.template set<1>(curP.template get<1>() + (n2 * units));
 
     if (lastIns && befLastIns &&
         lineIntersects(*lastIns, *befLastIns, lastP, curP)) {

@@ -7,6 +7,7 @@
 #include "util/Nullable.h"
 #include "util/String.h"
 #include "util/geo/Geo.h"
+#include "util/geo/GeoNew.h"
 #include "util/graph/DirGraph.h"
 #include "util/graph/UndirGraph.h"
 #include "util/graph/Dijkstra.h"
@@ -841,6 +842,10 @@ CASE("nullable") {
 
     EXPECT_THROWS(nullable == voidnull);
   }
+},
+
+// ___________________________________________________________________________
+CASE("geometry") {
 }
 
 };

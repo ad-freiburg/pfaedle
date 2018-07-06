@@ -4,8 +4,8 @@
 
 // _____________________________________________________________________________
 template <typename T>
-BezierCurve<T>::BezierCurve(const Point<T>& a, const Point<T>& b, const Point<T>& c,
-                         const Point<T>& d)
+BezierCurve<T>::BezierCurve(const Point<T>& a, const Point<T>& b,
+                            const Point<T>& c, const Point<T>& d)
     : _d(dist(a, d)) {
   assert(_d > 0);
   recalcPolynoms(a, b, c, d);
@@ -13,8 +13,8 @@ BezierCurve<T>::BezierCurve(const Point<T>& a, const Point<T>& b, const Point<T>
 
 // _____________________________________________________________________________
 template <typename T>
-void BezierCurve<T>::recalcPolynoms(const Point<T>& a, const Point<T>& b, const Point<T>& c,
-                                 const Point<T>& d) {
+void BezierCurve<T>::recalcPolynoms(const Point<T>& a, const Point<T>& b,
+                                    const Point<T>& c, const Point<T>& d) {
   _xp.a = a.template get<0>();
   _xp.b = 3.0 * (b.template get<0>() - a.template get<0>());
   _xp.c = 3.0 * (c.template get<0>() - b.template get<0>()) - _xp.b;

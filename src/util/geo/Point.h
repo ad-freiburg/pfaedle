@@ -5,9 +5,6 @@
 #ifndef UTIL_GEO_POINT_H_
 #define UTIL_GEO_POINT_H_
 
-#include <set>
-#include <vector>
-
 namespace util {
 namespace geon {
 
@@ -21,9 +18,20 @@ class Point {
   void setX(T x) { _x = x; }
   void setY(T y) { _y = y; }
 
+  Point<T> operator+(const Point<T>& p) const {
+    return Point<T>(_x + p.getX(), _y + p.getY());
+  }
+
+  bool operator==(const Point<T>& p) const {
+    return p.getX() == _x && p.getY() == _y;
+  }
+
+  bool operator!=(const Point<T>& p) const {
+    return !(*this == p);
+  }
+
  private:
   T _x, _y;
-
 };
 
 }  // namespace geon

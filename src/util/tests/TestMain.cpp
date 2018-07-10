@@ -846,6 +846,43 @@ CASE("nullable") {
 
 // ___________________________________________________________________________
 CASE("geometry") {
+  geon::Point<double> a(1, 2);
+  geon::Point<double> b(2, 3);
+  geon::Point<double> c(4, 5);
+  EXPECT(a.getX() == approx(1));
+  EXPECT(a.getY() == approx(2));
+
+  a.setX(3);
+  EXPECT(a.getX() == approx(3));
+  EXPECT(a.getY() == approx(2));
+
+  a.setY(4);
+  EXPECT(a.getX() == approx(3));
+  EXPECT(a.getY() == approx(4));
+
+  auto d = a + b;
+  EXPECT(d.getX() == approx(5));
+  EXPECT(d.getY() == approx(7));
+
+  a.setX(1);
+  a.setY(2);
+
+  EXPECT(geon::dist(a, a) == approx(0));
+  EXPECT(geon::dist(a, b) == approx(sqrt(2)));
+
+  d = d + d;
+
+  geon::Box<double> box(a, c);
+  EXPECT(geon::contains(a, box));
+  EXPECT(geon::contains(b, box));
+  EXPECT(geon::contains(c, box));
+  EXPECT(!geon::contains(d, box));
+
+  geon::Line<double> line{a, b, c};
+
+  EXPECT(geon::contains(line, box));
+  line.push_back(d);
+  EXPECT(!geon::contains(line, box));
 }
 
 };

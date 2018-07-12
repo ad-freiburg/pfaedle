@@ -7,42 +7,27 @@
 #define _USE_MATH_DEFINES
 
 #include <math.h>
-#include <boost/geometry.hpp>
-#include <boost/geometry/strategies/transform/matrix_transformers.hpp>
 #include "util/Misc.h"
+#include "util/geo/Box.h"
+#include "util/geo/Line.h"
+#include "util/geo/Point.h"
 
 // -------------------
 // Geometry stuff
 // ------------------
 
-namespace bgeo = boost::geometry;
-
 namespace util {
 namespace geo {
-
-template <typename T>
-using Point = bgeo::model::point<T, 2, bgeo::cs::cartesian>;
-
-template <typename T>
-using Line = bgeo::model::linestring<Point<T>>;
-
-template <typename T>
-using MultiLine = bgeo::model::multi_linestring<Line<T>>;
-
-template <typename T>
-using Polygon = bgeo::model::polygon<Point<T>>;
-
-template <typename T>
-using MultiPolygon = bgeo::model::multi_polygon<Polygon<T>>;
-
-template <typename T>
-using Box = bgeo::model::box<Point<T>>;
 
 // convenience aliases
 
 typedef Point<double> DPoint;
 typedef Point<float> FPoint;
 typedef Point<int> IPoint;
+
+typedef LineSegment<double> DLineSegment;
+typedef LineSegment<float> FLineSegment;
+typedef LineSegment<int> ILineSegment;
 
 typedef Line<double> DLine;
 typedef Line<float> FLine;
@@ -52,197 +37,232 @@ typedef Box<double> DBox;
 typedef Box<float> FBox;
 typedef Box<int> IBox;
 
-typedef Polygon<double> DPolygon;
-typedef Polygon<float> FPolygon;
-typedef Polygon<int> IPolygon;
+const static double EPSILON = 0.0000001;
+
+// typedef Polygon<double> DPolygon;
+// typedef Polygon<float> FPolygon;
+// typedef Polygon<int> IPolygon;
 
 // _____________________________________________________________________________
-template <typename T>
-inline Line<T> rotate(const Line<T>& geo, double deg, const Point<T>& center) {
-  Line<T> ret;
+// template <typename T>
+// inline Line<T> rotate(const Line<T>& geo, double deg, const Point<T>& center)
+// {
+// Line<T> ret;
 
-  bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
-      -center.template get<0>(), -center.template get<1>());
-  bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
-      deg);
-  bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
-      center.template get<0>(), center.template get<1>());
+// bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
+// -center.getX(), -center.getY());
+// bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
+// deg);
+// bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
+// center.getX(), center.getY());
 
-  bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
-      prod(rotate.matrix(), translate.matrix()));
-  bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
-      prod(translateBack.matrix(), translateRotate.matrix()));
+// bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
+// prod(rotate.matrix(), translate.matrix()));
+// bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
+// prod(translateBack.matrix(), translateRotate.matrix()));
 
-  bgeo::transform(geo, ret, all);
+// bgeo::transform(geo, ret, all);
 
-  return ret;
-}
+// return ret;
+// }
 
 // _____________________________________________________________________________
-template <typename T>
-inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg,
-                           const Point<T>& center) {
-  MultiLine<T> ret;
+// template <typename T>
+// inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg,
+// const Point<T>& center) {
+// MultiLine<T> ret;
 
-  bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
-      -center.template get<0>(), -center.template get<1>());
-  bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
-      deg);
-  bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
-      center.template get<0>(), center.template get<1>());
+// bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
+// -center.getX(), -center.getY());
+// bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
+// deg);
+// bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
+// center.getX(), center.getY());
 
-  bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
-      prod(rotate.matrix(), translate.matrix()));
-  bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
-      prod(translateBack.matrix(), translateRotate.matrix()));
+// bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
+// prod(rotate.matrix(), translate.matrix()));
+// bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
+// prod(translateBack.matrix(), translateRotate.matrix()));
 
-  bgeo::transform(geo, ret, all);
+// bgeo::transform(geo, ret, all);
 
-  return ret;
-}
+// return ret;
+// }
 
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> pad(const Box<T>& box, double padding) {
-  return Box<T>(Point<T>(box.min_corner().template get<0>() - padding,
-                         box.min_corner().template get<1>() - padding),
-                Point<T>(box.max_corner().template get<0>() + padding,
-                         box.max_corner().template get<1>() + padding));
+  return Box<T>(Point<T>(box.getLowerLeft().getX() - padding,
+                         box.getLowerLeft().getY() - padding),
+                Point<T>(box.getUpperRight().getX() + padding,
+                         box.getUpperRight().getY() + padding));
 }
 
 // _____________________________________________________________________________
 template <typename T>
-inline Line<T> rotate(const Line<T>& geo, double deg) {
-  Point<T> center;
-  bgeo::centroid(geo, center);
-  return rotate(geo, deg, center);
+inline Point<T> rotate(const Point<T>& p, double deg) {
+  return p;
 }
+
+// _____________________________________________________________________________
+// template <typename T>
+// inline Line<T> rotate(const Line<T>& geo, double deg) {
+// Point<T> center;
+// bgeo::centroid(geo, center);
+// return rotate(geo, deg, center);
+// }
+
+// _____________________________________________________________________________
+// template <typename T>
+// inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg) {
+// Point<T> center;
+// bgeo::centroid(geo, center);
+// return rotate(geo, deg, center);
+// }
 
 // _____________________________________________________________________________
 template <typename T>
-inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg) {
-  Point<T> center;
-  bgeo::centroid(geo, center);
-  return rotate(geo, deg, center);
-}
-
-// _____________________________________________________________________________
-template <template <typename> typename Geometry, typename T>
-inline Geometry<T> move(const Geometry<T>& geo, T x, T y) {
-  Geometry<T> ret;
-  bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(x, y);
-  bgeo::transform(geo, ret, translate);
-  return ret;
+inline Point<T> move(const Point<T>& geo, T x, T y) {
+  return Point<T>(geo.getX() + x, geo.getY() + y);
 }
 
 // TODO: outfactor
 
-template <typename T>
-struct RotatedBox {
-  RotatedBox(const Box<T>& b, double rot, const Point<T>& center)
-      : b(b), rotateDeg(rot), center(center) {}
-  RotatedBox(const Box<T>& b, double rot) : b(b), rotateDeg(rot) {
-    bgeo::centroid(b, center);
-  }
+// template <typename T>
+// struct RotatedBox {
+// RotatedBox(const Box<T>& b, double rot, const Point<T>& center)
+// : b(b), rotateDeg(rot), center(center) {}
+// RotatedBox(const Box<T>& b, double rot) : b(b), rotateDeg(rot) {
+// bgeo::centroid(b, center);
+// }
 
-  Box<T> b;
-  double rotateDeg;
-  Point<T> center;
+// Box<T> b;
+// double rotateDeg;
+// Point<T> center;
 
-  Polygon<T> getPolygon() {
-    Polygon<T> hull;
-    bgeo::convex_hull(b, hull);
-    return rotate(hull, rotateDeg, center);
-  }
-};
+// Polygon<T> getPolygon() {
+// Polygon<T> hull;
+// bgeo::convex_hull(b, hull);
+// return rotate(hull, rotateDeg, center);
+// }
+// };
 
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> minbox() {
-  return bgeo::make_inverse<Box<T>>();
+  return Box<T>();
 }
 
 // _____________________________________________________________________________
-template <typename T>
-inline RotatedBox<T> shrink(const RotatedBox<T>& b, double d) {
-  double xd =
-      b.b.max_corner().template get<0>() - b.b.min_corner().template get<0>();
-  double yd =
-      b.b.max_corner().template get<1>() - b.b.min_corner().template get<1>();
+// template <typename T>
+// inline RotatedBox<T> shrink(const RotatedBox<T>& b, double d) {
+// double xd =
+// b.b.getUpperRight().getX() - b.b.getLowerLeft().getX();
+// double yd =
+// b.b.getUpperRight().getY() - b.b.getLowerLeft().getY();
 
-  if (xd <= 2 * d) d = xd / 2 - 1;
-  if (yd <= 2 * d) d = yd / 2 - 1;
+// if (xd <= 2 * d) d = xd / 2 - 1;
+// if (yd <= 2 * d) d = yd / 2 - 1;
 
-  Box<T> r(Point<T>(b.b.min_corner().template get<0>() + d,
-                    b.b.min_corner().template get<1>() + d),
-           Point<T>(b.b.max_corner().template get<0>() - d,
-                    b.b.max_corner().template get<1>() - d));
+// Box<T> r(Point<T>(b.b.getLowerLeft().getX() + d,
+// b.b.getLowerLeft().getY() + d),
+// Point<T>(b.b.getUpperRight().getX() - d,
+// b.b.getUpperRight().getY() - d));
 
-  return RotatedBox<T>(r, b.rotateDeg, b.center);
-}
+// return RotatedBox<T>(r, b.rotateDeg, b.center);
+// }
 
 // _____________________________________________________________________________
 inline bool doubleEq(double a, double b) { return fabs(a - b) < 0.000001; }
 
 // _____________________________________________________________________________
-template <typename Geometry, typename Box>
-inline bool contains(const Geometry& geom, const Box& box) {
-  return bgeo::within(geom, box);
+template <typename T>
+inline bool contains(const Point<T>& p, const Box<T>& box) {
+  return p.getX() >= box.getLowerLeft().getX() &&
+         p.getX() <= box.getUpperRight().getX() &&
+         p.getY() >= box.getLowerLeft().getY() &&
+         p.getY() <= box.getUpperRight().getY();
 }
 
 // _____________________________________________________________________________
 template <typename T>
-inline bool contains(const Point<T>& p1, const Point<T>& q1, const Point<T>& p2,
-                     const Point<T>& q2) {
-  Line<T> a, b;
-  a.push_back(p1);
-  a.push_back(q1);
-  b.push_back(p2);
-  b.push_back(q2);
-
-  return bgeo::covered_by(a, b);
+inline bool contains(const Line<T>& l, const Box<T>& box) {
+  for (const auto& p : l)
+    if (!contains(p, box)) return false;
+  return true;
 }
 
 // _____________________________________________________________________________
 template <typename T>
-inline bool contains(T p1x, T p1y, T q1x, T q1y, T p2x, T p2y, T q2x, T q2y) {
-  Point<T> p1(p1x, p1y);
-  Point<T> q1(q1x, q1y);
-  Point<T> p2(p2x, p2y);
-  Point<T> q2(q2x, q2y);
-
-  return contains(p1, q1, p2, q2);
+inline bool contains(const LineSegment<T>& l, const Box<T>& box) {
+  return contains(l.first, box) && contains(l.second, box);
 }
 
 // _____________________________________________________________________________
 template <typename T>
-inline bool intersects(const Point<T>& p1, const Point<T>& q1,
-                       const Point<T>& p2, const Point<T>& q2) {
-  /*
-   * checks whether two line segments intersect
-   */
-  Line<T> a, b;
-  a.push_back(p1);
-  a.push_back(q1);
-  b.push_back(p2);
-  b.push_back(q2);
-
-  return !(contains(p1, q1, p2, q2) || contains(p2, q2, p1, q1)) &&
-         bgeo::intersects(a, b);
+inline bool contains(const Point<T>& p, const LineSegment<T>& ls) {
+  return fabs(crossProd(p, ls)) < EPSILON && contains(p, getBoundingBox(ls));
 }
 
 // _____________________________________________________________________________
 template <typename T>
-inline bool intersects(T p1x, T p1y, T q1x, T q1y, T p2x, T p2y, T q2x, T q2y) {
-  /*
-   * checks whether two line segments intersect
-   */
-  Point<T> p1(p1x, p1y);
-  Point<T> q1(q1x, q1y);
-  Point<T> p2(p2x, p2y);
-  Point<T> q2(q2x, q2y);
+inline bool contains(const Point<T>& p, const Line<T>& l) {
+  for (size_t i = 1; i < l.size(); i++) {
+    if (contains(p, LineSegment<T>(l[i - 1], l[i]))) return true;
+  }
+  return false;
+}
 
-  return intersects(p1, q1, p2, q2);
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const LineSegment<T>& ls1, const LineSegment<T>& ls2) {
+  return intersects(getBoundingBox(ls1), getBoundingBox(ls2)) &&
+         (contains(ls1.first, ls2) || contains(ls1.second, ls2) ||
+          contains(ls2.first, ls1) || contains(ls2.second, ls1) ||
+          ((crossProd(ls1.first, ls2) < 0) ^
+           (crossProd(ls1.second, ls2) < 0)) ||
+          ((crossProd(ls2.first, ls1) < 0) ^ (crossProd(ls2.second, ls1) < 0)));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Box<T>& b1, const Box<T>& b2) {
+  return b1.getLowerLeft().getX() <= b2.getUpperRight().getX() &&
+         b1.getUpperRight().getX() >= b2.getLowerLeft().getX() &&
+         b1.getLowerLeft().getY() <= b2.getUpperRight().getY() &&
+         b1.getUpperRight().getY() >= b2.getLowerLeft().getY();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const LineSegment<T>& ls, const Box<T>& b) {
+  if (intersects(ls, LineSegment<T>(b.getLowerLeft(),
+                                    Point<T>(b.getUpperRight().getX(),
+                                             b.getLowerLeft().getY()))))
+    return true;
+  if (intersects(ls, LineSegment<T>(b.getLowerLeft(),
+                                    Point<T>(b.getLowerLeft().getX(),
+                                             b.getUpperRight().getY()))))
+    return true;
+  if (intersects(ls, LineSegment<T>(b.getUpperRight(),
+                                    Point<T>(b.getLowerLeft().getX(),
+                                             b.getUpperRight().getY()))))
+    return true;
+  if (intersects(ls, LineSegment<T>(b.getUpperRight(),
+                                    Point<T>(b.getUpperRight().getX(),
+                                             b.getLowerLeft().getY()))))
+    return true;
+
+  return contains(ls, b);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Line<T>& l, const Box<T>& b) {
+  for (size_t i = 1; i < l.size(); i++) {
+    if (intersects(LineSegment<T>(l[i-1], l[i]), b)) return true;
+  }
+  return false;
 }
 
 // _____________________________________________________________________________
@@ -272,10 +292,8 @@ inline Point<T> intersection(const Point<T>& p1, const Point<T>& q1,
   /*
    * calculates the intersection between two line segments
    */
-  return intersection(p1.template get<0>(), p1.template get<1>(),
-                      q1.template get<0>(), q1.template get<1>(),
-                      p2.template get<0>(), p2.template get<1>(),
-                      q2.template get<0>(), q2.template get<1>());
+  return intersection(p1.getX(), p1.getY(), q1.getX(), q1.getY(), p2.getX(),
+                      p2.getY(), q2.getX(), q2.getY());
 }
 
 // _____________________________________________________________________________
@@ -285,7 +303,6 @@ inline bool lineIntersects(T p1x, T p1y, T q1x, T q1y, T p2x, T p2y, T q2x,
   /*
    * checks whether two lines intersect
    */
-  double EPSILON = 0.0000001;
   double a = ((q2y - p2y) * (q1x - p1x)) - ((q2x - p2x) * (q1y - p1y));
 
   return a > EPSILON || a < -EPSILON;
@@ -298,10 +315,8 @@ inline bool lineIntersects(const Point<T>& p1, const Point<T>& q1,
   /*
    * checks whether two lines intersect
    */
-  return lineIntersects(p1.template get<0>(), p1.template get<1>(),
-                        q1.template get<0>(), q1.template get<1>(),
-                        p2.template get<0>(), p2.template get<1>(),
-                        q2.template get<0>(), q2.template get<1>());
+  return lineIntersects(p1.getX(), p1.getY(), q1.getX(), q1.getY(), p2.getX(),
+                        p2.getY(), q2.getX(), q2.getY());
 }
 
 // _____________________________________________________________________________
@@ -314,8 +329,7 @@ inline double angBetween(double p1x, double p1y, double q1x, double q1y) {
 // _____________________________________________________________________________
 template <typename T>
 inline double angBetween(const Point<T>& p1, const Point<T>& q1) {
-  return angBetween(p1.template get<0>(), p1.template get<1>(),
-                    q1.template get<0>(), q1.template get<1>());
+  return angBetween(p1.getX(), p1.getY(), q1.getX(), q1.getY());
 }
 
 // _____________________________________________________________________________
@@ -338,39 +352,80 @@ inline double innerProd(double x1, double y1, double x2, double y2, double x3,
 }
 
 // _____________________________________________________________________________
-template <typename G>
-inline double innerProd(const G& a, const G& b, const G& c) {
-  return innerProd(a.template get<0>(), a.template get<1>(),
-                   b.template get<0>(), b.template get<1>(),
-                   c.template get<0>(), c.template get<1>());
+template <typename T>
+inline double innerProd(const Point<T>& a, const Point<T>& b,
+                        const Point<T>& c) {
+  return innerProd(a.template getX(), a.template getY(), b.template getX(),
+                   b.template getY(), c.template getX(), c.template getY());
 }
 
 // _____________________________________________________________________________
-template <typename GeometryA, typename GeometryB>
-inline double dist(const GeometryA& p1, const GeometryB& p2) {
-  return bgeo::distance(p1, p2);
+template <typename T>
+inline double crossProd(const Point<T>& a, const Point<T>& b) {
+  return a.getX() * b.getY() - b.getX() * a.getY();
 }
 
 // _____________________________________________________________________________
-template <typename Geometry>
-inline std::string getWKT(Geometry g) {
+template <typename T>
+inline double crossProd(const Point<T>& p, const LineSegment<T>& ls) {
+  LineSegment<T> lss(Point<T>(0, 0),
+                     Point<T>(ls.second.getX() - ls.first.getX(),
+                              ls.second.getY() - ls.first.getY()));
+  return crossProd(lss.second, Point<T>(p.getX() - ls.first.getX(),
+                                        p.getY() - ls.first.getY()));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Point<T>& p1, const Point<T>& p2) {
+  return sqrt((p1.getX() - p2.getX()) * (p1.getX() - p2.getX()) +
+              (p1.getY() - p2.getY()) * (p1.getY() - p2.getY()));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline std::string getWKT(const Point<T>& p) {
   std::stringstream ss;
-  ss << bgeo::wkt(g);
+  ss << "POINT (" << p.getX() << " " << p.getY() << ")";
   return ss.str();
 }
 
 // _____________________________________________________________________________
-template <typename Geometry>
-inline double len(Geometry g) {
-  return bgeo::length(g);
+template <typename T>
+inline std::string getWKT(const Line<T>& l) {
+  std::stringstream ss;
+  ss << "LINESTRING (";
+  for (size_t i = 0; i < l.size(); i++) {
+    if (i) ss << ", ";
+    ss << l[i].getX() << " " << l[i].getY();
+  }
+  return ss.str();
 }
 
 // _____________________________________________________________________________
-template <typename Geometry>
-inline Geometry simplify(Geometry g, double d) {
-  Geometry ret;
-  bgeo::simplify(g, ret, d);
+template <typename T>
+inline double len(const Point<T>& g) {
+  return 0;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double len(const Line<T>& g) {
+  double ret = 0;
+  for (size_t i = 1; i < g.size(); i++) ret += dist(g[i - 1], g[i]);
   return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Point<T> simplify(const Point<T>& g, double d) {
+  return g;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Line<T> simplify(const Line<T>& g, double d) {
+  return g;
 }
 
 // _____________________________________________________________________________
@@ -394,39 +449,30 @@ inline double distToSegment(double lax, double lay, double lbx, double lby,
 template <typename T>
 inline double distToSegment(const Point<T>& la, const Point<T>& lb,
                             const Point<T>& p) {
-  return distToSegment(la.template get<0>(), la.template get<1>(),
-                       lb.template get<0>(), lb.template get<1>(),
-                       p.template get<0>(), p.template get<1>());
+  return distToSegment(la.getX(), la.getY(), lb.getX(), lb.getY(), p.getX(),
+                       p.getY());
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline Point<T> projectOn(const Point<T>& a, const Point<T>& b,
                           const Point<T>& c) {
-  if (doubleEq(a.template get<0>(), b.template get<0>()) &&
-      doubleEq(a.template get<1>(), b.template get<1>()))
-    return a;
-  if (doubleEq(a.template get<0>(), c.template get<0>()) &&
-      doubleEq(a.template get<1>(), c.template get<1>()))
-    return a;
-  if (doubleEq(b.template get<0>(), c.template get<0>()) &&
-      doubleEq(b.template get<1>(), c.template get<1>()))
-    return b;
+  if (doubleEq(a.getX(), b.getX()) && doubleEq(a.getY(), b.getY())) return a;
+  if (doubleEq(a.getX(), c.getX()) && doubleEq(a.getY(), c.getY())) return a;
+  if (doubleEq(b.getX(), c.getX()) && doubleEq(b.getY(), c.getY())) return b;
 
   double x, y;
 
-  if (c.template get<0>() == a.template get<0>()) {
+  if (c.getX() == a.getX()) {
     // infinite slope
-    x = a.template get<0>();
-    y = b.template get<1>();
+    x = a.getX();
+    y = b.getY();
   } else {
-    double m = (double)(c.template get<1>() - a.template get<1>()) /
-               (c.template get<0>() - a.template get<0>());
-    double bb = (double)a.template get<1>() - (m * a.template get<0>());
+    double m = (double)(c.getY() - a.getY()) / (c.getX() - a.getX());
+    double bb = (double)a.getY() - (m * a.getX());
 
-    x = (m * b.template get<1>() + b.template get<0>() - m * bb) / (m * m + 1);
-    y = (m * m * b.template get<1>() + m * b.template get<0>() + bb) /
-        (m * m + 1);
+    x = (m * b.getY() + b.getX() - m * bb) / (m * m + 1);
+    y = (m * m * b.getY() + m * b.getX() + bb) / (m * m + 1);
   }
 
   Point<T> ret = Point<T>(x, y);
@@ -444,18 +490,18 @@ template <typename T>
 inline double parallelity(const Box<T>& box, const Line<T>& line) {
   double ret = M_PI;
 
-  double a = angBetween(box.min_corner(),
-                        Point<T>(box.min_corner().template get<0>(),
-                                 box.max_corner().template get<1>()));
-  double b = angBetween(box.min_corner(),
-                        Point<T>(box.max_corner().template get<0>(),
-                                 box.min_corner().template get<1>()));
-  double c = angBetween(box.max_corner(),
-                        Point<T>(box.min_corner().template get<0>(),
-                                 box.max_corner().template get<1>()));
-  double d = angBetween(box.max_corner(),
-                        Point<T>(box.max_corner().template get<0>(),
-                                 box.min_corner().template get<1>()));
+  double a = angBetween(
+      box.getLowerLeft(),
+      Point<T>(box.getLowerLeft().getX(), box.getUpperRight().getY()));
+  double b = angBetween(
+      box.getLowerLeft(),
+      Point<T>(box.getUpperRight().getX(), box.getLowerLeft().getY()));
+  double c = angBetween(
+      box.getUpperRight(),
+      Point<T>(box.getLowerLeft().getX(), box.getUpperRight().getY()));
+  double d = angBetween(
+      box.getUpperRight(),
+      Point<T>(box.getUpperRight().getX(), box.getLowerLeft().getY()));
 
   double e = angBetween(line.front(), line.back());
 
@@ -472,178 +518,196 @@ inline double parallelity(const Box<T>& box, const Line<T>& line) {
 }
 
 // _____________________________________________________________________________
-template <typename T>
-inline double parallelity(const Box<T>& box, const MultiLine<T>& multiline) {
-  double ret = 0;
-  for (const Line<T>& l : multiline) {
-    ret += parallelity(box, l);
-  }
+// template <typename T>
+// inline double parallelity(const Box<T>& box, const MultiLine<T>& multiline) {
+// double ret = 0;
+// for (const Line<T>& l : multiline) {
+// ret += parallelity(box, l);
+// }
 
-  return ret / multiline.size();
-}
-
-// _____________________________________________________________________________
-template <typename GeomA, typename GeomB>
-inline bool intersects(const GeomA& a, const GeomB& b) {
-  return bgeo::intersects(a, b);
-}
+// return ret / multiline.size();
+// }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
-inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
-  // TODO: implement this nicer, works for now, but inefficient
-  // see
-  // https://geidav.wordpress.com/tag/gift-wrapping/#fn-1057-FreemanShapira1975
-  // for a nicer algorithm
-
-  Point<T> center;
-  bgeo::centroid(pol, center);
-
-  Box<T> tmpBox = getBoundingBox(pol);
-  double rotateDeg = 0;
-
-  // rotate in 5 deg steps
-  for (int i = 1; i < 360; i += 1) {
-    pol = rotate(pol, 1, center);
-    Box<T> e;
-    bgeo::envelope(pol, e);
-    if (bgeo::area(tmpBox) > bgeo::area(e)) {
-      tmpBox = e;
-      rotateDeg = i;
-    }
-  }
-
-  return RotatedBox<T>(tmpBox, -rotateDeg, center);
-}
+// template <typename GeomA, typename GeomB>
+// inline bool intersects(const GeomA& a, const GeomB& b) {
+// return bgeo::intersects(a, b);
+// }
 
 // _____________________________________________________________________________
-template <typename T>
-inline Box<T> getBoundingBox(Point<T> pol) {
-  Box<T> tmpBox;
-  bgeo::envelope(pol, tmpBox);
-  return tmpBox;
-}
+// template <typename T, template <typename> typename Geometry>
+// inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
+// // TODO: implement this nicer, works for now, but inefficient
+// // see
+// // https://geidav.wordpress.com/tag/gift-wrapping/#fn-1057-FreemanShapira1975
+// // for a nicer algorithm
 
-// _____________________________________________________________________________
-template <typename T>
-inline Box<T> getBoundingBox(Line<T> pol) {
-  Box<T> tmpBox;
-  bgeo::envelope(pol, tmpBox);
-  return tmpBox;
-}
+// Point<T> center;
+// bgeo::centroid(pol, center);
 
-// _____________________________________________________________________________
-template <typename T>
-inline Box<T> getBoundingBox(Polygon<T> pol) {
-  Box<T> tmpBox;
-  bgeo::envelope(pol, tmpBox);
-  return tmpBox;
-}
+// Box<T> tmpBox = getBoundingBox(pol);
+// double rotateDeg = 0;
+
+// // rotate in 5 deg steps
+// for (int i = 1; i < 360; i += 1) {
+// pol = rotate(pol, 1, center);
+// Box<T> e;
+// bgeo::envelope(pol, e);
+// if (bgeo::area(tmpBox) > bgeo::area(e)) {
+// tmpBox = e;
+// rotateDeg = i;
+// }
+// }
+
+// return RotatedBox<T>(tmpBox, -rotateDeg, center);
+// }
 
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> extendBox(const Box<T>& a, Box<T> b) {
-  bgeo::expand(b, a);
+  b = extendBox(a.getLowerLeft(), b);
+  b = extendBox(a.getUpperRight(), b);
   return b;
 }
 
 // _____________________________________________________________________________
-template <typename G, typename T>
-inline Box<T> extendBox(G pol, Box<T> b) {
-  Box<T> tmp;
-  bgeo::envelope(pol, tmp);
-  bgeo::expand(b, tmp);
+template <typename T>
+inline Box<T> extendBox(const Point<T>& p, Box<T> b) {
+  if (p.getX() < b.getLowerLeft().getX()) b.getLowerLeft().setX(p.getX());
+  if (p.getY() < b.getLowerLeft().getY()) b.getLowerLeft().setY(p.getY());
+
+  if (p.getX() > b.getUpperRight().getX()) b.getUpperRight().setX(p.getX());
+  if (p.getY() > b.getUpperRight().getY()) b.getUpperRight().setY(p.getY());
+  return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> getBoundingBox(const Point<T>& p) {
+  return Box<T>(p, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> getBoundingBox(const Line<T>& l) {
+  Box<T> ret;
+  for (const auto& p : l) extendBox(p, ret);
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> getBoundingBox(const LineSegment<T>& ls) {
+  Box<T> b;
+  b = extendBox(ls.first, b);
+  b = extendBox(ls.second, b);
+  return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> getBoundingBox(const Box<T>& b) {
+  return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> extendBox(const Line<T>& l, Box<T> b) {
+  for (const auto& p : l) b = extendBox(p, b);
+  return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> extendBox(const LineSegment<T>& ls, Box<T> b) {
+  b = extendBox(ls.first, b);
+  b = extendBox(ls.second, b);
   return b;
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline double commonArea(const Box<T>& ba, const Box<T>& bb) {
-  T l = std::max(ba.min_corner().template get<0>(),
-                 bb.min_corner().template get<0>());
-  T r = std::min(ba.max_corner().template get<0>(),
-                 bb.max_corner().template get<0>());
-  T b = std::max(ba.min_corner().template get<1>(),
-                 bb.min_corner().template get<1>());
-  T t = std::min(ba.max_corner().template get<1>(),
-                 bb.max_corner().template get<1>());
+  T l = std::max(ba.getLowerLeft().getX(), bb.getLowerLeft().getX());
+  T r = std::min(ba.getUpperRight().getX(), bb.getUpperRight().getX());
+  T b = std::max(ba.getLowerLeft().getY(), bb.getLowerLeft().getY());
+  T t = std::min(ba.getUpperRight().getY(), bb.getUpperRight().getY());
 
   if (l > r || b > t) return 0;
-
   return (r - l) * (t - b);
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
-inline RotatedBox<T> getFullEnvelope(Geometry<T> pol) {
-  Point<T> center;
-  bgeo::centroid(pol, center);
+// template <typename T, template <typename> typename Geometry>
+// inline RotatedBox<T> getFullEnvelope(Geometry<T> pol) {
+// Point<T> center;
+// bgeo::centroid(pol, center);
 
-  Box<T> tmpBox;
-  bgeo::envelope(pol, tmpBox);
-  double rotateDeg = 0;
+// Box<T> tmpBox;
+// bgeo::envelope(pol, tmpBox);
+// double rotateDeg = 0;
 
-  MultiPolygon<T> ml;
+// MultiPolygon<T> ml;
 
-  // rotate in 5 deg steps
-  for (int i = 1; i < 360; i += 1) {
-    pol = rotate(pol, 1, center);
-    Polygon<T> hull;
-    bgeo::convex_hull(pol, hull);
-    ml.push_back(hull);
-    Box<T> e;
-    bgeo::envelope(pol, e);
-    if (bgeo::area(tmpBox) > bgeo::area(e)) {
-      tmpBox = e;
-      rotateDeg = i;
-    }
-  }
+// // rotate in 5 deg steps
+// for (int i = 1; i < 360; i += 1) {
+// pol = rotate(pol, 1, center);
+// Polygon<T> hull;
+// bgeo::convex_hull(pol, hull);
+// ml.push_back(hull);
+// Box<T> e;
+// bgeo::envelope(pol, e);
+// if (bgeo::area(tmpBox) > bgeo::area(e)) {
+// tmpBox = e;
+// rotateDeg = i;
+// }
+// }
 
-  bgeo::envelope(ml, tmpBox);
+// bgeo::envelope(ml, tmpBox);
 
-  return RotatedBox<T>(tmpBox, rotateDeg, center);
-}
+// return RotatedBox<T>(tmpBox, rotateDeg, center);
+// }
 
 // _____________________________________________________________________________
-template <typename T>
-inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
-  MultiLine<T> orig = ml;
-  // get oriented envelope for hull
-  RotatedBox<T> rbox = getFullEnvelope<T>(ml);
-  Point<T> center;
-  bgeo::centroid(rbox.b, center);
+// template <typename T>
+// inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
+// MultiLine<T> orig = ml;
+// // get oriented envelope for hull
+// RotatedBox<T> rbox = getFullEnvelope<T>(ml);
+// Point<T> center;
+// bgeo::centroid(rbox.b, center);
 
-  ml = rotate(ml, -rbox.rotateDeg - 45, center);
+// ml = rotate(ml, -rbox.rotateDeg - 45, center);
 
-  double bestDeg = -45;
-  double score = parallelity(rbox.b, ml);
+// double bestDeg = -45;
+// double score = parallelity(rbox.b, ml);
 
-  for (double i = -45; i <= 45; i += .5) {
-    ml = rotate(ml, -.5, center);
-    double p = parallelity(rbox.b, ml);
-    if (parallelity(rbox.b, ml) > score) {
-      bestDeg = i;
-      score = p;
-    }
-  }
+// for (double i = -45; i <= 45; i += .5) {
+// ml = rotate(ml, -.5, center);
+// double p = parallelity(rbox.b, ml);
+// if (parallelity(rbox.b, ml) > score) {
+// bestDeg = i;
+// score = p;
+// }
+// }
 
-  rbox.rotateDeg += bestDeg;
+// rbox.rotateDeg += bestDeg;
 
-  // move the box along 45deg angles from its origin until it fits the ml
-  // = until the intersection of its hull and the box is largest
-  Polygon<T> p = rbox.getPolygon();
-  p = rotate(p, -rbox.rotateDeg, rbox.center);
+// // move the box along 45deg angles from its origin until it fits the ml
+// // = until the intersection of its hull and the box is largest
+// Polygon<T> p = rbox.getPolygon();
+// p = rotate(p, -rbox.rotateDeg, rbox.center);
 
-  Polygon<T> hull;
-  bgeo::convex_hull(orig, hull);
-  hull = rotate(hull, -rbox.rotateDeg, rbox.center);
+// Polygon<T> hull;
+// bgeo::convex_hull(orig, hull);
+// hull = rotate(hull, -rbox.rotateDeg, rbox.center);
 
-  Box<T> box;
-  bgeo::envelope(hull, box);
-  rbox = RotatedBox<T>(box, rbox.rotateDeg, rbox.center);
+// Box<T> box;
+// bgeo::envelope(hull, box);
+// rbox = RotatedBox<T>(box, rbox.rotateDeg, rbox.center);
 
-  return rbox;
-}
+// return rbox;
+// }
 
 // _____________________________________________________________________________
 template <typename T>
@@ -655,15 +719,13 @@ inline Line<T> densify(const Line<T>& l, double d) {
   ret.push_back(l.front());
 
   for (size_t i = 1; i < l.size(); i++) {
-    double segd = dist(l[i-1], l[i]);
-    double dx =
-        (l[i].template get<0>() - l[i-1].template get<0>()) / segd;
-    double dy =
-        (l[i].template get<1>() - l[i-1].template get<1>()) / segd;
+    double segd = dist(l[i - 1], l[i]);
+    double dx = (l[i].getX() - l[i - 1].getX()) / segd;
+    double dy = (l[i].getY() - l[i - 1].getY()) / segd;
     double curd = d;
     while (curd < segd) {
-      ret.push_back(Point<T>(l[i-1].template get<0>() + dx * curd,
-                             l[i-1].template get<1>() + dy * curd));
+      ret.push_back(
+          Point<T>(l[i - 1].getX() + dx * curd, l[i - 1].getY() + dy * curd));
       curd += d;
     }
 
@@ -719,28 +781,28 @@ inline double frechetDist(const Line<T>& a, const Line<T>& b, double d) {
 // _____________________________________________________________________________
 template <typename T>
 inline double accFrechetDistC(const Line<T>& a, const Line<T>& b, double d) {
-
   auto p = densify(a, d);
   auto q = densify(b, d);
 
   std::vector<std::vector<double>> ca(p.size(),
-                                        std::vector<double>(q.size(), 0));
+                                      std::vector<double>(q.size(), 0));
 
-  for (size_t i = 0; i < p.size(); i++) ca[i][0] = std::numeric_limits<double>::infinity();
-  for (size_t j = 0; j < q.size(); j++) ca[0][j] = std::numeric_limits<double>::infinity();
+  for (size_t i = 0; i < p.size(); i++)
+    ca[i][0] = std::numeric_limits<double>::infinity();
+  for (size_t j = 0; j < q.size(); j++)
+    ca[0][j] = std::numeric_limits<double>::infinity();
   ca[0][0] = 0;
 
   for (size_t i = 1; i < p.size(); i++) {
     for (size_t j = 1; j < q.size(); j++) {
-      double d = util::geo::dist(p[i], q[j]) * util::geo::dist(p[i], p[i-1]);
-      ca[i][j] = d + std::min(ca[i-1][j], std::min(ca[i][j-1], ca[i-1][j-1]));
+      double d = util::geo::dist(p[i], q[j]) * util::geo::dist(p[i], p[i - 1]);
+      ca[i][j] =
+          d + std::min(ca[i - 1][j], std::min(ca[i][j - 1], ca[i - 1][j - 1]));
     }
   }
 
   return ca[p.size() - 1][q.size() - 1];
 }
-
-
 
 // _____________________________________________________________________________
 template <typename T>
@@ -766,8 +828,8 @@ inline double webMercMeterDist(const G1& a, const G2& b) {
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
 
-  double latA = 2 * atan(exp(a.template get<1>() / 6378137.0)) - 1.5707965;
-  double latB = 2 * atan(exp(b.template get<1>() / 6378137.0)) - 1.5707965;
+  double latA = 2 * atan(exp(a.getY() / 6378137.0)) - 1.5707965;
+  double latB = 2 * atan(exp(b.getY() / 6378137.0)) - 1.5707965;
 
   return util::geo::dist(a, b) * cos((latA + latB) / 2.0);
 }

@@ -6,7 +6,7 @@
 #define UTIL_GEO_POINT_H_
 
 namespace util {
-namespace geon {
+namespace geo {
 
 template <typename T>
 class Point {
@@ -34,7 +34,7 @@ class Point {
   T _x, _y;
 };
 
-}  // namespace geon
+}  // namespace geo
 }  // namespace util
 
 #endif  // UTIL_GEO_POINT_H_

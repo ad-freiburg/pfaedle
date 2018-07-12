@@ -9,13 +9,16 @@
 #include "./Point.h"
 
 namespace util {
-namespace geon {
+namespace geo {
 
 template<typename T>
 using Line = std::vector<Point<T>>;
 
+template<typename T>
+using LineSegment = std::pair<Point<T>, Point<T>>;
 
-}  // namespace geon
+
+}  // namespace geo
 }  // namespace util
 
 #endif  // UTIL_GEO_LINE_H_

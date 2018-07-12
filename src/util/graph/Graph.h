@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <iostream>
+#include <cassert>
 
 #include "util/graph/Edge.h"
 #include "util/graph/Node.h"

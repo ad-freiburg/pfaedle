@@ -11,6 +11,7 @@ namespace geo {
 template <typename T>
 class Point {
  public:
+  Point() : _x(0), _y(0) {}
   Point(T x, T y) : _x(x), _y(y) {}
   T getX() const { return _x; }
   T getY() const { return _y; }

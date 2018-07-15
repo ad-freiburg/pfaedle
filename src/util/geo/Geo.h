@@ -6,11 +6,13 @@
 
 #define _USE_MATH_DEFINES
 
+#include <sstream>
 #include <math.h>
 #include "util/Misc.h"
 #include "util/geo/Box.h"
 #include "util/geo/Line.h"
 #include "util/geo/Point.h"
+#include "util/geo/Polygon.h"
 
 // -------------------
 // Geometry stuff
@@ -37,11 +39,11 @@ typedef Box<double> DBox;
 typedef Box<float> FBox;
 typedef Box<int> IBox;
 
-const static double EPSILON = 0.0000001;
+typedef Polygon<double> DPolygon;
+typedef Polygon<float> FPolygon;
+typedef Polygon<int> IPolygon;
 
-// typedef Polygon<double> DPolygon;
-// typedef Polygon<float> FPolygon;
-// typedef Polygon<int> IPolygon;
+const static double EPSILON = 0.0000001;
 
 // _____________________________________________________________________________
 // template <typename T>
@@ -226,6 +228,32 @@ inline bool intersects(const LineSegment<T>& ls1, const LineSegment<T>& ls2) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline bool intersects(const Line<T>& ls1, const Line<T>& ls2) {
+  for (size_t i = 1; i < ls1.size(); i++) {
+    for (size_t j = 1; j < ls2.size(); j++) {
+      if (intersects(LineSegment<T>(ls1[i - 1], ls1[i]),
+                     LineSegment<T>(ls2[j - 1], ls2[j])))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Line<T>& l, const Point<T>& p) {
+  return contains(l, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Point<T>& p, const Line<T>& l) {
+  return intersects(l, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline bool intersects(const Box<T>& b1, const Box<T>& b2) {
   return b1.getLowerLeft().getX() <= b2.getUpperRight().getX() &&
          b1.getUpperRight().getX() >= b2.getLowerLeft().getX() &&
@@ -258,11 +286,35 @@ inline bool intersects(const LineSegment<T>& ls, const Box<T>& b) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline bool intersects(const Box<T>& b, const LineSegment<T>& ls) {
+  return intersects(ls, b);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline bool intersects(const Line<T>& l, const Box<T>& b) {
   for (size_t i = 1; i < l.size(); i++) {
-    if (intersects(LineSegment<T>(l[i-1], l[i]), b)) return true;
+    if (intersects(LineSegment<T>(l[i - 1], l[i]), b)) return true;
   }
   return false;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Box<T>& b, const Line<T>& l) {
+  return intersects(l, b);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Point<T>& p, const Box<T>& b) {
+  return contains(p, b);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Box<T>& b, const Point<T>& p) {
+  return intersects(p, b);
 }
 
 // _____________________________________________________________________________
@@ -378,8 +430,7 @@ inline double crossProd(const Point<T>& p, const LineSegment<T>& ls) {
 // _____________________________________________________________________________
 template <typename T>
 inline double dist(const Point<T>& p1, const Point<T>& p2) {
-  return sqrt((p1.getX() - p2.getX()) * (p1.getX() - p2.getX()) +
-              (p1.getY() - p2.getY()) * (p1.getY() - p2.getY()));
+  return dist(p1.getX(), p1.getY(), p2.getX(), p2.getY());
 }
 
 // _____________________________________________________________________________
@@ -399,6 +450,34 @@ inline std::string getWKT(const Line<T>& l) {
     if (i) ss << ", ";
     ss << l[i].getX() << " " << l[i].getY();
   }
+  ss << ")";
+  return ss.str();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline std::string getWKT(const Box<T>& l) {
+  std::stringstream ss;
+  ss << "POLYGON ((";
+  ss << l.getLowerLeft().getX() << " " << l.getLowerLeft().getY();
+  ss << ", " << l.getUpperRight().getX() << " " << l.getLowerLeft().getY();
+  ss << ", " << l.getUpperRight().getX() << " " << l.getUpperRight().getY();
+  ss << ", " << l.getLowerLeft().getX() << " " << l.getUpperRight().getY();
+  ss << ", " << l.getLowerLeft().getX() << " " << l.getLowerLeft().getY();
+  ss << "))";
+  return ss.str();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline std::string getWKT(const Polygon<T>& p) {
+  std::stringstream ss;
+  ss << "POLYGON ((";
+  for (size_t i = 0; i < p.getOuter().size(); i++) {
+    if (i) ss << ", ";
+    ss << p.getOuter()[i].getX() << " " << p.getOuter()[i].getY();
+  }
+  ss << "))";
   return ss.str();
 }
 
@@ -424,8 +503,39 @@ inline Point<T> simplify(const Point<T>& g, double d) {
 
 // _____________________________________________________________________________
 template <typename T>
-inline Line<T> simplify(const Line<T>& g, double d) {
+inline LineSegment<T> simplify(const LineSegment<T>& g, double d) {
   return g;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> simplify(const Box<T>& g, double d) {
+  return g;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Line<T> simplify(const Line<T>& g, double d) {
+  // douglas peucker
+  double maxd = 0;
+  size_t maxi = 0;
+  for (size_t i = 1; i < g.size() - 1; i++) {
+    double dt = distToSegment(g.front(), g.back(), g[i]);
+    if (dt > maxd) {
+      maxi = i;
+      maxd = dt;
+    }
+  }
+
+  if (maxd > d) {
+    auto a = simplify(Line<T>(g.begin(), g.begin() + maxi + 1), d);
+    const auto& b = simplify(Line<T>(g.begin() + maxi, g.end()), d);
+    a.insert(a.end(), b.begin() + 1, b.end());
+
+    return a;
+  }
+
+  return Line<T>{g.front(), g.back()};
 }
 
 // _____________________________________________________________________________
@@ -451,6 +561,13 @@ inline double distToSegment(const Point<T>& la, const Point<T>& lb,
                             const Point<T>& p) {
   return distToSegment(la.getX(), la.getY(), lb.getX(), lb.getY(), p.getX(),
                        p.getY());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double distToSegment(const LineSegment<T>& ls, const Point<T>& p) {
+  return distToSegment(ls.first.getX(), ls.first.getY(), ls.second.getX(),
+                       ls.second.getY(), p.getX(), p.getY());
 }
 
 // _____________________________________________________________________________
@@ -591,7 +708,7 @@ inline Box<T> getBoundingBox(const Point<T>& p) {
 template <typename T>
 inline Box<T> getBoundingBox(const Line<T>& l) {
   Box<T> ret;
-  for (const auto& p : l) extendBox(p, ret);
+  for (const auto& p : l) ret = extendBox(p, ret);
   return ret;
 }
 

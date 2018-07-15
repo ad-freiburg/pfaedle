@@ -129,8 +129,8 @@ CASE("grid") {
   l.push_back(Point<double>(1.5, 2));
 
   Line<double> l2;
-  l.push_back(Point<double>(2.5, 1));
-  l.push_back(Point<double>(2.5, 2));
+  l2.push_back(Point<double>(2.5, 1));
+  l2.push_back(Point<double>(2.5, 2));
 
   g.add(l, 1);
   g.add(l2, 2);
@@ -143,8 +143,7 @@ CASE("grid") {
 
   ret.clear();
   g.getNeighbors(1, 0, &ret);
-  // TODO!
-  //EXPECT(ret.size() == 1);
+  EXPECT(ret.size() == (size_t)1);
 
   ret.clear();
   g.getNeighbors(1, 0.55, &ret);
@@ -907,6 +906,42 @@ CASE("geometry") {
   EXPECT(!geo::contains(geo::Point<double>(1, 2), l));
   EXPECT(geo::contains(geo::Point<double>(2, 2), l));
   EXPECT(geo::contains(geo::Point<double>(2, 3), l));
+
+  geo::Box<double> bbox(geo::Point<double>(1, 1), geo::Point<double>(3, 3));
+  EXPECT(geo::intersects(l, bbox));
+  geo::Line<double> ll{geo::Point<double>(0, 0), geo::Point<double>(4, 4)};
+  EXPECT(geo::intersects(ll, bbox));
+  geo::Line<double> lll{geo::Point<double>(0, 0), geo::Point<double>(0, 4)};
+  EXPECT(!geo::intersects(lll, bbox));
+  geo::Line<double> llll{geo::Point<double>(1.2, 0), geo::Point<double>(1, 2)};
+  EXPECT(geo::intersects(llll, bbox));
+
+  Line<double> l5;
+  l5.push_back(Point<double>(0, 0));
+  l5.push_back(Point<double>(1.5, 2));
+  Box<double> req(Point<double>(.5, 1), Point<double>(1, 1.5));
+
+  EXPECT(geo::getBoundingBox(l5[0]).getLowerLeft().getX() == approx(0));
+  EXPECT(geo::getBoundingBox(l5[0]).getLowerLeft().getY() == approx(0));
+
+  EXPECT(geo::getBoundingBox(l5).getLowerLeft().getX() == approx(0));
+  EXPECT(geo::getBoundingBox(l5).getLowerLeft().getY() == approx(0));
+  EXPECT(geo::getBoundingBox(l5).getUpperRight().getX() == approx(1.5));
+  EXPECT(geo::getBoundingBox(l5).getUpperRight().getY() == approx(2));
+  EXPECT(geo::intersects(geo::getBoundingBox(l5), geo::getBoundingBox(Line<double>{Point<double>(.5, 1), Point<double>(1, 1)})));
+  EXPECT(geo::intersects(l5, Line<double>{Point<double>(.5, 1), Point<double>(1, 1)}));
+  EXPECT(geo::intersects(l5, req));
+
+  Box<double> boxa(Point<double>(1, 1), Point<double>(2, 2));
+  EXPECT(geo::intersects(boxa, Box<double>(Point<double>(1.5, 1.5), Point<double>(1.7, 1.7))));
+  EXPECT(geo::intersects(boxa, Box<double>(Point<double>(0, 0), Point<double>(3, 3))));
+  EXPECT(geo::intersects(boxa, Box<double>(Point<double>(1.5, 1.5), Point<double>(3, 3))));
+  EXPECT(geo::intersects(boxa, Box<double>(Point<double>(0, 0), Point<double>(1.5, 1.5))));
+
+  EXPECT(geo::intersects(Box<double>(Point<double>(1.5, 1.5), Point<double>(1.7, 1.7)), boxa));
+  EXPECT(geo::intersects(Box<double>(Point<double>(0, 0), Point<double>(3, 3)), boxa));
+  EXPECT(geo::intersects(Box<double>(Point<double>(1.5, 1.5), Point<double>(3, 3)), boxa));
+  EXPECT(geo::intersects(Box<double>(Point<double>(0, 0), Point<double>(1.5, 1.5)), boxa));
 }
 
 };

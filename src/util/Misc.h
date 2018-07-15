@@ -5,6 +5,7 @@
 #ifndef UTIL_MISC_H_
 #define UTIL_MISC_H_
 
+#include <cmath>
 #include <chrono>
 
 #define UNUSED(expr) do { (void)(expr); } while (0)

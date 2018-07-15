@@ -13,8 +13,8 @@ void GeoJsonOutput::print(const Point<T>& p, Attrs attrs) {
   _wr.keyVal("type", "Point");
   _wr.key("coordinates");
   _wr.arr();
-  _wr.val(p.template get<0>());
-  _wr.val(p.template get<1>());
+  _wr.val(p.getX());
+  _wr.val(p.getY());
   _wr.close();
   _wr.close();
   _wr.key("properties");
@@ -36,8 +36,8 @@ void GeoJsonOutput::print(const Line<T>& line, Attrs attrs) {
   _wr.arr();
   for (auto p : line) {
     _wr.arr();
-    _wr.val(p.template get<0>());
-    _wr.val(p.template get<1>());
+    _wr.val(p.getX());
+    _wr.val(p.template getY());
     _wr.close();
   }
   _wr.close();

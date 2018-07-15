@@ -5,6 +5,7 @@
 #ifndef UTIL_GEO_POLYLINE_H_
 #define UTIL_GEO_POLYLINE_H_
 
+#include <cfloat>
 #include <ostream>
 #include <string>
 #include <vector>

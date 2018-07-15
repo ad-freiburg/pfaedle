@@ -31,10 +31,10 @@ bool BBoxIdx::contains(const Point<float>& p) const {
 // _____________________________________________________________________________
 util::geo::Box<float> BBoxIdx::getFullWebMercBox() const {
   return util::geo::FBox(
-      util::geo::latLngToWebMerc<float>(_root.box.min_corner().get<1>(),
-                                        _root.box.min_corner().get<0>()),
-      util::geo::latLngToWebMerc<float>(_root.box.max_corner().get<1>(),
-                                        _root.box.max_corner().get<0>()));
+      util::geo::latLngToWebMerc<float>(_root.box.getLowerLeft().getY(),
+                                        _root.box.getLowerLeft().getX()),
+      util::geo::latLngToWebMerc<float>(_root.box.getUpperRight().getY(),
+                                        _root.box.getUpperRight().getX()));
 }
 
 // _____________________________________________________________________________

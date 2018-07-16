@@ -6,8 +6,8 @@
 
 #define _USE_MATH_DEFINES
 
-#include <sstream>
 #include <math.h>
+#include <sstream>
 #include "util/Misc.h"
 #include "util/geo/Box.h"
 #include "util/geo/Line.h"
@@ -254,6 +254,18 @@ inline bool intersects(const Point<T>& p, const Line<T>& l) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline bool intersects(const Polygon<T>& l, const Point<T>& p) {
+  return contains(l, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Point<T>& p, const Polygon<T>& l) {
+  return intersects(l, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline bool intersects(const Box<T>& b1, const Box<T>& b2) {
   return b1.getLowerLeft().getX() <= b2.getUpperRight().getX() &&
          b1.getUpperRight().getX() >= b2.getLowerLeft().getX() &&
@@ -282,6 +294,26 @@ inline bool intersects(const LineSegment<T>& ls, const Box<T>& b) {
     return true;
 
   return contains(ls, b);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const LineSegment<T>& ls, const Polygon<T>& p) {
+  for (size_t i = 1; i < p.getOuter().size(); i++) {
+    if (intersects(LineSegment<T>(p.getOuter()[i - 1], p.getOuter()[i]), ls))
+      return true;
+  }
+
+  if (intersects(LineSegment<T>(p.getOuter().back(), p.getOuter().front()), ls))
+    return true;
+
+  return contains(ls, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool intersects(const Polygon<T>& p, const LineSegment<T>& ls) {
+  return intersects(ls, p);
 }
 
 // _____________________________________________________________________________

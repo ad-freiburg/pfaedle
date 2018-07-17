@@ -7,6 +7,7 @@
 #define _USE_MATH_DEFINES
 
 #include <math.h>
+#include <iostream>
 #include <sstream>
 #include "util/Misc.h"
 #include "util/geo/Box.h"
@@ -213,6 +214,90 @@ inline bool contains(const Point<T>& p, const Line<T>& l) {
     if (contains(p, LineSegment<T>(l[i - 1], l[i]))) return true;
   }
   return false;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Point<T>& p, const Polygon<T>& poly) {
+  // see https://de.wikipedia.org/wiki/Punkt-in-Polygon-Test_nach_Jordan
+  int8_t c = -1;
+
+  for (size_t i = 1; i < poly.getOuter().size(); i++) {
+    c *= polyContCheck(p, poly.getOuter()[i - 1], poly.getOuter()[i]);
+    if (c == 0) return true;
+  }
+
+  c *= polyContCheck(p, poly.getOuter().back(), poly.getOuter()[0]);
+
+  return c >= 0;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline int8_t polyContCheck(const Point<T>& a, Point<T> b, Point<T> c) {
+  if (a.getY() == b.getY() && a.getY() == c.getY())
+    return (!((b.getX() <= a.getX() && a.getX() <= c.getX()) ||
+              (c.getX() <= a.getX() && a.getX() <= b.getX())));
+  if (a.getY() == b.getY() && a.getX() == b.getX()) return 0;
+  if (b.getY() > c.getY()) {
+    Point<T> tmp = b;
+    b = c;
+    c = tmp;
+  }
+  if (a.getY() <= b.getY() || a.getY() > c.getY()) return 1;
+
+  double d = (b.getX() - a.getX()) * (c.getY() - a.getY()) -
+             (b.getY() - a.getY()) * (c.getX() - a.getX());
+  if (d > 0) return -1;
+  if (d < 0) return 1;
+  return 0;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Polygon<T>& polyC, const Polygon<T>& poly) {
+  for (const auto& p : polyC.getOuter()) {
+    if (!contains(p, poly)) return false;
+  }
+  return true;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Line<T>& l, const Polygon<T>& poly) {
+  for (const auto& p : l) {
+    if (!contains(p, poly)) return false;
+  }
+  return true;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Box<T>& b, const Polygon<T>& poly) {
+  return contains(b.getLowerLeft(), poly) &&
+         contains(b.getUpperRight(), poly) &&
+         contains(Point<T>(b.getUpperRight().getX(), b.getLowerLeft().getY()),
+                  poly) &&
+         contains(Point<T>(b.getLowerLeft().getX(), b.getUpperRight().getY()),
+                  poly);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Polygon<T>& poly, const Box<T>& b) {
+  for (const auto& p : poly.getOuter()) {
+    if (!contains(p, b)) return false;
+  }
+  return true;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool contains(const Polygon<T>& poly, const Line<T>& l) {
+  for (const auto& p : poly.getOuter()) {
+    if (!contains(p, l)) return false;
+  }
+  return true;
 }
 
 // _____________________________________________________________________________
@@ -439,8 +524,7 @@ inline double innerProd(double x1, double y1, double x2, double y2, double x3,
 template <typename T>
 inline double innerProd(const Point<T>& a, const Point<T>& b,
                         const Point<T>& c) {
-  return innerProd(a.template getX(), a.template getY(), b.template getX(),
-                   b.template getY(), c.template getX(), c.template getY());
+  return innerProd(a.getX(), a.getY(), b.getX(), b.getY(), c.getX(), c.getY());
 }
 
 // _____________________________________________________________________________
@@ -484,6 +568,12 @@ inline std::string getWKT(const Line<T>& l) {
   }
   ss << ")";
   return ss.str();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline std::string getWKT(const LineSegment<T>& l) {
+  return getWKT(Line<T>{l.first, l.second});
 }
 
 // _____________________________________________________________________________
@@ -741,6 +831,14 @@ template <typename T>
 inline Box<T> getBoundingBox(const Line<T>& l) {
   Box<T> ret;
   for (const auto& p : l) ret = extendBox(p, ret);
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> getBoundingBox(const Polygon<T>& pol) {
+  Box<T> ret;
+  for (const auto& p : pol.getOuter()) ret = extendBox(p, ret);
   return ret;
 }
 

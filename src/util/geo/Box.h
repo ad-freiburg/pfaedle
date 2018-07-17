@@ -38,6 +38,20 @@ class Box {
   Point<T> _ll, _ur;
 };
 
+template <typename T>
+class RotatedBox {
+ public:
+  RotatedBox() : _box() {}
+  RotatedBox(const Box<T>& box) : _box(box), _deg(0), _center() {}
+  RotatedBox(const Point<T>& ll, const Point<T>& ur) : _box(ll, ur), _deg(0), _center() {}
+
+
+ private:
+  Box<T> _box;
+  double _deg;
+  Point<T> _center;
+};
+
 }  // namespace geo
 }  // namespace util
 

@@ -942,6 +942,29 @@ CASE("geometry") {
   EXPECT(geo::intersects(Box<double>(Point<double>(0, 0), Point<double>(3, 3)), boxa));
   EXPECT(geo::intersects(Box<double>(Point<double>(1.5, 1.5), Point<double>(3, 3)), boxa));
   EXPECT(geo::intersects(Box<double>(Point<double>(0, 0), Point<double>(1.5, 1.5)), boxa));
+
+  Polygon<double> poly({Point<double>(1, 1), Point<double>(3, 2), Point<double>(4, 3), Point<double>(6, 3), Point<double>(5, 1)});
+  EXPECT(geo::getWKT(poly) == "POLYGON ((1 1, 3 2, 4 3, 6 3, 5 1))");
+  EXPECT(geo::contains(Point<double>(4, 2), poly));
+  EXPECT(!geo::contains(Point<double>(3, 3), poly));
+  EXPECT(geo::contains(Point<double>(1, 1), poly));
+  EXPECT(geo::contains(Point<double>(3, 2), poly));
+  EXPECT(geo::contains(Point<double>(4, 3), poly));
+  EXPECT(geo::contains(Point<double>(6, 3), poly));
+  EXPECT(geo::contains(Point<double>(5, 1), poly));
+
+  EXPECT(geo::contains(Line<double>{Point<double>(6, 3), Point<double>(5, 1)}, poly));
+  EXPECT(!geo::contains(Line<double>{Point<double>(6, 3), Point<double>(50, 1)}, poly));
+  EXPECT(geo::contains(Line<double>{Point<double>(4, 2), Point<double>(4.5, 2)}, poly));
+  EXPECT(geo::contains(Line<double>{Point<double>(4, 2), Point<double>(5, 1)}, poly));
+
+  Box<double> polybox(Point<double>(1, 1), Point<double>(6, 4));
+  EXPECT(geo::contains(poly, polybox));
+  EXPECT(!geo::contains(polybox, poly));
+  Box<double> polybox2(Point<double>(4, 1), Point<double>(5, 2));
+  EXPECT(geo::contains(polybox2, poly));
+  EXPECT(geo::contains(poly, getBoundingBox(poly)));
+
 }
 
 };

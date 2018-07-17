@@ -15,7 +15,8 @@ namespace geo {
 template <typename T>
 class Polygon {
  public:
-  // maximum inverse box as default value of box
+  Polygon() {}
+
   Polygon(const Line<T>& l) : _outer(l) {}
 
   const std::vector<Point<T>>& getOuter() const { return _outer; }

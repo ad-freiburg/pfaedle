@@ -43,8 +43,8 @@ class RotatedBox {
  public:
   RotatedBox() : _box() {}
   RotatedBox(const Box<T>& box) : _box(box), _deg(0), _center() {}
-  RotatedBox(const Point<T>& ll, const Point<T>& ur) : _box(ll, ur), _deg(0), _center() {}
-
+  RotatedBox(const Point<T>& ll, const Point<T>& ur)
+      : _box(ll, ur), _deg(0), _center() {}
 
  private:
   Box<T> _box;

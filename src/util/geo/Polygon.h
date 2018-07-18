@@ -6,8 +6,9 @@
 #define UTIL_GEO_POLYGON_H_
 
 #include <vector>
-#include "./Point.h"
+#include "./Box.h"
 #include "./Line.h"
+#include "./Point.h"
 
 namespace util {
 namespace geo {
@@ -18,14 +19,18 @@ class Polygon {
   Polygon() {}
 
   Polygon(const Line<T>& l) : _outer(l) {}
+  Polygon(const Box<T>& b)
+      : _outer({b.getLowerLeft(),
+                Point<T>(b.getUpperRight().getX(), b.getLowerLeft().getY()),
+                b.getUpperRight(),
+                Point<T>(b.getLowerLeft().getX(), b.getUpperRight().getY())}) {}
 
   const std::vector<Point<T>>& getOuter() const { return _outer; }
-  std::vector<Point<T>>& getOuter() {return _outer; }
+  std::vector<Point<T>>& getOuter() { return _outer; }
 
  private:
   std::vector<Point<T>> _outer;
 };
-
 
 }  // namespace geo
 }  // namespace util

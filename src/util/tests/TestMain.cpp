@@ -959,12 +959,26 @@ CASE("geometry") {
   EXPECT(geo::contains(Line<double>{Point<double>(4, 2), Point<double>(5, 1)}, poly));
 
   Box<double> polybox(Point<double>(1, 1), Point<double>(6, 4));
+  EXPECT(geo::centroid(polybox).getX() == approx(3.5));
+  EXPECT(geo::centroid(polybox).getY() == approx(2.5));
   EXPECT(geo::contains(poly, polybox));
   EXPECT(!geo::contains(polybox, poly));
   Box<double> polybox2(Point<double>(4, 1), Point<double>(5, 2));
   EXPECT(geo::contains(polybox2, poly));
   EXPECT(geo::contains(poly, getBoundingBox(poly)));
 
+  Point<double> rotP(2, 2);
+  EXPECT(geo::dist(geo::rotate(rotP, 180, Point<double>(1, 1)), Point<double>(0, 0)) == approx(0));
+  EXPECT(geo::dist(geo::rotate(rotP, 360, Point<double>(1, 1)), rotP) == approx(0));
+
+  Line<double> rotLine({{1, 1}, {3, 3}});
+  EXPECT(geo::rotate(rotLine, 90, Point<double>(2, 2))[0].getX() == approx(1));
+  EXPECT(geo::rotate(rotLine, 90, Point<double>(2, 2))[0].getY() == approx(3));
+  EXPECT(geo::rotate(rotLine, 90, Point<double>(2, 2))[1].getX() == approx(3));
+  EXPECT(geo::rotate(rotLine, 90, Point<double>(2, 2))[1].getY() == approx(1));
+
+  EXPECT(geo::dist(geo::centroid(rotP), rotP) == approx(0));
+  EXPECT(geo::dist(geo::centroid(rotLine), rotP) == approx(0));
 }
 
 };

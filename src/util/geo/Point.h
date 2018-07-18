@@ -23,6 +23,10 @@ class Point {
     return Point<T>(_x + p.getX(), _y + p.getY());
   }
 
+  Point<T> operator-(const Point<T>& p) const {
+    return Point<T>(_x - p.getX(), _y - p.getY());
+  }
+
   bool operator==(const Point<T>& p) const {
     return p.getX() == _x && p.getY() == _y;
   }

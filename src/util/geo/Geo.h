@@ -1,6 +1,7 @@
 // Copyright 2016, University of Freiburg,
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
+
 #ifndef UTIL_GEO_GEO_H_
 #define UTIL_GEO_GEO_H_
 
@@ -45,52 +46,12 @@ typedef Polygon<float> FPolygon;
 typedef Polygon<int> IPolygon;
 
 const static double EPSILON = 0.0000001;
-
-// _____________________________________________________________________________
-// template <typename T>
-// inline Line<T> rotate(const Line<T>& geo, double deg, const Point<T>& center)
-// {
-// Line<T> ret;
-
-// bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
-// -center.getX(), -center.getY());
-// bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
-// deg);
-// bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
-// center.getX(), center.getY());
-
-// bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
-// prod(rotate.matrix(), translate.matrix()));
-// bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
-// prod(translateBack.matrix(), translateRotate.matrix()));
-
-// bgeo::transform(geo, ret, all);
-
-// return ret;
-// }
+const static double RAD = 0.017453292519943295;  // PI/180
 
 // _____________________________________________________________________________
 // template <typename T>
 // inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg,
-// const Point<T>& center) {
-// MultiLine<T> ret;
-
-// bgeo::strategy::transform::translate_transformer<T, 2, 2> translate(
-// -center.getX(), -center.getY());
-// bgeo::strategy::transform::rotate_transformer<bgeo::degree, T, 2, 2> rotate(
-// deg);
-// bgeo::strategy::transform::translate_transformer<T, 2, 2> translateBack(
-// center.getX(), center.getY());
-
-// bgeo::strategy::transform::ublas_transformer<T, 2, 2> translateRotate(
-// prod(rotate.matrix(), translate.matrix()));
-// bgeo::strategy::transform::ublas_transformer<T, 2, 2> all(
-// prod(translateBack.matrix(), translateRotate.matrix()));
-
-// bgeo::transform(geo, ret, all);
-
-// return ret;
-// }
+// const Point<T>& center) {}
 
 // _____________________________________________________________________________
 template <typename T>
@@ -103,17 +64,88 @@ inline Box<T> pad(const Box<T>& box, double padding) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline Point<T> centroid(const Point<T> p) {
+  return p;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Point<T> centroid(const LineSegment<T> ls) {
+  return Point<T>((ls.first.getX() + ls.second.getX()) / T(2),
+                  (ls.first.getY() + ls.second.getY()) / T(2));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Point<T> centroid(const Line<T> ls) {
+  double x = 0, y = 0;
+  for (const auto& p : ls) {
+    x += p.getX();
+    y += p.getY();
+  }
+  return Point<T>(x / T(ls.size()), y / T(ls.size()));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Point<T> centroid(const Polygon<T> ls) {
+  return centroid(ls.getOuter());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Point<T> centroid(const Box<T> box) {
+  return centroid(LineSegment<T>(box.getLowerLeft(), box.getUpperRight()));
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline Point<T> rotate(const Point<T>& p, double deg) {
   return p;
 }
 
 // _____________________________________________________________________________
-// template <typename T>
-// inline Line<T> rotate(const Line<T>& geo, double deg) {
-// Point<T> center;
-// bgeo::centroid(geo, center);
-// return rotate(geo, deg, center);
-// }
+template <typename T>
+inline Point<T> rotate(Point<T> p, double deg, const Point<T>& c) {
+  deg *= -RAD;
+  double si = sin(deg);
+  double co = cos(deg);
+  p = p - c;
+
+  return Point<T>(p.getX() * co - p.getY() * si,
+                  p.getX() * si + p.getY() * co) +
+         c;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline LineSegment<T> rotate(LineSegment<T> geo, double deg,
+                             const Point<T>& c) {
+  geo.first = rotate(geo.first, deg, c);
+  geo.second = rotate(geo.second, deg, c);
+  return geo;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline LineSegment<T> rotate(LineSegment<T> geo, double deg) {
+  return (geo, deg, centroid(geo));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Line<T> rotate(Line<T> geo, double deg, const Point<T>& c) {
+  for (size_t i = 0; i < geo.size(); i++) geo[i] = rotate(geo[i], deg, c);
+  return geo;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Polygon<T> rotate(Polygon<T> geo, double deg, const Point<T>& c) {
+  for (size_t i = 0; i < geo.getOuter().size(); i++)
+    geo.getOuter()[i] = rotate(geo.getOuter()[i], deg, c);
+  return geo;
+}
 
 // _____________________________________________________________________________
 // template <typename T>

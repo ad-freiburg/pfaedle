@@ -49,11 +49,6 @@ const static double EPSILON = 0.0000001;
 const static double RAD = 0.017453292519943295;  // PI/180
 
 // _____________________________________________________________________________
-// template <typename T>
-// inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg,
-// const Point<T>& center) {}
-
-// _____________________________________________________________________________
 template <typename T>
 inline Box<T> pad(const Box<T>& box, double padding) {
   return Box<T>(Point<T>(box.getLowerLeft().getX() - padding,
@@ -148,39 +143,10 @@ inline Polygon<T> rotate(Polygon<T> geo, double deg, const Point<T>& c) {
 }
 
 // _____________________________________________________________________________
-// template <typename T>
-// inline MultiLine<T> rotate(const MultiLine<T>& geo, double deg) {
-// Point<T> center;
-// bgeo::centroid(geo, center);
-// return rotate(geo, deg, center);
-// }
-
-// _____________________________________________________________________________
 template <typename T>
 inline Point<T> move(const Point<T>& geo, T x, T y) {
   return Point<T>(geo.getX() + x, geo.getY() + y);
 }
-
-// TODO: outfactor
-
-// template <typename T>
-// struct RotatedBox {
-// RotatedBox(const Box<T>& b, double rot, const Point<T>& center)
-// : b(b), rotateDeg(rot), center(center) {}
-// RotatedBox(const Box<T>& b, double rot) : b(b), rotateDeg(rot) {
-// bgeo::centroid(b, center);
-// }
-
-// Box<T> b;
-// double rotateDeg;
-// Point<T> center;
-
-// Polygon<T> getPolygon() {
-// Polygon<T> hull;
-// bgeo::convex_hull(b, hull);
-// return rotate(hull, rotateDeg, center);
-// }
-// };
 
 // _____________________________________________________________________________
 template <typename T>
@@ -797,12 +763,6 @@ inline double parallelity(const Box<T>& box, const Line<T>& line) {
 // }
 
 // return ret / multiline.size();
-// }
-
-// _____________________________________________________________________________
-// template <typename GeomA, typename GeomB>
-// inline bool intersects(const GeomA& a, const GeomB& b) {
-// return bgeo::intersects(a, b);
 // }
 
 // _____________________________________________________________________________

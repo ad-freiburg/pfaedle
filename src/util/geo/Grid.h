@@ -7,6 +7,7 @@
 
 #include <set>
 #include <vector>
+#include <map>
 #include "util/geo/Geo.h"
 
 namespace util {

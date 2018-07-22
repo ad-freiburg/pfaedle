@@ -1,0 +1,24 @@
+language: generic
+sudo: false
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - cmake
+
+before_script:
+  - mkdir build
+  - cd build
+  - cmake ..
+
+script:
+  - make -j4
+  - make test
+
+notifications:
+  email:
+    on_success: never
+    on_failure: never

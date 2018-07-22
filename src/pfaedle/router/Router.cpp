@@ -121,8 +121,8 @@ NDistHeur::NDistHeur(const RoutingOpts& rOpts,
   size_t c = 0;
   double x = 0, y = 0;
   for (auto to : tos) {
-    x += to->pl().getGeom()->get<0>();
-    y += to->pl().getGeom()->get<1>();
+    x += to->pl().getGeom()->getX();
+    y += to->pl().getGeom()->getY();
     c++;
   }
 
@@ -144,8 +144,8 @@ DistHeur::DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
   size_t c = 0;
   double x = 0, y = 0;
   for (auto to : tos) {
-    x += to->getFrom()->pl().getGeom()->get<0>();
-    y += to->getFrom()->pl().getGeom()->get<1>();
+    x += to->getFrom()->pl().getGeom()->getX();
+    y += to->getFrom()->pl().getGeom()->getY();
     c++;
   }
 

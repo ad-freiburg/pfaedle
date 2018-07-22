@@ -313,8 +313,8 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
   for (const auto& hop : shp.hops) {
     const trgraph::Node* l = hop.start;
     if (hop.edges.size() == 0) {
-      FPoint ll = webMercToLatLng<float>(hop.start->pl().getGeom()->get<0>(),
-                                         hop.start->pl().getGeom()->get<1>());
+      FPoint ll = webMercToLatLng<float>(hop.start->pl().getGeom()->getX(),
+                                         hop.start->pl().getGeom()->getY());
 
       if (dist > -0.5)
         dist += webMercMeterDist(last, *hop.start->pl().getGeom());
@@ -324,7 +324,7 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       last = *hop.start->pl().getGeom();
 
       if (dist - lastDist > 0.01) {
-        ret->addPoint(ShapePoint(ll.get<1>(), ll.get<0>(), dist, seq));
+        ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
         lastDist = dist;
       }
@@ -333,9 +333,9 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       last = *hop.end->pl().getGeom();
 
       if (dist - lastDist > 0.01) {
-        ll = webMercToLatLng<float>(hop.end->pl().getGeom()->get<0>(),
-                                    hop.end->pl().getGeom()->get<1>());
-        ret->addPoint(ShapePoint(ll.get<1>(), ll.get<0>(), dist, seq));
+        ll = webMercToLatLng<float>(hop.end->pl().getGeom()->getX(),
+                                    hop.end->pl().getGeom()->getY());
+        ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
         lastDist = dist;
       }
@@ -351,8 +351,8 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            FPoint ll = webMercToLatLng<float>(cur.get<0>(), cur.get<1>());
-            ret->addPoint(ShapePoint(ll.get<1>(), ll.get<0>(), dist, seq));
+            FPoint ll = webMercToLatLng<float>(cur.getX(), cur.getY());
+            ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
           }
@@ -366,8 +366,8 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            FPoint ll = webMercToLatLng<float>(cur.get<0>(), cur.get<1>());
-            ret->addPoint(ShapePoint(ll.get<1>(), ll.get<0>(), dist, seq));
+            FPoint ll = webMercToLatLng<float>(cur.getX(), cur.getY());
+            ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
           }

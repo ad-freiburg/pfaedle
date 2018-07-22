@@ -118,8 +118,8 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
   gjout.flush();
   fstr.close();
 
-  double fac = cos(2 * atan(exp((oldSegs.front().front().get<1>() +
-                                 oldSegs.back().back().get<1>()) /
+  double fac = cos(2 * atan(exp((oldSegs.front().front().getY() +
+                                 oldSegs.back().back().getY()) /
                                 6378137.0)) -
                    1.5707965);
 
@@ -401,7 +401,7 @@ std::pair<size_t, double> Collector::getDa(const std::vector<FLine>& a,
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
   double fac =
-      cos(2 * atan(exp((a.front().front().get<1>() + a.back().back().get<1>()) /
+      cos(2 * atan(exp((a.front().front().getY() + a.back().back().getY()) /
                        6378137.0)) -
           1.5707965);
 

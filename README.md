@@ -1,15 +1,4 @@
-```
-                 _-====-__-=-__-===-__-=======-__
-               _(                               _)
-            OO(                                )
-         . o  '===-______-===-____-==-__-====='
-      .o
-     . ______          _______________
-   _()_||__|| __o^o___ | [] [] [] [] |
-  (           |      | |             |o
- /-OO----OO""="OO--OO"="OO---------OO"
-############################################################
-```
+![Map-Matched path of a single train through Switzerland](geo/schweiz_mmatched.png?raw=true)
 
 # pfaedle
 
@@ -18,8 +7,7 @@ Precise map-matching for public transit schedules (GTFS data).
 ## Requirements
 
  * `cmake`
- * `gcc` >= 4.8
- * `libboost-system` >= 1.56, `libboost-filesystem` >= 1.56, `libboost-geometry` >= 1.56
+ * `gcc` >= 4.8 (may work on lower versions, untested)
 
 ## Building and Installation
 
@@ -50,16 +38,29 @@ pfaedle -c <CFG FILE> -x <OSM FILE> <GTFS INPUT FOLDER>
 
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
 
-A default configuration file `pfaedle.cfg` can be found in this repo.
-
 By default, shapes are only calculated for trips that don't have a shape in the
 input feed. To drop all existing shapes, use the `-D` flag.
+
+For example, you may generate (and replace existing, see -D parameter) shapes for the GTFS dataset for Freiburg like this:
+
+```
+$ mkdir freiburg_gtfs && cd freiburg_gtfs
+$ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip
+$ unzip VAGFR.zip
+$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2
+$ bunzip2 freiburg-regbez-latest.osm.bz2
+$ mkdir gtfs-out
+$ pfaedle -D -c pfaedle.cfg -x freiburg-regbez-latest.osm .
+```
+
+A default configuration file `pfaedle.cfg` can be found in this repo.
+
 
 ## Generating shapes for a specific MOT
 
 To generate shapes only for a specific mot, use the `-m` option. Possible
 values are either `tram`, `bus`, `rail`, `subway`, `ferry`, `funicular`,
-`gondola`, `all`.
+`gondola`, `all` (default).
 
 Multiple values can be specified (comma separated).
 

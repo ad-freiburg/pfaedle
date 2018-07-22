@@ -991,7 +991,7 @@ double OsmBuilder::webMercDistFactor(const util::geo::FPoint& a) const {
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
 
-  double lat = 2 * atan(exp(a.get<1>() / 6378137.0)) - 1.5707965;
+  double lat = 2 * atan(exp(a.getY() / 6378137.0)) - 1.5707965;
   return cos(lat);
 }
 

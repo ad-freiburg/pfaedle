@@ -10,7 +10,7 @@ Precise map-matching for public transit schedules (GTFS data).
 ## Requirements
 
  * `cmake`
- * `gcc` >= 4.8
+ * `gcc >= 4.8`
 
 ## Building and Installation
 

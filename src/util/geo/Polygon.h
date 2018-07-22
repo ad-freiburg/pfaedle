@@ -25,12 +25,15 @@ class Polygon {
                 b.getUpperRight(),
                 Point<T>(b.getLowerLeft().getX(), b.getUpperRight().getY())}) {}
 
-  const std::vector<Point<T>>& getOuter() const { return _outer; }
-  std::vector<Point<T>>& getOuter() { return _outer; }
+  const Line<T>& getOuter() const { return _outer; }
+  Line<T>& getOuter() { return _outer; }
 
  private:
-  std::vector<Point<T>> _outer;
+  Line<T> _outer;
 };
+
+template <typename T>
+using MultiPolyon = std::vector<Polygon<T>>;
 
 }  // namespace geo
 }  // namespace util

@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
   if (cfg.evaluate) ecoll.printStats(&std::cout);
 
   if (cfg.feedPaths.size()) {
-    LOG(INFO) << "Writing output GTFS...";
+    LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
     ad::cppgtfs::Writer w;
     w.write(&gtfs, cfg.outputPath);
   }

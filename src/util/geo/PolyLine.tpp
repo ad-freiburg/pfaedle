@@ -93,11 +93,11 @@ void PolyLine<T>::offsetPerp(double units) {
     n1 = n1 / n;
     n2 = n2 / n;
 
-    lastP.template set<0>(lastP.getX() + (n1 * units));
-    lastP.template set<1>(lastP.getY() + (n2 * units));
+    lastP.setX(lastP.getX() + (n1 * units));
+    lastP.setY(lastP.getY() + (n2 * units));
 
-    curP.template set<0>(curP.getX() + (n1 * units));
-    curP.template set<1>(curP.getY() + (n2 * units));
+    curP.setX(curP.getX() + (n1 * units));
+    curP.setY(curP.getY() + (n2 * units));
 
     if (lastIns && befLastIns &&
         lineIntersects(*lastIns, *befLastIns, lastP, curP)) {
@@ -460,8 +460,8 @@ bool PolyLine<T>::contains(const PolyLine<T>& rhs, double dmax) const {
 template <typename T>
 void PolyLine<T>::move(double vx, double vy) {
   for (size_t i = 0; i < _line.size(); i++) {
-    _line[i].set<0>(_line[i].getX() + vx);
-    _line[i].set<1>(_line[i].getY() + vy);
+    _line[i].setX(_line[i].getX() + vx);
+    _line[i].setY(_line[i].getY() + vy);
   }
 }
 

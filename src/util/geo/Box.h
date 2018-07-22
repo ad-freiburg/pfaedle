@@ -41,10 +41,41 @@ class Box {
 template <typename T>
 class RotatedBox {
  public:
-  RotatedBox() : _box() {}
-  RotatedBox(const Box<T>& box) : _box(box), _deg(0), _center() {}
+  RotatedBox() : _box(), _deg(0), _center() {}
+  RotatedBox(const Box<T>& box)
+      : _box(box),
+        _deg(0),
+        _center(Point<T>(
+            (box.getUpperRight().getX() - box.getLowerLeft().getX()) / T(2),
+            (box.getUpperRight().getY() - box.getLowerLeft().getY()) / T(2))) {}
   RotatedBox(const Point<T>& ll, const Point<T>& ur)
-      : _box(ll, ur), _deg(0), _center() {}
+      : _box(ll, ur),
+        _deg(0),
+        _center(Point<T>((ur.getX() - ll.getX()) / T(2),
+                         (ur.getY() - ll.getY()) / T(2))) {}
+  RotatedBox(const Box<T>& box, double deg)
+      : _box(box),
+        _deg(deg),
+        _center(Point<T>(
+            (box.getUpperRight().getX() - box.getLowerLeft().getX()) / T(2),
+            (box.getUpperRight().getY() - box.getLowerLeft().getY()) / T(2))) {}
+  RotatedBox(const Point<T>& ll, const Point<T>& ur, double deg)
+      : _box(ll, ur),
+        _deg(deg),
+        _center(Point<T>((ur.getX() - ll.getX()) / T(2),
+                         (ur.getY() - ll.getY()) / T(2))) {}
+  RotatedBox(const Box<T>& box, double deg, const Point<T>& center)
+      : _box(box), _deg(deg), _center(center) {}
+  RotatedBox(const Point<T>& ll, const Point<T>& ur, double deg,
+             const Point<T>& center)
+      : _box(ll, ur), _deg(deg), _center(center) {}
+
+  const Box<T>& getBox() const { return _box; }
+  Box<T>& getBox() { return _box; }
+
+  double getDegree() const { return _deg; }
+  const Point<T>& getCenter() const { return _center; }
+  Point<T>& getCenter() { return _center; }
 
  private:
   Box<T> _box;

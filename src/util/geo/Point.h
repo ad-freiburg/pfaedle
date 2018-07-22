@@ -39,6 +39,9 @@ class Point {
   T _x, _y;
 };
 
+template <typename T>
+using MultiPoint = std::vector<Point<T>>;
+
 }  // namespace geo
 }  // namespace util
 

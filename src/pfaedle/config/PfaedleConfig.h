@@ -21,6 +21,7 @@ struct Config {
       : dbgOutputPath("geo"),
         solveMethod("global"),
         evalPath("."),
+        outputPath("gtfs-out"),
         dropShapes(false),
         useHMM(false),
         writeGraph(false),

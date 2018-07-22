@@ -17,6 +17,8 @@ namespace geo {
 static const double MAX_EQ_DISTANCE = 15;
 static const double AVERAGING_STEP = 20;
 
+// legacy code, will be removed in the future
+
 template <typename T>
 struct LinePoint {
   LinePoint() : lastIndex(0), totalPos(-1), p() {}
@@ -46,7 +48,6 @@ struct SharedSegments {
   std::vector<SharedSegment<T>> segments;
 };
 
-// TODO: maybe let this class inherit from a more generic geometry class
 template <typename T>
 class PolyLine {
  public:

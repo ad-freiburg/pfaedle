@@ -11,12 +11,16 @@
 namespace util {
 namespace geo {
 
-template<typename T>
-using Line = std::vector<Point<T>>;
+template <typename T>
+class Line : public std::vector<Point<T>> {
+  using std::vector<Point<T>>::vector;
+};
 
-template<typename T>
+template <typename T>
 using LineSegment = std::pair<Point<T>, Point<T>>;
 
+template <typename T>
+using MultiLine = std::vector<Line<T>>;
 
 }  // namespace geo
 }  // namespace util

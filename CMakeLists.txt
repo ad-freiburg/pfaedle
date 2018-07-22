@@ -61,7 +61,7 @@ add_subdirectory(src)
 
 # tests
 
-add_test("Utility Tests" utilTest)
+add_test("utilTest" utilTest)
 
 # custom eval target
 

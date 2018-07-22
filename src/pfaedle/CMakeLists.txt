@@ -16,5 +16,5 @@ configure_file (
 add_executable(pfaedle ${pfaedle_main})
 add_library(pfaedle_dep ${pfaedle_SRC})
 
-target_include_directories(pfaedle_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
+include_directories(pfaedle_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
 target_link_libraries(pfaedle pfaedle_dep util xml configparser ad_cppgtfs ${Boost_LIBRARIES} -lpthread)

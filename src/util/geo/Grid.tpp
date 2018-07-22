@@ -3,7 +3,7 @@
 // Author: Patrick Brosi <brosip@informatik.uni-freiburg.de>
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 Grid<V, G, T>::Grid(bool bldIdx)
     : _width(0),
       _height(0),
@@ -14,16 +14,16 @@ Grid<V, G, T>::Grid(bool bldIdx)
       _hasValIdx(bldIdx) {}
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 Grid<V, G, T>::Grid() : Grid<V, G, T>(true) {}
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 Grid<V, G, T>::Grid(double w, double h, const Box<T>& bbox)
     : Grid<V, G, T>(w, h, bbox, true) {}
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 Grid<V, G, T>::Grid(double w, double h, const Box<T>& bbox, bool bValIdx)
     : _cellWidth(fabs(w)),
       _cellHeight(fabs(h)),
@@ -55,7 +55,7 @@ Grid<V, G, T>::Grid(double w, double h, const Box<T>& bbox, bool bValIdx)
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::add(G<T> geom, V val) {
   Box<T> box = getBoundingBox(geom);
   size_t swX = getCellXFromX(box.getLowerLeft().getX());
@@ -74,14 +74,14 @@ void Grid<V, G, T>::add(G<T> geom, V val) {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::add(size_t x, size_t y, V val) {
   _grid[x][y].insert(val);
   if (_hasValIdx) _index[val].insert(std::pair<size_t, size_t>(x, y));
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::get(const Box<T>& box, std::set<V>* s) const {
   size_t swX = getCellXFromX(box.getLowerLeft().getX());
   size_t swY = getCellYFromY(box.getLowerLeft().getY());
@@ -94,7 +94,7 @@ void Grid<V, G, T>::get(const Box<T>& box, std::set<V>* s) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::get(const G<T>& geom, double d, std::set<V>* s) const {
   Box<T> a = getBoundingBox(geom);
   Box<T> b(Point<T>(a.getLowerLeft().getX() - d,
@@ -105,7 +105,7 @@ void Grid<V, G, T>::get(const G<T>& geom, double d, std::set<V>* s) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::get(size_t x, size_t y, std::set<V>* s) const {
   if (_hasValIdx) {
     s->insert(_grid[x][y].begin(), _grid[x][y].end());
@@ -119,7 +119,7 @@ void Grid<V, G, T>::get(size_t x, size_t y, std::set<V>* s) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::remove(V val) {
   if (_hasValIdx) {
     auto i = _index.find(val);
@@ -137,7 +137,7 @@ void Grid<V, G, T>::remove(V val) {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::getNeighbors(const V& val, double d, std::set<V>* s) const {
   if (!_hasValIdx) throw GridException("No value index build!");
   auto it = _index.find(val);
@@ -152,7 +152,7 @@ void Grid<V, G, T>::getNeighbors(const V& val, double d, std::set<V>* s) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::getCellNeighbors(const V& val, size_t d,
                                      std::set<V>* s) const {
   if (!_hasValIdx) throw GridException("No value index build!");
@@ -165,7 +165,7 @@ void Grid<V, G, T>::getCellNeighbors(const V& val, size_t d,
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 void Grid<V, G, T>::getCellNeighbors(size_t cx, size_t cy, size_t xPerm,
                                      size_t yPerm, std::set<V>* s) const {
   size_t swX = xPerm > cx ? 0 : cx - xPerm;
@@ -182,7 +182,7 @@ void Grid<V, G, T>::getCellNeighbors(size_t cx, size_t cy, size_t xPerm,
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 std::set<std::pair<size_t, size_t> > Grid<V, G, T>::getCells(
     const V& val) const {
   if (!_hasValIdx) throw GridException("No value index build!");
@@ -190,7 +190,7 @@ std::set<std::pair<size_t, size_t> > Grid<V, G, T>::getCells(
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 Box<T> Grid<V, G, T>::getBox(size_t x, size_t y) const {
   Point<T> sw(_bb.getLowerLeft().getX() + x * _cellWidth,
               _bb.getLowerLeft().getY() + y * _cellHeight);
@@ -200,7 +200,7 @@ Box<T> Grid<V, G, T>::getBox(size_t x, size_t y) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 size_t Grid<V, G, T>::getCellXFromX(double x) const {
   float dist = x - _bb.getLowerLeft().getX();
   if (dist < 0) dist = 0;
@@ -208,7 +208,7 @@ size_t Grid<V, G, T>::getCellXFromX(double x) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 size_t Grid<V, G, T>::getCellYFromY(double y) const {
   float dist = y - _bb.getLowerLeft().getY();
   if (dist < 0) dist = 0;
@@ -216,13 +216,13 @@ size_t Grid<V, G, T>::getCellYFromY(double y) const {
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 size_t Grid<V, G, T>::getXWidth() const {
   return _xWidth;
 }
 
 // _____________________________________________________________________________
-template <typename V, template <typename> typename G, typename T>
+template <typename V, template <typename> class G, typename T>
 size_t Grid<V, G, T>::getYHeight() const {
   return _yHeight;
 }

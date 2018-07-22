@@ -96,7 +96,7 @@ inline Point<T> centroid(const Box<T> box) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <typename T, template <typename> class Geometry>
 inline Point<T> centroid(std::vector<Geometry<T>> multigeo) {
   Line<T> a;
   for (const auto& g : multigeo) a.push_back(centroid(g));
@@ -106,6 +106,7 @@ inline Point<T> centroid(std::vector<Geometry<T>> multigeo) {
 // _____________________________________________________________________________
 template <typename T>
 inline Point<T> rotate(const Point<T>& p, double deg) {
+  UNUSED(deg);
   return p;
 }
 
@@ -153,7 +154,7 @@ inline Polygon<T> rotate(Polygon<T> geo, double deg, const Point<T>& c) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline std::vector<Geometry<T>> rotate(std::vector<Geometry<T>> multigeo,
                                        double deg, const Point<T>& c) {
   for (size_t i = 0; i < multigeo.size(); i++)
@@ -162,7 +163,7 @@ inline std::vector<Geometry<T>> rotate(std::vector<Geometry<T>> multigeo,
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline std::vector<Geometry<T>> rotate(std::vector<Geometry<T>> multigeo,
                                        double deg) {
   auto c = centroid(multigeo);
@@ -201,7 +202,7 @@ inline Polygon<T> move(Polygon<T> geo, T x, T y) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline std::vector<Geometry<T>> move(std::vector<Geometry<T>> multigeo, T x,
                                      T y) {
   for (size_t i = 0; i < multigeo.size(); i++)
@@ -382,8 +383,8 @@ inline bool contains(const Polygon<T>& poly, const Line<T>& l) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename GeometryA,
-          template <typename> typename GeometryB>
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
 inline bool contains(const std::vector<GeometryA<T>>& multigeo,
                      const GeometryB<T>& geo) {
   for (const auto& g : multigeo)
@@ -758,6 +759,7 @@ inline std::string getWKT(const std::vector<Polygon<T>>& ls) {
 // _____________________________________________________________________________
 template <typename T>
 inline double len(const Point<T>& g) {
+  UNUSED(g);
   return 0;
 }
 
@@ -772,24 +774,28 @@ inline double len(const Line<T>& g) {
 // _____________________________________________________________________________
 template <typename T>
 inline Point<T> simplify(const Point<T>& g, double d) {
+  UNUSED(d);
   return g;
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline LineSegment<T> simplify(const LineSegment<T>& g, double d) {
+  UNUSED(d);
   return g;
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> simplify(const Box<T>& g, double d) {
+  UNUSED(d);
   return g;
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline RotatedBox<T> simplify(const RotatedBox<T>& g, double d) {
+  UNUSED(d);
   return g;
 }
 
@@ -935,7 +941,7 @@ inline double parallelity(const Box<T>& box, const MultiLine<T>& multiline) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
   // TODO: implement this nicer, works for now, but inefficient
   // see
@@ -1016,8 +1022,8 @@ inline Box<T> getBoundingBox(const Box<T>& b) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename GeometryA>
-inline Box<T> getBoundingBox(const std::vector<GeometryA<T>>& multigeo) {
+template <template <typename> class Geometry, typename T>
+inline Box<T> getBoundingBox(const std::vector<Geometry<T>>& multigeo) {
   Box<T> b;
   b = extendBox(multigeo, b);
   return b;
@@ -1115,7 +1121,7 @@ inline Box<T> extendBox(const LineSegment<T>& ls, Box<T> b) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline Box<T> extendBox(const std::vector<Geometry<T>>& multigeom, Box<T> b) {
   for (const auto& g : multigeom) b = extendBox(g, b);
   return b;
@@ -1176,7 +1182,7 @@ inline double commonArea(const Box<T>& ba, const Box<T>& bb) {
 }
 
 // _____________________________________________________________________________
-template <typename T, template <typename> typename Geometry>
+template <template <typename> class Geometry, typename T>
 inline RotatedBox<T> getFullEnvelope(Geometry<T> pol) {
   Point<T> center = centroid(pol);
   Box<T> tmpBox = getBoundingBox(pol);

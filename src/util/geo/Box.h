@@ -29,7 +29,7 @@ class Box {
 
   bool operator==(const Box<T>& b) const {
     return getLowerLeft() == b.getLowerLeft() &&
-           getUpperRight == b.getUpperRight();
+           getUpperRight() == b.getUpperRight();
   }
 
   bool operator!=(const Box<T>& p) const { return !(*this == p); }

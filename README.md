@@ -1,5 +1,8 @@
 ![Map-Matched path of a single train through Switzerland](geo/schweiz_mmatched.png?raw=true)
 
+[![Build
+Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://travis-ci.org/ad-freiburg/pfaedle)
+
 # pfaedle
 
 Precise map-matching for public transit schedules (GTFS data).
@@ -7,7 +10,7 @@ Precise map-matching for public transit schedules (GTFS data).
 ## Requirements
 
  * `cmake`
- * `gcc` >= 4.8 (may work on lower versions, untested)
+ * `gcc` >= 4.8
 
 ## Building and Installation
 

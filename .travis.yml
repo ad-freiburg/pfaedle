@@ -22,9 +22,9 @@ before_script:
 
 script:
   - make -j4
-  - make test
+  - ctest --verbose
 
 notifications:
   email:
     on_success: never
-    on_failure: never 
+    on_failure: never

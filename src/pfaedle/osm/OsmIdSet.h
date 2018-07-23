@@ -13,6 +13,10 @@
 #include <vector>
 #include "pfaedle/osm/Osm.h"
 
+#ifndef POSIX_FADV_SEQUENTIAL
+#define POSIX_FADV_SEQUENTIAL 2
+#endif
+
 namespace pfaedle {
 namespace osm {
 

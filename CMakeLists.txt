@@ -60,6 +60,9 @@ else()
 	set(VERSION_GIT_FULL "${VERSION_GIT}-${VERSION_GIT_IS_DIRTY}")
 endif()
 
+include(CheckSymbolExists)
+check_symbol_exists(posix_fadvise fcntl.h HAVE_POSIX_FADVISE)
+
 add_subdirectory(src)
 
 # tests

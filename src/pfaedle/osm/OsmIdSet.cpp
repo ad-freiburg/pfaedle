@@ -283,7 +283,9 @@ int OsmIdSet::openTmpFile() const {
     exit(1);
   }
 
+#ifdef __unix__
   posix_fadvise(file, 0, 0, POSIX_FADV_SEQUENTIAL);
+#endif
   return file;
 }
 

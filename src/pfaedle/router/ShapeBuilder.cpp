@@ -2,7 +2,13 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#ifdef _OPENMP
 #include <omp.h>
+#else
+#define omp_get_thread_num() 0
+#define omp_get_num_procs() 1
+#endif
+
 #include <map>
 #include <mutex>
 #include <unordered_map>
@@ -49,7 +55,7 @@ ShapeBuilder::ShapeBuilder(Feed* feed, MOTs mots,
       _motCfg(motCfg),
       _ecoll(ecoll),
       _cfg(cfg),
-      _crouter(_g, omp_get_num_procs()),
+      _crouter(omp_get_num_procs()),
       _curShpCnt(0) {
   _numThreads = _crouter.getCacheNumber();
   writeMotStops();

@@ -29,7 +29,6 @@ class Collector {
  public:
   Collector(const std::string& evalOutPath, const std::vector<double>& dfBins)
       : _noOrigShp(0),
-        _noMatchShp(0),
         _fdSum(0),
         _unmatchedSegSum(0),
         _unmatchedSegLengthSum(0),
@@ -70,7 +69,6 @@ class Collector {
   std::map<const Shape*, std::map<const Shape*, std::pair<size_t, double> > >
       _dACache;
   size_t _noOrigShp;
-  size_t _noMatchShp;
 
   double _fdSum;
   size_t _unmatchedSegSum;

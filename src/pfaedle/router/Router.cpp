@@ -2,7 +2,13 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#ifdef _OPENMP
 #include <omp.h>
+#else
+#define omp_get_thread_num() 0
+#define omp_get_num_procs() 1
+#endif
+
 #include <algorithm>
 #include <fstream>
 #include <limits>
@@ -193,8 +199,7 @@ double CombCostFunc::operator()(const router::Edge* from, const router::Node* n,
 }
 
 // _____________________________________________________________________________
-Router::Router(const trgraph::Graph& g, size_t numThreads)
-    : _g(g), _cache(numThreads) {
+Router::Router(size_t numThreads) : _cache(numThreads) {
   for (size_t i = 0; i < numThreads; i++) {
     _cache[i] = new Cache();
   }

@@ -1,6 +1,12 @@
-language: generic
-sudo: false
-dist: trusty
+language: cpp
+
+os:
+    - linux
+    - osx
+
+compiler:
+    - gcc
+    - clang
 
 addons:
   apt:
@@ -21,4 +27,4 @@ script:
 notifications:
   email:
     on_success: never
-    on_failure: always
+    on_failure: never 

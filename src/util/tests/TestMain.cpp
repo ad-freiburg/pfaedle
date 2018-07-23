@@ -23,6 +23,7 @@ using namespace util::graph;
 const lest::test specification[] = {
 
 // ___________________________________________________________________________
+{
 CASE("atof") {
   EXPECT(util::atof("45.534215") == approx(45.534215));
   EXPECT(util::atof("5.534") == approx(5.534));
@@ -33,9 +34,10 @@ CASE("atof") {
 
 
   // TODO: more test cases
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("dirgraph") {
   DirGraph<int, int> g;
 
@@ -73,10 +75,11 @@ CASE("dirgraph") {
   g.delEdg(a, a);
   EXPECT(a->getDeg() == (size_t)1);
 
-  // TODO: more test cases 
-},
+  // TODO: more test cases
+}},
 
 // ___________________________________________________________________________
+{
 CASE("unddirgraph") {
   UndirGraph<int, int> g;
 
@@ -118,9 +121,10 @@ CASE("unddirgraph") {
 
   // TODO: more test cases
 
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("grid") {
   Grid<int, Line, double> g(.5, .5, Box<double>(Point<double>(0, 0), Point<double>(3, 3)));
 
@@ -151,9 +155,10 @@ CASE("grid") {
 
 
   // TODO: more test cases
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("densify") {
   Line<double> a;
   a.push_back(Point<double>(1, 1));
@@ -179,9 +184,10 @@ CASE("densify") {
 
   dense = util::geo::simplify(dense, 0.1);
   EXPECT(dense.size() == (size_t)3);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("summed frechet distance") {
   Line<double> a;
   a.push_back(Point<double>(1, 1));
@@ -203,9 +209,10 @@ CASE("summed frechet distance") {
 
   double fd = util::geo::accFrechetDistC(a, b, 0.1);
   EXPECT(fd == approx(2));
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("frechet distance") {
   Line<double> e;
   e.push_back(Point<double>(1, 1));
@@ -268,9 +275,10 @@ CASE("frechet distance") {
   fd = util::geo::frechetDist(g, h, 0.1);
 
   EXPECT(fd == approx(1));
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("geo box alignment") {
   Line<double> a;
   a.push_back(Point<double>(1, 1));
@@ -304,32 +312,36 @@ CASE("geo box alignment") {
   EXPECT(parallelity(box, ml) == approx(0));
   ml = rotate(ml, 45);
   EXPECT(parallelity(box, ml) == approx(1));
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("url decode") {
   EXPECT("zürich" == util::urlDecode("z%C3%BCrich"));
   EXPECT("!@$%^*()" == util::urlDecode("!%40%24%25%5E*()"));
   EXPECT("Løkken" == util::urlDecode("L%C3%B8kken"));
   EXPECT("á é" == util::urlDecode("%C3%A1%20%C3%A9"));
   EXPECT("á é" == util::urlDecode("%C3%A1+%C3%A9"));
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("json escape") {
   EXPECT("Hello\\\\Goodbye!" == util::jsonStringEscape("Hello\\Goodbye!"));
   EXPECT("\\\"Hello\\\"" == util::jsonStringEscape("\"Hello\""));
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("split") {
   EXPECT(util::split("hello,again", ',').size() == (size_t)2);
   EXPECT(util::split("hello,,again", ',').size() == (size_t)3);
   EXPECT(util::split("hello", ',').size() == (size_t)1);
   EXPECT(util::split("", ',').size() == (size_t)0);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("editdist") {
   EXPECT(util::editDist("hello", "mello") == (size_t)1);
   EXPECT(util::editDist("mello", "hello") == (size_t)1);
@@ -338,15 +350,17 @@ CASE("editdist") {
   EXPECT(util::editDist("xabcd", "abcde") == (size_t)2);
   EXPECT(util::editDist("abcd", "abcdes") == (size_t)2);
   EXPECT(util::editDist("hello", "hello") == (size_t)0);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("toString") {
   EXPECT(util::toString(34) == "34");
   EXPECT(util::toString("34") == "34");
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("replace") {
   std::string a("lorem ipsum ipsum lorem");
 
@@ -380,9 +394,10 @@ CASE("replace") {
 
   EXPECT(!util::replaceAll(b, "", "ee"));
   EXPECT(b == "loree aaaau aaaau loree");
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra directed, 1 to all") {
   DirGraph<std::string, int> g;
 
@@ -436,9 +451,10 @@ CASE("Edge-based Dijkstra directed, 1 to all") {
     int single = EDijkstra::shortestPath(u.first, eBC, cFunc);
     EXPECT(single == u.second);
   }
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra undirected, edge 1 to 1") {
   UndirGraph<std::string, int> g;
 
@@ -494,9 +510,10 @@ CASE("Edge-based Dijkstra undirected, edge 1 to 1") {
 
   cost = EDijkstra::shortestPath(eAB, b, cFunc, &resE, &res);
   EXPECT(cost == 0);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra undirected, edge 1 to n") {
   UndirGraph<std::string, int> g;
 
@@ -542,9 +559,10 @@ CASE("Edge-based Dijkstra undirected, edge 1 to n") {
   EDijkstra::EList<std::string, int> resE;
   int cost = EDijkstra::shortestPath(eAB, tos, cFunc, &resE, &res);
   EXPECT(cost == 0);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra undirected, 1 to n") {
   UndirGraph<std::string, int> g;
 
@@ -596,9 +614,10 @@ CASE("Edge-based Dijkstra undirected, 1 to n") {
 
   EXPECT(resE[eDC]->size() == (size_t)3);
   EXPECT(res[eED]->size() == (size_t)3);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra undirected") {
   UndirGraph<std::string, int> g;
 
@@ -668,9 +687,10 @@ CASE("Edge-based Dijkstra undirected") {
 
   cost = EDijkstra::shortestPath(a, d, cFunc, &res);
   EXPECT(cost == 2);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Edge-based Dijkstra") {
   DirGraph<int, int> g;
 
@@ -715,9 +735,10 @@ CASE("Edge-based Dijkstra") {
   cost = EDijkstra::shortestPath(a, d, cFunc, &res);
 
   EXPECT(cost == 2);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("Dijkstra") {
   DirGraph<int, int> g;
 
@@ -779,9 +800,10 @@ CASE("Dijkstra") {
   EXPECT(costs[c] == 1);
   EXPECT(costs[d] == 2);
   EXPECT(costs[x] == 999);
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("nullable") {
   {
     util::Nullable<std::string> nullable;
@@ -840,9 +862,10 @@ CASE("nullable") {
 
     EXPECT_THROWS(nullable == voidnull);
   }
-},
+}},
 
 // ___________________________________________________________________________
+{
 CASE("geometry") {
   geo::Point<double> a(1, 2);
   geo::Point<double> b(2, 3);
@@ -1188,7 +1211,7 @@ CASE("geometry") {
   EXPECT(geo::contains(geo::Polygon<double>({{0.0, 0.0}, {1.0, 1.0}, {1.5, 0.5}, {0.5, -0.5}}), geo::convexHull(obox)));
 }
 
-};
+}};
 
 // _____________________________________________________________________________
 int main(int argc, char** argv) {

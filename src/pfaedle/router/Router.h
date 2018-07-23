@@ -135,7 +135,7 @@ struct CombCostFunc
 class Router {
  public:
   // Init this router with caches for numThreads threads
-  Router(const trgraph::Graph& g, size_t numThreads);
+  explicit Router(size_t numThreads);
   ~Router();
 
   // Find the most likely path through the graph for a node candidate route.
@@ -160,8 +160,6 @@ class Router {
   size_t getCacheNumber() const;
 
  private:
-  const trgraph::Graph& _g;
-
   mutable std::vector<Cache*> _cache;
   HopBand getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
                      const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,

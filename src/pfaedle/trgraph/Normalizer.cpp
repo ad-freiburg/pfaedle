@@ -5,8 +5,9 @@
 #include <algorithm>
 #include <iostream>
 #include <regex>
-#include <utility>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 #include "pfaedle/trgraph/Normalizer.h"
 

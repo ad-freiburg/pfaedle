@@ -62,19 +62,20 @@ class NodePL : public GeoNodePL<float> {
   bool isBlocker() const;
 
   // Mark this node as visited (usefull for counting search space in Dijkstra)
+  // (only works for DEBUG build type)
   void setVisited() const;
 
  private:
-  std::string _b;
   // 32bit floats are enough here
   util::geo::FPoint _geom;
   StatInfo* _si;
   const Component* _component;
 
-  static StatInfo _blockerSI;
-
+#ifdef PFAEDLE_DBG
   mutable bool _vis;
+#endif
 
+  static StatInfo _blockerSI;
   static std::unordered_map<const Component*, size_t> _comps;
 };
 }  // namespace trgraph

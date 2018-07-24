@@ -66,7 +66,8 @@ class ShapeBuilder {
 
   static osm::BBoxIdx getPaddedGtfsBox(const Feed* feed, double pad,
                                        const MOTs& mots,
-                                       const std::string& tid);
+                                       const std::string& tid,
+                                       bool dropShapes);
 
  private:
   Feed* _feed;

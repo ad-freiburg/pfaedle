@@ -18,15 +18,21 @@ using std::string;
 using std::exception;
 using std::vector;
 
+static const char* YEAR = __DATE__ + 7;
+static const char* COPY =
+    "University of Freiburg - Chair of Algorithms and Data Structures";
+static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
+
 // _____________________________________________________________________________
-void ConfigReader::help() {
+void ConfigReader::help(const char* bin) {
   std::cout
       << std::setfill(' ') << std::left
-      << "\033[1mpfaedle GTFS map matcher \033[22m\n"
+      << "pfaedle GTFS map matcher\n"
       << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__ << ")\n\n"
-      << "(C) 2018 University of Freiburg\n"
-      << "Author: Patrick Brosi <brosi@informatik.uni-freiburg.de>\n\n"
+      << "(C) " << YEAR << " " << COPY << "\n"
+      << "Authors: " << AUTHORS << "\n\n"
       << "Usage: "
+      << bin
       << " -x <OSM FILE> -c <CFG FILE> <GTFS FEED>\n\n"
       << "Allowed options:\n\n"
       << "General:\n"
@@ -163,14 +169,17 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         cfg->dbgOutputPath = optarg;
         break;
       case 'v':
-        std::cout << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__
-                  << ")\n\n";
+        std::cout << "pfaedle " << VERSION_FULL << " (built " << __DATE__ << " "
+                  << __TIME__ << ")\n"
+                  << "(C) " << YEAR << " " << COPY << "\n"
+                  << "Authors: " << AUTHORS << "\nGNU General Public "
+                                               "License v3.0\n";
         exit(0);
       case 'p':
         printOpts = true;
         break;
       case 'h':
-        help();
+        help(argv[0]);
         exit(0);
       case ':':
         std::cerr << argv[optind - 1];

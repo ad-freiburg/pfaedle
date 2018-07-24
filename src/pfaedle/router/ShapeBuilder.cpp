@@ -187,9 +187,9 @@ pfaedle::router::Shape ShapeBuilder::shape(Trip* trip) {
 void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
   TrGraphEdgs gtfsGraph;
 
-  LOG(INFO) << "Clustering trips...";
+  LOG(DEBUG) << "Clustering trips...";
   Clusters clusters = clusterTrips(_feed, _mots);
-  LOG(INFO) << "Clustered trips into " << clusters.size() << " clusters.";
+  LOG(DEBUG) << "Clustered trips into " << clusters.size() << " clusters.";
 
   std::map<ad::cppgtfs::gtfs::Shape*, size_t> shpUsage;
   for (auto t : _feed->getTrips()) {
@@ -218,11 +218,18 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
       {
         LOG(INFO) << "@ " << j << " / " << clusters.size() << " ("
                   << (static_cast<int>((j * 1.0) / clusters.size() * 100))
-                  << "%, " << (EDijkstra::ITERS - oiters) << " iters, tput "
+                  << "%, "
+                  << (EDijkstra::ITERS - oiters) << " iters, "
+                  /**
+                    TODO: this is actually misleading. We are counting the
+                    Dijkstra iterations, but the measuring them against
+                    the total running time (including all overhead + HMM solve)
+                  << tput "
                   << (static_cast<double>(EDijkstra::ITERS - oiters)) /
                          TOOK(t1, TIME())
-                  << " iters/ms"
-                  << ", " << (10.0 / (TOOK(t1, TIME()) / 1000))
+                  << " iters/ms, "
+                  **/
+                  << "matching " << (10.0 / (TOOK(t1, TIME()) / 1000))
                   << " trips/sec)";
 
         oiters = EDijkstra::ITERS;
@@ -265,19 +272,18 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
     }
   }
 
-  LOG(INFO) << "Done.";
   LOG(INFO) << "Matched " << totNumTrips << " trips in " << clusters.size()
             << " clusters.";
-  LOG(INFO) << "Took " << (EDijkstra::ITERS - totiters)
+  LOG(DEBUG) << "Took " << (EDijkstra::ITERS - totiters)
             << " iterations in total.";
-  LOG(INFO) << "Took " << TOOK(t2, TIME()) << " ms in total.";
-  LOG(INFO) << "Total avg. tput "
+  LOG(DEBUG) << "Took " << TOOK(t2, TIME()) << " ms in total.";
+  LOG(DEBUG) << "Total avg. tput "
             << (static_cast<double>(EDijkstra::ITERS - totiters)) /
                    TOOK(t2, TIME())
             << " iters/sec";
-  LOG(INFO) << "Total avg. trip tput "
+  LOG(DEBUG) << "Total avg. trip tput "
             << (clusters.size() / (TOOK(t2, TIME()) / 1000)) << " trips/sec";
-  LOG(INFO) << "Avg hop distance was "
+  LOG(DEBUG) << "Avg hop distance was "
             << (totAvgDist / static_cast<double>(clusters.size())) << " meters";
 
   if (_cfg.buildTransitGraph) {
@@ -438,11 +444,13 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) const {
 
 // _____________________________________________________________________________
 BBoxIdx ShapeBuilder::getPaddedGtfsBox(const Feed* feed, double pad,
-                                       const MOTs& mots,
-                                       const std::string& tid) {
+                                       const MOTs& mots, const std::string& tid,
+                                       bool dropShapes) {
   osm::BBoxIdx box(pad);
   for (const auto& t : feed->getTrips()) {
     if (!tid.empty() && t.second->getId() != tid) continue;
+    if (tid.empty() && t.second->getShape() && !dropShapes) continue;
+    if (t.second->getStopTimes().size() < 2) continue;
     if (mots.count(t.second->getRoute()->getType())) {
       Box<float> cur = minbox<float>();
       for (const auto& st : t.second->getStopTimes()) {
@@ -458,10 +466,11 @@ BBoxIdx ShapeBuilder::getPaddedGtfsBox(const Feed* feed, double pad,
 
 // _____________________________________________________________________________
 void ShapeBuilder::buildGraph() {
-  LOG(INFO) << "Reading " << _cfg.osmPath << " ... ";
   osm::OsmBuilder osmBuilder;
 
-  osm::BBoxIdx box = getPaddedGtfsBox(_feed, 2500, _mots, _cfg.shapeTripId);
+  osm::BBoxIdx box =
+      getPaddedGtfsBox(_feed, 2500, _mots, _cfg.shapeTripId, _cfg.dropShapes);
+
 
   osmBuilder.read(_cfg.osmPath, _motCfg.osmBuildOpts, &_g, box, _cfg.gridSize,
                   getFeedStops(), &_restr);
@@ -475,8 +484,6 @@ void ShapeBuilder::buildGraph() {
           _motCfg.routingOpts.nonOsmPen);
     }
   }
-
-  LOG(INFO) << "Done.";
 }
 
 // _____________________________________________________________________________
@@ -525,7 +532,6 @@ Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
 
   Clusters ret;
   for (const auto& trip : f->getTrips()) {
-    // if (trip.second->getId() != "L5Cvl_T01") continue;
     if (trip.second->getShape() && !_cfg.dropShapes) continue;
     if (trip.second->getStopTimes().size() < 2) continue;
     if (!mots.count(trip.second->getRoute()->getType()) ||

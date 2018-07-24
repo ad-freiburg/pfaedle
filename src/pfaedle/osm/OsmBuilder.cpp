@@ -54,6 +54,8 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   if (!bbox.size()) return;
   if (!fs->size()) return;
 
+  LOG(INFO) << "Reading OSM file " << path << " ... ";
+
   NodeSet orphanStations;
   EdgTracks eTracks;
   {
@@ -210,7 +212,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   LOG(VDEBUG) << "Write dummy node self-edges...";
   writeSelfEdgs(g);
 
-  LOG(INFO) << "Graph has " << g->getNds()->size() << " nodes and " << comps
+  LOG(DEBUG) << "Graph has " << g->getNds()->size() << " nodes and " << comps
             << " connected component(s)";
 }
 

@@ -14,7 +14,7 @@ namespace config {
 class ConfigReader {
  public:
   static void read(Config* targetConfig, int argc, char** argv);
-  static void help();
+  static void help(const char* bin);
 };
 }
 }

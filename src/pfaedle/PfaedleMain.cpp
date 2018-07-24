@@ -56,14 +56,19 @@ int main(int argc, char** argv) {
 
   motCfgReader.parse(cfg.configPaths);
 
+  if (cfg.osmPath.empty()) {
+    std::cerr << "No OSM input file specified (-x), see --help." << std::endl;
+    exit(5);
+  }
+
   if (cfg.feedPaths.size() == 1) {
     LOG(INFO) << "Reading " << cfg.feedPaths[0] << " ...";
     ad::cppgtfs::Parser p;
     p.parse(&gtfs, cfg.feedPaths[0]);
     LOG(INFO) << "Done.";
   } else if (cfg.feedPaths.size() > 1) {
-    LOG(ERROR) << "Maximal one input feed allowed.";
-    exit(1);
+    std::cerr << "Maximally one input feed allowed." << std::endl;
+    exit(2);
   }
 
   LOG(DEBUG) << "Read " << motCfgReader.getConfigs().size()
@@ -75,7 +80,7 @@ int main(int argc, char** argv) {
     singleTrip = gtfs.getTrips().get(cfg.shapeTripId);
     if (!singleTrip) {
       LOG(ERROR) << "Trip #" << cfg.shapeTripId << " not found.";
-      exit(1);
+      exit(3);
     }
   }
 
@@ -84,7 +89,7 @@ int main(int argc, char** argv) {
     BBoxIdx box(2500);
     if (cfg.feedPaths.size()) {
       box = ShapeBuilder::getPaddedGtfsBox(&gtfs, 2500, cmdCfgMots,
-                                           cfg.shapeTripId);
+                                           cfg.shapeTripId, true);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -96,6 +101,13 @@ int main(int argc, char** argv) {
     }
     osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
     exit(0);
+  } else if (!cfg.feedPaths.size()) {
+    std::cout << "No input feed specified, see --help" << std::endl;
+    exit(1);
+  }
+
+  if (motCfgReader.getConfigs().size() == 0) {
+    LOG(WARN) << "No MOT configurations specified, see --help.";
   }
 
   std::vector<double> dfBins;

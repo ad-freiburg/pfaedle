@@ -405,6 +405,14 @@ inline bool intersects(const LineSegment<T>& ls1, const LineSegment<T>& ls2) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline bool intersects(const Point<T>& a, const Point<T>& b, const Point<T>& c,
+                       const Point<T>& d) {
+  // legacy function
+  return intersects(LineSegment<T>(a, b), LineSegment<T>(c, d));
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline bool intersects(const Line<T>& ls1, const Line<T>& ls2) {
   for (size_t i = 1; i < ls1.size(); i++) {
     for (size_t j = 1; j < ls2.size(); j++) {
@@ -604,6 +612,78 @@ inline double angBetween(const Point<T>& p1, const Point<T>& q1) {
 inline double dist(double x1, double y1, double x2, double y2) {
   return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const LineSegment<T>& ls, const Point<T>& p) {
+  return distToSegment(ls, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Point<T>& p, const LineSegment<T>& ls) {
+  return dist(ls, p);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const LineSegment<T>& ls1, const LineSegment<T>& ls2) {
+  if (intersects(ls1, ls2)) return 0;
+  double d1 = dist(ls1.first, ls2);
+  double d2 = dist(ls1.second, ls2);
+  double d3 = dist(ls2.first, ls1);
+  double d4 = dist(ls2.second, ls1);
+  return std::min(d1, std::min(d2, (std::min(d3, d4))));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Point<T>& p, const Line<T>& l) {
+  double d = std::numeric_limits<double>::infinity();
+  for (size_t i = 1; i < l.size(); i++) {
+    double dTmp = distToSegment(l[i-1], l[i], p);
+    if (dTmp < EPSILON) return 0;
+    if (dTmp < d) d = dTmp;
+  }
+  return d;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Line<T>& l, const Point<T>& p) {
+  return dist(p, l);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const LineSegment<T>& ls, const Line<T>& l) {
+  double d = std::numeric_limits<double>::infinity();
+  for (size_t i = 1; i < l.size(); i++) {
+    double dTmp = dist(ls, LineSegment<T>(l[i-1], l[i]));
+    if (dTmp < EPSILON) return 0;
+    if (dTmp < d) d = dTmp;
+  }
+  return d;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Line<T>& l, const LineSegment<T>& ls) {
+  return dist(ls, l);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Line<T>& la, const Line<T>& lb) {
+  double d = std::numeric_limits<double>::infinity();
+  for (size_t i = 1; i < la.size(); i++) {
+    double dTmp = dist(LineSegment<T>(la[i-1], la[i]), lb);
+    if (dTmp < EPSILON) return 0;
+    if (dTmp < d) d = dTmp;
+  }
+  return d;
+}
+
 
 // _____________________________________________________________________________
 inline double innerProd(double x1, double y1, double x2, double y2, double x3,

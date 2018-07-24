@@ -1024,7 +1024,7 @@ CASE("geometry") {
   EXPECT(geo::dist(geo::centroid(Polygon<double>({{0, 0}, {3, 4}, {4,3}})), Point<double>(7.0/3.0,7.0/3.0)) == approx(0));
 
   auto polyy = Polygon<double>({{0, 0}, {3, 4}, {4,3}});
-  MultiPolyon<double> mpoly{polyy, polyy};
+  MultiPolygon<double> mpoly{polyy, polyy};
 
   EXPECT(geo::getWKT(polyy) == "POLYGON ((0 0, 3 4, 4 3, 0 0))");
   EXPECT(geo::getWKT(mpoly) == "MULTIPOLYGON (((0 0, 3 4, 4 3, 0 0)), ((0 0, 3 4, 4 3, 0 0)))");
@@ -1209,6 +1209,23 @@ CASE("geometry") {
   auto obox = geo::getOrientedEnvelope(geo::Line<double>{{0, 0}, {1, 1}, {1.5, 0.5}});
   EXPECT(geo::contains(geo::convexHull(obox), geo::Polygon<double>({{0.0, 0.0}, {1.0, 1.0}, {1.5, 0.5}, {0.5, -0.5}})));
   EXPECT(geo::contains(geo::Polygon<double>({{0.0, 0.0}, {1.0, 1.0}, {1.5, 0.5}, {0.5, -0.5}}), geo::convexHull(obox)));
+
+  EXPECT(geo::dist(geo::LineSegment<double>{{1, 1}, {3, 1}}, geo::LineSegment<double>{{2, 2}, {2, 0}}) == approx(0));
+  EXPECT(geo::dist(geo::LineSegment<double>{{1, 1}, {3, 1}}, geo::LineSegment<double>{{2, 4}, {2, 2}}) == approx(1));
+  EXPECT(geo::dist(geo::LineSegment<double>{{1, 1}, {3, 1}}, geo::LineSegment<double>{{1, 1}, {3, 1}}) == approx(0));
+  EXPECT(geo::dist(geo::LineSegment<double>{{1, 1}, {3, 1}}, geo::LineSegment<double>{{1, 2}, {3, 2}}) == approx(1));
+  EXPECT(geo::dist(geo::LineSegment<double>{{1, 1}, {3, 1}}, geo::LineSegment<double>{{1, 2}, {3, 5}}) == approx(1));
+
+  EXPECT(geo::dist(geo::Line<double>{{1, 1}, {3, 1}}, geo::Point<double>{2, 1}) == approx(0));
+  EXPECT(geo::dist(geo::Line<double>{{1, 1}, {3, 1}}, geo::Point<double>{2, 2}) == approx(1));
+  EXPECT(geo::dist(geo::Line<double>{{1, 1}, {3, 1}}, geo::Point<double>{3, 1}) == approx(0));
+  EXPECT(geo::dist(geo::Line<double>{{1, 1}, {3, 1}}, geo::Point<double>{1, 1}) == approx(0));
+
+  EXPECT(geo::dist(Line<double>{{7, 7}, {7, -7}, {-7, -7}, {-7, 7}, {9, 0}, {-9, 0}, {0, 9}, {0, -9}}, Line<double>{{7, 7}, {7, -7}, {-7, -7}, {-7, 7}, {9, 0}, {-9, 0}, {0, 9}, {0, -9}}) == approx(0));
+  EXPECT(geo::dist(Line<double>{{7, 7}, {7, -7}, {-7, -7}, {-7, 7}, {9, 0}, {-9, 0}, {0, 9}, {0, -9}}, LineSegment<double>{{6, 7}, {8, -7}}) == approx(0));
+  EXPECT(geo::dist(Line<double>{{7, 7}, {7, -7}, {-7, -7}, {-7, 7}, {9, 0}, {-9, 0}, {0, 9}, {0, -9}}, Point<double>{7, 4}) == approx(0));
+  EXPECT(geo::dist(Line<double>{{0, 0}, {1, 1}, {2, 0}}, Line<double>{{1.5, 0.5}, {1.5, 100}}) == approx(0));
+  EXPECT(geo::dist(Line<double>{{0, 0}, {1, 1}, {2, 0}}, Line<double>{{2, 0.5}, {2, 100}}) == approx(0.353553));
 }
 
 }};

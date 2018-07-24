@@ -33,7 +33,7 @@ class Polygon {
 };
 
 template <typename T>
-using MultiPolyon = std::vector<Polygon<T>>;
+using MultiPolygon = std::vector<Polygon<T>>;
 
 }  // namespace geo
 }  // namespace util

@@ -21,21 +21,52 @@ StatInfo NodePL::_blockerSI = StatInfo();
 std::unordered_map<const Component*, size_t> NodePL::_comps;
 
 // _____________________________________________________________________________
-NodePL::NodePL() : _geom(0, 0), _si(0), _component(0), _vis(0) {}
+NodePL::NodePL()
+    : _geom(0, 0),
+      _si(0),
+      _component(0)
+#ifdef PFAEDLE_DBG
+      ,
+      _vis(0)
+#endif
+{
+}
 
 // _____________________________________________________________________________
 NodePL::NodePL(const NodePL& pl)
-    : _geom(pl._geom), _si(0), _component(pl._component), _vis(pl._vis) {
+    : _geom(pl._geom),
+      _si(0),
+      _component(pl._component)
+#ifdef PFAEDLE_DBG
+      ,
+      _vis(pl._vis)
+#endif
+{
   if (pl._si) setSI(*(pl._si));
 }
 
 // _____________________________________________________________________________
 NodePL::NodePL(const util::geo::FPoint& geom)
-    : _geom(geom), _si(0), _component(0), _vis(0) {}
+    : _geom(geom),
+      _si(0),
+      _component(0)
+#ifdef PFAEDLE_DBG
+      ,
+      _vis(0)
+#endif
+{
+}
 
 // _____________________________________________________________________________
 NodePL::NodePL(const util::geo::FPoint& geom, const StatInfo& si)
-    : _geom(geom), _si(0), _component(0), _vis(0) {
+    : _geom(geom),
+      _si(0),
+      _component(0)
+#ifdef PFAEDLE_DBG
+      ,
+      _vis(0)
+#endif
+{
   setSI(si);
 }
 
@@ -52,7 +83,11 @@ NodePL::~NodePL() {
 }
 
 // _____________________________________________________________________________
-void NodePL::setVisited() const { _vis = true; }
+void NodePL::setVisited() const {
+#ifdef PFAEDLE_DBG
+  _vis = true;
+#endif
+}
 
 // _____________________________________________________________________________
 void NodePL::setNoStat() { _si = 0; }
@@ -81,7 +116,9 @@ void NodePL::setGeom(const util::geo::FPoint& geom) { _geom = geom; }
 // _____________________________________________________________________________
 void NodePL::getAttrs(std::map<std::string, std::string>* obj) const {
   (*obj)["component"] = std::to_string(reinterpret_cast<size_t>(_component));
+#ifdef PFAEDLE_DBG
   (*obj)["dijkstra_vis"] = _vis ? "yes" : "no";
+#endif
   if (getSI()) {
     (*obj)["station_info_ptr"] = util::toString(_si);
     (*obj)["station_name"] = _si->getName();

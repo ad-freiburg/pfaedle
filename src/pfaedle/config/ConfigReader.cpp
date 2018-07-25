@@ -26,20 +26,19 @@ static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
 // _____________________________________________________________________________
 void ConfigReader::help(const char* bin) {
   std::cout
-      << std::setfill(' ') << std::left
-      << "pfaedle GTFS map matcher\n"
+      << std::setfill(' ') << std::left << "pfaedle GTFS map matcher\n"
       << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__ << ")\n\n"
       << "(C) " << YEAR << " " << COPY << "\n"
       << "Authors: " << AUTHORS << "\n\n"
-      << "Usage: "
-      << bin
-      << " -x <OSM FILE> -c <CFG FILE> <GTFS FEED>\n\n"
+      << "Usage: " << bin << " -x <OSM FILE> -c <CFG FILE> <GTFS FEED>\n\n"
       << "Allowed options:\n\n"
       << "General:\n"
       << std::setw(35) << "  -v [ --version ]"
       << "print version\n"
       << std::setw(35) << "  -h [ --help ]"
       << "show this help message\n"
+      << std::setw(35) << "  -D [ --drop-shapes ]"
+      << "drop shapes already present in the feed and recalculate them\n"
       << "\nInput:\n"
       << std::setw(35) << "  -c [ --config ] arg"
       << "pfaedle config file\n"
@@ -68,7 +67,8 @@ void ConfigReader::help(const char* bin) {
       << std::setw(35) << "  --write-graph"
       << "write routing graph as GeoJSON to <dbg-path>/graph.json\n"
       << std::setw(35) << "  --write-cgraph"
-      << "write combination graph as GeoJSON to <dbg-path>/combraph.json\n"
+      << "if -T is set, write combination graph as GeoJSON to "
+         "<dbg-path>/combgraph.json\n"
       << std::setw(35) << "  --method arg (=global)"
       << "matching method to use, either 'global' (based on HMM), 'greedy' or "
          "'greedy2'\n"

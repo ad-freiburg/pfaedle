@@ -36,6 +36,7 @@ using pfaedle::config::ConfigReader;
 using pfaedle::eval::Collector;
 
 std::string getMotStr(const MOTs& mots);
+std::string getFileNameMotStr(const MOTs& mots);
 MOTs getContMots(const MotConfig& motCfg, const MOTs& mots);
 
 // _____________________________________________________________________________
@@ -116,8 +117,11 @@ int main(int argc, char** argv) {
   Collector ecoll(cfg.evalPath, dfBins);
 
   for (const auto& motCfg : motCfgReader.getConfigs()) {
+    std::string filePost;
     auto usedMots = getContMots(motCfg, cmdCfgMots);
     if (!usedMots.size()) continue;
+    if (motCfgReader.getConfigs().size() > 1)
+      filePost = getFileNameMotStr(usedMots);
 
     std::string motStr = getMotStr(usedMots);
     LOG(INFO) << "Calculating shapes for mots " << motStr;
@@ -125,7 +129,7 @@ int main(int argc, char** argv) {
     ShapeBuilder shapeBuilder(&gtfs, cmdCfgMots, motCfg, &ecoll, cfg);
 
     if (cfg.writeGraph) {
-      LOG(INFO) << "Outputting graph.json...";
+      LOG(INFO) << "Outputting graph" + filePost + ".json...";
       util::geo::output::GeoGraphJsonOutput out;
       std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
       out.print(*shapeBuilder.getGraph(), fstr);
@@ -155,9 +159,9 @@ int main(int argc, char** argv) {
     shapeBuilder.shape(&ng);
 
     if (cfg.buildTransitGraph) {
-      LOG(INFO) << "Outputting trgraph.json...";
       util::geo::output::GeoGraphJsonOutput out;
-      std::ofstream fstr(cfg.dbgOutputPath + "/trgraph.json");
+      LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
+      std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
       out.print(ng, fstr);
       fstr.close();
     }
@@ -182,6 +186,16 @@ std::string getMotStr(const MOTs& mots) {
     if (first) motStr += ", ";
     motStr += "<" + Route::getTypeString(mot) + ">";
     first = true;
+  }
+
+  return motStr;
+}
+
+// _____________________________________________________________________________
+std::string getFileNameMotStr(const MOTs& mots) {
+  std::string motStr;
+  for (const auto& mot : mots) {
+    motStr += "-" + Route::getTypeString(mot);
   }
 
   return motStr;

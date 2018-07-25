@@ -45,7 +45,7 @@ osm/spain-latest.osm.pbf:
 	mkdir -p osm
 	wget http://download.geofabrik.de/europe/spain-latest.osm.pbf -O $@
 
-osm/spain-latest.osm: osm/spain-latest.osm.pbf osmconvert 
+osm/spain-latest.osm: osm/spain-latest.osm.pbf osmconvert
 	@# pre-filter to vitoria gasteiz
 	osmconvert -b=-2.8661,42.7480,-2.4788,43.0237 $< > $@
 
@@ -53,14 +53,14 @@ osm/baden-wuerttemberg-latest.osm.pbf:
 	mkdir -p osm
 	wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg-latest.osm.pbf -O $@
 
-osm/baden-wuerttemberg-latest.osm: osm/baden-wuerttemberg-latest.osm.pbf osmconvert 
+osm/baden-wuerttemberg-latest.osm: osm/baden-wuerttemberg-latest.osm.pbf osmconvert
 	osmconvert $< > $@
 
 osm/france-latest.osm.pbf:
 	mkdir -p osm
 	wget http://download.geofabrik.de/europe/france-latest.osm.pbf -O $@
 
-osm/paris-latest.osm: osm/france-latest.osm.pbf osmconvert 
+osm/paris-latest.osm: osm/france-latest.osm.pbf osmconvert
 	@# pre-filter to greater ile de france
 	osmconvert -b=0.374,47.651,4.241,50.261 $< > $@
 
@@ -68,7 +68,7 @@ osm/europe-latest.osm.pbf:
 	mkdir -p osm
 	wget http://download.geofabrik.de/europe-latest.osm.pbf -O $@
 
-osm/switzerland-latest.osm: osm/europe-latest.osm.pbf osmconvert 
+osm/switzerland-latest.osm: osm/europe-latest.osm.pbf osmconvert
 	@# pre-filter to greater switzerland
 	osmconvert -b=3.757,44.245,15.579,52.670 $< > $@
 
@@ -87,21 +87,21 @@ gtfs/stuttgart/%.txt:
 	echo "* to brosi@cs.informatik.uni-freiburg.de to receive the password. "
 	echo "******************************************************************"
 	wget http://www.vvs.de/download/opendata/VVS_GTFS.zip --ask-password --user vvsopendata01 -O gtfs/stuttgart/gtfs.zip
-	cd gtfs/stuttgart && unzip gtfs.zip
+	cd gtfs/stuttgart && unzip -o gtfs.zip
 	rm gtfs/stuttgart/gtfs.zip
 
 gtfs/paris/%.txt:
 	mkdir -p gtfs
 	mkdir -p gtfs/paris
 	wget https://transitfeeds.com/p/stif/822/latest/download -O gtfs/paris/gtfs.zip
-	cd gtfs/paris && unzip gtfs.zip
+	cd gtfs/paris && unzip -o gtfs.zip
 	rm gtfs/paris/gtfs.zip
 
 gtfs/switzerland/%.txt:
 	mkdir -p gtfs
 	mkdir -p gtfs/switzerland
 	wget http://gtfs.geops.ch/dl/gtfs_complete.zip -O gtfs/switzerland/gtfs.zip
-	cd gtfs/switzerland && unzip gtfs.zip
+	cd gtfs/switzerland && unzip -o gtfs.zip
 	rm gtfs/switzerland/gtfs.zip
 
 osm/vitoria.osm: osm/spain-latest.osm gtfs/vitoria/stops.txt eval.cfg

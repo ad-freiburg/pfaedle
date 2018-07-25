@@ -63,7 +63,7 @@ A default configuration file `pfaedle.cfg` can be found in this repo.
 
 To generate shapes only for a specific mot, use the `-m` option. Possible
 values are either `tram`, `bus`, `rail`, `subway`, `ferry`, `funicular`,
-`gondola`, `all` (default).
+`gondola`, `all` (default) or GTFS vehicle type codes (0, 1, 2, 3, 4, 5, 6, 7).
 
 Multiple values can be specified (comma separated).
 
@@ -87,12 +87,13 @@ The following flags may be useful for debugging:
    `<dbg-path>/graph.json`
  * `--write-cgraph` if `-T` is set, write the combination graph used for
    routing as GeoJSON to `<dbg-path>/combgraph.json`
+ * `--write-trgraph` write the complete network graph to `<dbg-path>/trgraph.json`
 
 # Configuration
 
 The main config file distributed with this repository is `pfaedle.cfg`. The
 config file has some comments which hopefully explain the meaning behind the
-parameters
+parameters.
 
 # Evaluation
 

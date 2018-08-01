@@ -114,18 +114,19 @@ const util::geo::FPoint* NodePL::getGeom() const { return &_geom; }
 void NodePL::setGeom(const util::geo::FPoint& geom) { _geom = geom; }
 
 // _____________________________________________________________________________
-void NodePL::getAttrs(std::map<std::string, std::string>* obj) const {
-  (*obj)["component"] = std::to_string(reinterpret_cast<size_t>(_component));
+util::json::Dict NodePL::getAttrs() const {
+  util::json::Dict obj;
+  obj["component"] = std::to_string(reinterpret_cast<size_t>(_component));
 #ifdef PFAEDLE_DBG
-  (*obj)["dijkstra_vis"] = _vis ? "yes" : "no";
+  obj["dijkstra_vis"] = _vis ? "yes" : "no";
 #endif
   if (getSI()) {
-    (*obj)["station_info_ptr"] = util::toString(_si);
-    (*obj)["station_name"] = _si->getName();
-    (*obj)["station_alt_names"] = util::implode(_si->getAltNames(), ",");
-    (*obj)["from_osm"] = _si->isFromOsm() ? "yes" : "no";
-    (*obj)["station_platform"] = _si->getTrack();
-    (*obj)["station_group"] =
+    obj["station_info_ptr"] = util::toString(_si);
+    obj["station_name"] = _si->getName();
+    obj["station_alt_names"] = util::implode(_si->getAltNames(), ",");
+    obj["from_osm"] = _si->isFromOsm() ? "yes" : "no";
+    obj["station_platform"] = _si->getTrack();
+    obj["station_group"] =
         std::to_string(reinterpret_cast<size_t>(_si->getGroup()));
 
     std::stringstream gtfsIds;
@@ -135,8 +136,9 @@ void NodePL::getAttrs(std::map<std::string, std::string>* obj) const {
       }
     }
 
-    (*obj)["station_group_stops"] = gtfsIds.str();
+    obj["station_group_stops"] = gtfsIds.str();
   }
+  return obj;
 }
 
 // _____________________________________________________________________________

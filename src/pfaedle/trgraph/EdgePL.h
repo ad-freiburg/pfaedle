@@ -57,7 +57,7 @@ class EdgePL : public GeoEdgePL<float> {
   void addPoint(const util::geo::FPoint& p);
 
   // Fill obj with k/v pairs describing the parameters of this payload.
-  void getAttrs(std::map<std::string, std::string>* obj) const;
+  util::json::Dict getAttrs() const;
 
   // Return the length in meters stored for this edge payload
   double getLength() const;

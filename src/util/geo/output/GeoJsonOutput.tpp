@@ -4,7 +4,7 @@
 
 // _____________________________________________________________________________
 template <typename T>
-void GeoJsonOutput::print(const Point<T>& p, Attrs attrs) {
+void GeoJsonOutput::print(const Point<T>& p, json::Val attrs) {
   _wr.obj();
   _wr.keyVal("type", "Feature");
 
@@ -18,13 +18,13 @@ void GeoJsonOutput::print(const Point<T>& p, Attrs attrs) {
   _wr.close();
   _wr.close();
   _wr.key("properties");
-  _wr.obj(attrs);
+  _wr.val(attrs);
   _wr.close();
 }
 
 // _____________________________________________________________________________
 template <typename T>
-void GeoJsonOutput::print(const Line<T>& line, Attrs attrs) {
+void GeoJsonOutput::print(const Line<T>& line, json::Val attrs) {
   if (!line.size()) return;
   _wr.obj();
   _wr.keyVal("type", "Feature");
@@ -37,12 +37,12 @@ void GeoJsonOutput::print(const Line<T>& line, Attrs attrs) {
   for (auto p : line) {
     _wr.arr();
     _wr.val(p.getX());
-    _wr.val(p.template getY());
+    _wr.val(p.getY());
     _wr.close();
   }
   _wr.close();
   _wr.close();
   _wr.key("properties");
-  _wr.obj(attrs);
+  _wr.val(attrs);
   _wr.close();
 }

@@ -21,7 +21,7 @@
 #include "pfaedle/trgraph/Graph.h"
 #include "util/geo/output/GeoGraphJsonOutput.h"
 #include "util/geo/output/GeoJsonOutput.h"
-#include "util/json/JsonWriter.h"
+#include "util/json/Writer.h"
 #include "util/log/Log.h"
 
 using std::string;
@@ -145,10 +145,10 @@ int main(int argc, char** argv) {
 
       if (singleTrip->getShape()) {
         auto orig = Collector::getWebMercLine(singleTrip->getShape(), -1, -1);
-        o.print(orig, {{"ver", "old"}});
+        o.print(orig, util::json::Dict{{"ver", "old"}});
       }
 
-      o.print(l, {{"ver", "new"}});
+      o.print(l, util::json::Dict{{"ver", "new"}});
       o.flush();
       pstr.close();
 

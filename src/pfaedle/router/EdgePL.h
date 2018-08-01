@@ -19,7 +19,7 @@ class EdgePL : public GeoEdgePL<float> {
  public:
   EdgePL() : _cost(), _start(0), _end(0), _startE(0), _endE(0) {}
   const util::geo::FLine* getGeom() const;
-  void getAttrs(std::map<std::string, std::string>* attrs) const;
+  util::json::Dict getAttrs() const;
   router::EdgeList* getEdges();
   const router::EdgeList& getEdges() const;
   void setStartNode(const trgraph::Node* s);

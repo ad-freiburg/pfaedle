@@ -7,6 +7,7 @@
 
 #include <cfloat>
 #include <ostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include "Geo.h"

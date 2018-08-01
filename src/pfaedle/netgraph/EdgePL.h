@@ -5,9 +5,9 @@
 #ifndef PFAEDLE_NETGRAPH_EDGEPL_H_
 #define PFAEDLE_NETGRAPH_EDGEPL_H_
 
-#include <map>
 #include <set>
 #include <string>
+#include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "util/String.h"
 #include "util/geo/GeoGraph.h"
@@ -33,12 +33,14 @@ class EdgePL : public GeoEdgePL<float> {
     }
   }
   const util::geo::FLine* getGeom() const { return &_l; }
-  void getAttrs(std::map<std::string, std::string>* obj) const {
-    (*obj)["num_trips"] = std::to_string(_trips.size());
-    (*obj)["route_short_names"] =
-        util::implode(_routeShortNames.begin(), _routeShortNames.end(), ", ");
-    (*obj)["trip_short_names"] =
-        util::implode(_tripShortNames.begin(), _tripShortNames.end(), ", ");
+  util::json::Dict getAttrs() const {
+    util::json::Dict obj;
+    obj["num_trips"] = static_cast<int>(_trips.size());
+    obj["route_short_names"] = util::json::Array(
+        _routeShortNames.begin(), _routeShortNames.end());
+    obj["trip_short_names"] = util::json::Array(_tripShortNames.begin(),
+                                                       _tripShortNames.end());
+    return obj;
   }
 
  private:

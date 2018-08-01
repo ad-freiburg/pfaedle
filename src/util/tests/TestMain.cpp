@@ -7,6 +7,7 @@
 #include "util/Nullable.h"
 #include "util/String.h"
 #include "util/geo/Geo.h"
+#include "util/json/Writer.h"
 #include "util/graph/DirGraph.h"
 #include "util/graph/UndirGraph.h"
 #include "util/graph/Dijkstra.h"
@@ -34,6 +35,56 @@ CASE("atof") {
 
 
   // TODO: more test cases
+}},
+
+// ___________________________________________________________________________
+{
+CASE("json") {
+  std::stringstream ss;
+  util::json::Writer wr(&ss, 2, false);
+
+  util::json::Val a("bla");
+  util::json::Val b(1);
+  util::json::Val c(1.0);
+  util::json::Val d("a");
+  util::json::Val e({"a", "b", "c"});
+
+  util::json::Val f({1, json::Array{2, 3, 4}, 3});
+
+  ss = std::stringstream();
+  wr = util::json::Writer(&ss, 2, false);
+  util::json::Val i({1, json::Array{2, json::Null(), 4}, true});
+  wr.val(i);
+  wr.closeAll();
+  EXPECT(ss.str() == "[1,[2,null,4],true]");
+
+  ss = std::stringstream();
+  wr = util::json::Writer(&ss, 2, false);
+  i = util::json::Val({1, json::Array{2, json::Null(), 4}, false});
+  wr.val(i);
+  wr.closeAll();
+  EXPECT(ss.str() == "[1,[2,null,4],false]");
+
+  ss = std::stringstream();
+  wr = util::json::Writer(&ss, 2, false);
+  i = util::json::Val({1, json::Array{2, json::Null(), 4}, false});
+  wr.val(i);
+  wr.closeAll();
+  EXPECT(ss.str() == "[1,[2,null,4],false]");
+
+  ss = std::stringstream();
+  wr = util::json::Writer(&ss, 2, false);
+  i = util::json::Val({1, json::Array{2.13, "", 4}, 0});
+  wr.val(i);
+  wr.closeAll();
+  EXPECT(ss.str() == "[1,[2.13,\"\",4],0]");
+
+  ss = std::stringstream();
+  wr = util::json::Writer(&ss, 2, false);
+  i = util::json::Val({1, json::Array{2.13, json::Dict{{"a", 1}, {"B", 2.123}}, 4}, 0});
+  wr.val(i);
+  wr.closeAll();
+  EXPECT((ss.str() == "[1,[2.13,{\"a\":1,\"B\":2.12},4],0]" || ss.str() == "[1,[2.13,{\"B\":2.12,\"a\":1},4],0]"));
 }},
 
 // ___________________________________________________________________________

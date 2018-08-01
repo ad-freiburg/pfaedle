@@ -77,6 +77,8 @@ class RotatedBox {
   const Point<T>& getCenter() const { return _center; }
   Point<T>& getCenter() { return _center; }
 
+  void setDegree(double deg) { _deg = deg; }
+
  private:
   Box<T> _box;
   double _deg;

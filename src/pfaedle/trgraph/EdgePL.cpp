@@ -108,11 +108,12 @@ const util::geo::FLine* EdgePL::getGeom() const { return _l; }
 util::geo::FLine* EdgePL::getGeom() { return _l; }
 
 // _____________________________________________________________________________
-void EdgePL::getAttrs(std::map<std::string, std::string>* obj) const {
-  (*obj)["m_length"] = std::to_string(_length);
-  (*obj)["oneway"] = std::to_string(static_cast<int>(_oneWay));
-  (*obj)["level"] = std::to_string(_lvl);
-  (*obj)["restriction"] = isRestricted() ? "yes" : "no";
+util::json::Dict EdgePL::getAttrs() const {
+  util::json::Dict obj;
+  obj["m_length"] = std::to_string(_length);
+  obj["oneway"] = std::to_string(static_cast<int>(_oneWay));
+  obj["level"] = std::to_string(_lvl);
+  obj["restriction"] = isRestricted() ? "yes" : "no";
 
   std::stringstream ss;
   bool first = false;
@@ -127,7 +128,8 @@ void EdgePL::getAttrs(std::map<std::string, std::string>* obj) const {
     first = true;
   }
 
-  (*obj)["lines"] = ss.str();
+  obj["lines"] = ss.str();
+  return obj;
 }
 
 // _____________________________________________________________________________

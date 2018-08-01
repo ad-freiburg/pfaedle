@@ -23,8 +23,9 @@ class NodePL : public GeoNodePL<float> {
   const util::geo::FPoint* getGeom() const {
     return !_n ? 0 : _n->pl().getGeom();
   }
-  void getAttrs(std::map<std::string, std::string>* attrs) const {
-    if (_n) _n->pl().getAttrs(attrs);
+  util::json::Dict getAttrs() const {
+    if (_n) return _n->pl().getAttrs();
+    return util::json::Dict();
   }
 
  private:

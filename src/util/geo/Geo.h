@@ -219,15 +219,15 @@ inline Box<T> minbox() {
 // _____________________________________________________________________________
 template <typename T>
 inline RotatedBox<T> shrink(const RotatedBox<T>& b, double d) {
-  double xd = b.b.getUpperRight().getX() - b.b.getLowerLeft().getX();
-  double yd = b.b.getUpperRight().getY() - b.b.getLowerLeft().getY();
+  double xd = b.getBox().getUpperRight().getX() - b.getBox().getLowerLeft().getX();
+  double yd = b.getBox().getUpperRight().getY() - b.getBox().getLowerLeft().getY();
 
   if (xd <= 2 * d) d = xd / 2 - 1;
   if (yd <= 2 * d) d = yd / 2 - 1;
 
   Box<T> r(
-      Point<T>(b.b.getLowerLeft().getX() + d, b.b.getLowerLeft().getY() + d),
-      Point<T>(b.b.getUpperRight().getX() - d, b.b.getUpperRight().getY() - d));
+      Point<T>(b.getBox().getLowerLeft().getX() + d, b.getBox().getLowerLeft().getY() + d),
+      Point<T>(b.getBox().getUpperRight().getX() - d, b.getBox().getUpperRight().getY() - d));
 
   return RotatedBox<T>(r, b.getDegree(), b.getCenter());
 }
@@ -1137,8 +1137,8 @@ inline Polygon<T> convexHull(const RotatedBox<T>& b) {
 
 // _____________________________________________________________________________
 template <typename T>
-inline size_t convexHullImpl(const Line<T>& a, size_t p1, size_t p2,
-                             Line<double>* h, uint8_t d) {
+inline size_t convexHullImpl(const MultiPoint<T>& a, size_t p1, size_t p2,
+                             Line<T>* h, uint8_t d) {
   // quickhull by Barber, Dobkin & Huhdanpaa
   Point<T> pa;
   bool found = false;
@@ -1162,7 +1162,7 @@ inline size_t convexHullImpl(const Line<T>& a, size_t p1, size_t p2,
 
 // _____________________________________________________________________________
 template <typename T>
-inline Polygon<T> convexHull(const Line<T>& l) {
+inline Polygon<T> convexHull(const MultiPoint<T>& l) {
   if (l.size() == 2) return convexHull(LineSegment<T>(l[0], l[1]));
   if (l.size() == 1) return convexHull(l[0]);
 
@@ -1187,6 +1187,14 @@ inline Polygon<T> convexHull(const Polygon<T>& p) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline Polygon<T> convexHull(const MultiLine<T>& ls) {
+  MultiPoint<T> mp;
+  for (const auto& l : ls) mp.insert(mp.end(), l.begin(), l.end());
+  return convexHull(mp);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline Box<T> extendBox(const Line<T>& l, Box<T> b) {
   for (const auto& p : l) b = extendBox(p, b);
   return b;
@@ -1198,6 +1206,12 @@ inline Box<T> extendBox(const LineSegment<T>& ls, Box<T> b) {
   b = extendBox(ls.first, b);
   b = extendBox(ls.second, b);
   return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> extendBox(const Polygon<T>& ls, Box<T> b) {
+  return extendBox(ls.getOuter(), b);
 }
 
 // _____________________________________________________________________________
@@ -1263,7 +1277,7 @@ inline double commonArea(const Box<T>& ba, const Box<T>& bb) {
 
 // _____________________________________________________________________________
 template <template <typename> class Geometry, typename T>
-inline RotatedBox<T> getFullEnvelope(Geometry<T> pol) {
+inline RotatedBox<T> getFullEnvelope(std::vector<Geometry<T>> pol) {
   Point<T> center = centroid(pol);
   Box<T> tmpBox = getBoundingBox(pol);
   double rotateDeg = 0;
@@ -1288,6 +1302,14 @@ inline RotatedBox<T> getFullEnvelope(Geometry<T> pol) {
 }
 
 // _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline RotatedBox<T> getFullEnvelope(const Geometry<T> pol) {
+  std::vector<Geometry<T>> mult;
+  mult.push_back(pol);
+  return getFullEnvelope(mult);
+}
+
+// _____________________________________________________________________________
 template <typename T>
 inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
   MultiLine<T> orig = ml;
@@ -1298,18 +1320,18 @@ inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
   ml = rotate(ml, -rbox.getDegree() - 45, center);
 
   double bestDeg = -45;
-  double score = parallelity(rbox.b, ml);
+  double score = parallelity(rbox.getBox(), ml);
 
   for (double i = -45; i <= 45; i += .5) {
     ml = rotate(ml, -.5, center);
-    double p = parallelity(rbox.b, ml);
-    if (parallelity(rbox.b, ml) > score) {
+    double p = parallelity(rbox.getBox(), ml);
+    if (parallelity(rbox.getBox(), ml) > score) {
       bestDeg = i;
       score = p;
     }
   }
 
-  rbox.rotateDeg += bestDeg;
+  rbox.setDegree(rbox.getDegree() + bestDeg);
 
   // move the box along 45deg angles from its origin until it fits the ml
   // = until the intersection of its hull and the box is largest

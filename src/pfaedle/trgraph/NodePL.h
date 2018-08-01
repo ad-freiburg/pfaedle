@@ -37,7 +37,7 @@ class NodePL : public GeoNodePL<float> {
   void setGeom(const util::geo::FPoint& geom);
 
   // Fill obj with k/v pairs describing the parameters of this payload.
-  void getAttrs(std::map<std::string, std::string>* attrs) const;
+  util::json::Dict getAttrs() const;
 
   // Set the station info for this node
   void setSI(const StatInfo& si);

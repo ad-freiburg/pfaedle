@@ -190,7 +190,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   deleteOrphEdgs(g);
 
   LOG(VDEBUG) << "Collapsing edges...";
-  collapseEdges(g);
+  // collapseEdges(g);
 
   LOG(VDEBUG) << "Deleting orphan nodes...";
   deleteOrphNds(g);
@@ -212,8 +212,14 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   LOG(VDEBUG) << "Write dummy node self-edges...";
   writeSelfEdgs(g);
 
-  LOG(DEBUG) << "Graph has " << g->getNds()->size() << " nodes and " << comps
-            << " connected component(s)";
+  size_t numEdges = 0;
+
+  for (auto* n : *g->getNds()) {
+    numEdges += n->getAdjListOut().size();
+  }
+
+  LOG(DEBUG) << "Graph has " << g->getNds()->size() << " nodes, " << numEdges
+             << " edges and " << comps << " connected component(s)";
 }
 
 // _____________________________________________________________________________
@@ -367,8 +373,7 @@ void OsmBuilder::readWriteWays(xml::File* i, util::xml::XmlWriter* o,
 }
 
 // _____________________________________________________________________________
-NodePL OsmBuilder::plFromGtfs(const Stop* s,
-                              const OsmReadOpts& ops) const {
+NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) const {
   NodePL ret(util::geo::latLngToWebMerc<float>(s->getLat(), s->getLng()),
              StatInfo(ops.statNormzer(s->getName()),
                       ops.trackNormzer(s->getPlatformCode()), false));
@@ -1670,7 +1675,6 @@ uint32_t OsmBuilder::writeComps(Graph* g) const {
       comp = new Component{7};
     }
   }
-
 
   // the last comp was not used
   delete comp;

@@ -190,7 +190,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   deleteOrphEdgs(g);
 
   LOG(VDEBUG) << "Collapsing edges...";
-  // collapseEdges(g);
+  collapseEdges(g);
 
   LOG(VDEBUG) << "Deleting orphan nodes...";
   deleteOrphNds(g);

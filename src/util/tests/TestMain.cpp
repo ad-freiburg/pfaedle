@@ -990,6 +990,12 @@ CASE("geometry") {
   geo::Line<double> llll{geo::Point<double>(1.2, 0), geo::Point<double>(1, 2)};
   EXPECT(geo::intersects(llll, bbox));
 
+  Line<double> l5new;
+  l5new.push_back(Point<double>(-10, -5));
+  l5new.push_back(Point<double>(-8, -4));
+  EXPECT(geo::getBoundingBox(l5new).getUpperRight().getX() == approx(-8));
+  EXPECT(geo::getBoundingBox(l5new).getUpperRight().getY() == approx(-4));
+
   Line<double> l5;
   l5.push_back(Point<double>(0, 0));
   l5.push_back(Point<double>(1.5, 2));

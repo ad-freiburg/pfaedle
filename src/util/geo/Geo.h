@@ -398,9 +398,9 @@ inline bool intersects(const LineSegment<T>& ls1, const LineSegment<T>& ls2) {
   return intersects(getBoundingBox(ls1), getBoundingBox(ls2)) &&
          (contains(ls1.first, ls2) || contains(ls1.second, ls2) ||
           contains(ls2.first, ls1) || contains(ls2.second, ls1) ||
-          ((crossProd(ls1.first, ls2) < 0) ^
-           (crossProd(ls1.second, ls2) < 0)) ||
-          ((crossProd(ls2.first, ls1) < 0) ^ (crossProd(ls2.second, ls1) < 0)));
+          (((crossProd(ls1.first, ls2) < 0) ^
+           (crossProd(ls1.second, ls2) < 0)) &&
+          ((crossProd(ls2.first, ls1) < 0) ^ (crossProd(ls2.second, ls1) < 0))));
 }
 
 // _____________________________________________________________________________
@@ -953,7 +953,7 @@ inline Point<T> projectOn(const Point<T>& a, const Point<T>& b,
   if (doubleEq(a.getX(), c.getX()) && doubleEq(a.getY(), c.getY())) return a;
   if (doubleEq(b.getX(), c.getX()) && doubleEq(b.getY(), c.getY())) return b;
 
-  double x, y;
+  T x, y;
 
   if (c.getX() == a.getX()) {
     // infinite slope
@@ -963,8 +963,8 @@ inline Point<T> projectOn(const Point<T>& a, const Point<T>& b,
     double m = (double)(c.getY() - a.getY()) / (c.getX() - a.getX());
     double bb = (double)a.getY() - (m * a.getX());
 
-    x = (m * b.getY() + b.getX() - m * bb) / (m * m + 1);
-    y = (m * m * b.getY() + m * b.getX() + bb) / (m * m + 1);
+    x = (m * b.getY() + b.getX() - m * bb) / (m * m + 1.0);
+    y = (m * m * b.getY() + m * b.getX() + bb) / (m * m + 1.0);
   }
 
   Point<T> ret = Point<T>(x, y);
@@ -1017,7 +1017,7 @@ inline double parallelity(const Box<T>& box, const MultiLine<T>& multiline) {
     ret += parallelity(box, l);
   }
 
-  return ret / multiline.size();
+  return ret / static_cast<float>(multiline.size());
 }
 
 // _____________________________________________________________________________

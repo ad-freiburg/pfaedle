@@ -29,10 +29,6 @@ osmconvert:
 	../build/pfaedle -x $< -i gtfs/$* -c eval.cfg --eval-path evalout/$*/hmm+osm -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
 	find evalout/$*/hmm+osm/ -name "*.json" -print0 | xargs -0 rm
 
-	mkdir -p evalout/$*/hmm
-	../build/pfaedle -x $< -i gtfs/$* -c eval-wo-osm.cfg --eval-path evalout/$*/hmm -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
-	find evalout/$*/hmm/ -name "*.json" -print0 | xargs -0 rm
-
 	mkdir -p evalout/$*/greedy
 	../build/pfaedle -x $< -i gtfs/$* -c eval.cfg --method greedy --eval-path evalout/$*/greedy -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
 	find evalout/$*/greedy/ -name "*.json" -print0 | xargs -0 rm
@@ -40,6 +36,10 @@ osmconvert:
 	mkdir -p evalout/$*/greedy2
 	../build/pfaedle -x $< -i gtfs/$* -c eval.cfg --method greedy2 --eval-path evalout/$*/greedy2 -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
 	find evalout/$*/greedy2/ -name "*.json" -print0 | xargs -0 rm
+
+	mkdir -p evalout/$*/hmm
+	../build/pfaedle -x $< -i gtfs/$* -c eval-wo-osm.cfg --eval-path evalout/$*/hmm -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
+	find evalout/$*/hmm/ -name "*.json" -print0 | xargs -0 rm
 
 osm/spain-latest.osm.pbf:
 	mkdir -p osm

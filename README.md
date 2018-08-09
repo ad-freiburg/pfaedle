@@ -107,8 +107,18 @@ make -j
 make eval
 ```
 
-*Note:* this will download, and filter, the entire OSM files for Spain and the
+*Notes:*
+ * this will download, and filter, the entire OSM files for Spain, the
 Stuttgart region. Make sure you have enough space left on your hard drive.
+ * in evaluation mode, pfaedle needs significantly more time, because the
+   calculation of the similarity measurements between shapes are expensive
+ * if you are only interested in the end results of a single dataset, run
+   `make <dataset>.lighteval` in `/eval`. For example, `make paris.lighteval`
+   generates a shaped version of the paris dataset, without doing extensive
+   comparisons to the ground truth.
+ * similarily, if you want to run the extensive evaluation for a single dataset,
+   run `make <dataset>.eval` in `/eval`.
+
 
 ## Evaluation requirements
 

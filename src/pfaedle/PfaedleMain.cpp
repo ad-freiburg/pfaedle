@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     ShapeBuilder shapeBuilder(&gtfs, cmdCfgMots, motCfg, &ecoll, cfg);
 
     if (cfg.writeGraph) {
-      LOG(INFO) << "Outputting graph" + filePost + ".json...";
+      LOG(INFO) << "Outputting graph.json...";
       util::geo::output::GeoGraphJsonOutput out;
       std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
       out.print(*shapeBuilder.getGraph(), fstr);

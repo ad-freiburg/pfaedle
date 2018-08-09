@@ -15,12 +15,12 @@ clean:
 osmconvert:
 	wget -O - http://m.m.i24.cc/osmconvert.c | cc -x c - -lz -O3 -o osmconvert
 
-%.lighteval: osm/%.osm gtfs/%/stops.txt gtfs/%/stop_times.txt gtfs/%/trips.txt gtfs/%/routes.txt eval.cfg eval-wo-osm.cfg
+%.lighteval: osm/%.osm gtfs/%/stops.txt gtfs/%/stop_times.txt gtfs/%/trips.txt gtfs/%/routes.txt eval.cfg
 	mkdir -p gtfs/$*/shaped
 	rm -f gtfs/$*/shaped/*
 	../build/pfaedle -x $< -i gtfs/$* -c eval.cfg -o gtfs/$*/shaped -D -m all 2>&1 | tee $@
 
-%.eval: osm/%.osm gtfs/%/stops.txt gtfs/%/stop_times.txt gtfs/%/trips.txt gtfs/%/routes.txt eval.cfg eval-wo-osm.cfg
+%.eval: osm/%.osm gtfs/%/stops.txt gtfs/%/stop_times.txt gtfs/%/trips.txt gtfs/%/routes.txt eval.cfg eval-wo-osm-line-rels.cfg
 	mkdir -p gtfs/$*/shaped
 	rm -f gtfs/$*/shaped/*
 	mkdir -p evalout/
@@ -38,7 +38,7 @@ osmconvert:
 	find evalout/$*/greedy2/ -name "*.json" -print0 | xargs -0 rm
 
 	mkdir -p evalout/$*/hmm
-	../build/pfaedle -x $< -i gtfs/$* -c eval-wo-osm.cfg --eval-path evalout/$*/hmm -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
+	../build/pfaedle -x $< -i gtfs/$* -c eval-wo-osm-line-rels.cfg --eval-path evalout/$*/hmm -o gtfs/$*/shaped -D -m all --eval --eval-df-bins $(EVAL_DF_BINS) 2>&1 | tee $@
 	find evalout/$*/hmm/ -name "*.json" -print0 | xargs -0 rm
 
 osm/spain-latest.osm.pbf:

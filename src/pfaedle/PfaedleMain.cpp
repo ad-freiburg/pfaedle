@@ -24,7 +24,6 @@
 #include "util/json/Writer.h"
 #include "util/log/Log.h"
 
-using std::string;
 using pfaedle::router::MOTs;
 using pfaedle::osm::BBoxIdx;
 using pfaedle::osm::OsmBuilder;

@@ -40,6 +40,7 @@ using pfaedle::router::HopBand;
 using pfaedle::router::NodeCandRoute;
 using util::graph::EDijkstra;
 using util::graph::Dijkstra;
+using util::geo::webMercMeterDist;
 
 // _____________________________________________________________________________
 EdgeCost NCostFunc::operator()(const trgraph::Node* from,
@@ -51,8 +52,6 @@ EdgeCost NCostFunc::operator()(const trgraph::Node* from,
   int oneway = e->pl().oneWay() == 2;
   int32_t stationSkip = 0;
 
-  double transitLinePen = 0;  // transitLineCmp(e->pl());
-
   return EdgeCost(e->pl().lvl() == 0 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 1 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 2 ? e->pl().getLength() : 0,
@@ -61,8 +60,7 @@ EdgeCost NCostFunc::operator()(const trgraph::Node* from,
                   e->pl().lvl() == 5 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 6 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 7 ? e->pl().getLength() : 0, 0, stationSkip,
-                  e->pl().getLength() * oneway, oneway,
-                  e->pl().getLength() * transitLinePen, 0, &_rOpts);
+                  e->pl().getLength() * oneway, oneway, 0, 0, &_rOpts);
 }
 
 // _____________________________________________________________________________
@@ -137,8 +135,7 @@ NDistHeur::NDistHeur(const RoutingOpts& rOpts,
   _center = FPoint(x, y);
 
   for (auto to : tos) {
-    double cur = static_cast<double>(static_cast<double>(
-        util::geo::webMercMeterDist(*to->pl().getGeom(), _center)));
+    double cur = webMercMeterDist(*to->pl().getGeom(), _center);
     if (cur > _maxCentD) _maxCentD = cur;
   }
 }
@@ -160,9 +157,8 @@ DistHeur::DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
   _center = FPoint(x, y);
 
   for (auto to : tos) {
-    double cur = static_cast<double>(static_cast<double>(
-        util::geo::webMercMeterDist(*to->getFrom()->pl().getGeom(), _center) *
-        _rOpts.levelPunish[_lvl]));
+    double cur = webMercMeterDist(*to->getFrom()->pl().getGeom(), _center) *
+                 _rOpts.levelPunish[_lvl];
     if (cur > _maxCentD) _maxCentD = cur;
   }
 }
@@ -170,11 +166,9 @@ DistHeur::DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
 // _____________________________________________________________________________
 EdgeCost DistHeur::operator()(const trgraph::Edge* a,
                               const std::set<trgraph::Edge*>& b) const {
-  double cur = static_cast<double>(static_cast<double>(
-      util::geo::webMercMeterDist(*a->getTo()->pl().getGeom(), _center) *
-      _rOpts.levelPunish[_lvl]));
-
   UNUSED(b);
+  double cur = webMercMeterDist(*a->getTo()->pl().getGeom(), _center) *
+               _rOpts.levelPunish[_lvl];
 
   return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -182,10 +176,8 @@ EdgeCost DistHeur::operator()(const trgraph::Edge* a,
 // _____________________________________________________________________________
 EdgeCost NDistHeur::operator()(const trgraph::Node* a,
                                const std::set<trgraph::Node*>& b) const {
-  double cur = static_cast<double>(static_cast<double>(
-      util::geo::webMercMeterDist(*a->pl().getGeom(), _center)));
-
   UNUSED(b);
+  double cur = webMercMeterDist(*a->pl().getGeom(), _center);
 
   return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -230,8 +222,8 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
   double pend = 0;
   for (size_t i = 0; i < a.size(); i++) {
     for (size_t j = 0; j < b.size(); j++) {
-      double d = util::geo::webMercMeterDist(*a[i].nd->pl().getGeom(),
-                                             *b[j].nd->pl().getGeom());
+      double d =
+          webMercMeterDist(*a[i].nd->pl().getGeom(), *b[j].nd->pl().getGeom());
       if (d > pend) pend = d;
     }
   }
@@ -279,9 +271,8 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
   double maxStrD = 0;
 
   for (auto e : to) {
-    double d = static_cast<double>(static_cast<double>(
-        util::geo::webMercMeterDist(*el.front()->getFrom()->pl().getGeom(),
-                                    *e->getTo()->pl().getGeom())));
+    double d = webMercMeterDist(*el.front()->getFrom()->pl().getGeom(),
+                                *e->getTo()->pl().getGeom());
     if (d > maxStrD) maxStrD = d;
   }
 
@@ -451,7 +442,6 @@ EdgeListHops Router::route(const NodeCandRoute& route,
           ce->pl().setStartNode(eFr->getFrom());
           // for debugging
           ce->pl().setStartEdge(eFr);
-
           ce->pl().setEndNode(to.nd);
           // for debugging
           ce->pl().setEndEdge(eTo);

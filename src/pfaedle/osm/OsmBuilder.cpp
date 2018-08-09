@@ -1244,15 +1244,6 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
     if (best) getEdgCands(*best->pl().getGeom(), &pq, eg, d);
   }
 
-  // TODO(patrick): problem here: the rules below may be circumvented if a node
-  // is
-  // placed
-  // near the end of an edge. Then, a full turn punish prevents a detection of
-  // nearby nodes!!!
-  // This is a mere performance problem and will not affect routing very much,
-  // as
-  // long as station passing is not heavily punished.
-
   while (!pq.empty()) {
     auto* e = pq.top().second;
     pq.pop();
@@ -1270,8 +1261,7 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
       }
 
       // if the projected position is near (< 2 meters) the end point of this
-      // way,
-      // and the endpoint is not already a station, place the station there.
+      // way and the endpoint is not already a station, place the station there.
       if (!e->getFrom()->pl().getSI() &&
           webMercMeterDist(geom, *e->getFrom()->pl().getGeom()) < 2) {
         e->getFrom()->pl().setSI(*s->getSI());

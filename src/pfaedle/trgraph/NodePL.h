@@ -11,8 +11,10 @@
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/trgraph/StatInfo.h"
 #include "util/geo/GeoGraph.h"
+#include "util/geo/Geo.h"
 
 using util::geograph::GeoNodePL;
+using util::geo::DPoint;
 
 namespace pfaedle {
 namespace trgraph {
@@ -24,17 +26,17 @@ struct Component {
 /*
  * A node payload class for the transit graph.
  */
-class NodePL : public GeoNodePL<float> {
+class NodePL : public GeoNodePL<double> {
  public:
   NodePL();
   NodePL(const NodePL& pl);  // NOLINT
-  NodePL(const util::geo::FPoint& geom);  // NOLINT
-  NodePL(const util::geo::FPoint& geom, const StatInfo& si);
+  NodePL(const DPoint& geom);  // NOLINT
+  NodePL(const DPoint& geom, const StatInfo& si);
   ~NodePL();
 
   // Return the geometry of this node.
-  const util::geo::FPoint* getGeom() const;
-  void setGeom(const util::geo::FPoint& geom);
+  const DPoint* getGeom() const;
+  void setGeom(const DPoint& geom);
 
   // Fill obj with k/v pairs describing the parameters of this payload.
   util::json::Dict getAttrs() const;
@@ -66,8 +68,7 @@ class NodePL : public GeoNodePL<float> {
   void setVisited() const;
 
  private:
-  // 32bit floats are enough here
-  util::geo::FPoint _geom;
+  DPoint _geom;
   StatInfo* _si;
   const Component* _component;
 

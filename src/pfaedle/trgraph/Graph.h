@@ -14,8 +14,6 @@
 using util::geo::Grid;
 using util::geo::Point;
 using util::geo::Line;
-using util::geo::FPoint;
-using util::geo::FLine;
 
 namespace pfaedle {
 namespace trgraph {
@@ -26,8 +24,8 @@ namespace trgraph {
 typedef util::graph::Edge<NodePL, EdgePL> Edge;
 typedef util::graph::Node<NodePL, EdgePL> Node;
 typedef util::graph::DirGraph<NodePL, EdgePL> Graph;
-typedef Grid<Node*, Point, float> NodeGrid;
-typedef Grid<Edge*, Line, float> EdgeGrid;
+typedef Grid<Node*, Point, double> NodeGrid;
+typedef Grid<Edge*, Line, double> EdgeGrid;
 
 }  // namespace trgraph
 }  // namespace pfaedle

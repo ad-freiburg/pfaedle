@@ -132,7 +132,7 @@ NDistHeur::NDistHeur(const RoutingOpts& rOpts,
 
   x /= c;
   y /= c;
-  _center = FPoint(x, y);
+  _center = DPoint(x, y);
 
   for (auto to : tos) {
     double cur = webMercMeterDist(*to->pl().getGeom(), _center);
@@ -154,7 +154,7 @@ DistHeur::DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
 
   x /= c;
   y /= c;
-  _center = FPoint(x, y);
+  _center = DPoint(x, y);
 
   for (auto to : tos) {
     double cur = webMercMeterDist(*to->getFrom()->pl().getGeom(), _center) *

@@ -23,11 +23,11 @@
 #include "util/graph/EDijkstra.h"
 #include "util/log/Log.h"
 
-using util::geo::FPoint;
+using util::geo::DPoint;
 using util::geo::extendBox;
-using util::geo::Box;
+using util::geo::DBox;
 using util::geo::minbox;
-using util::geo::FLine;
+using util::geo::DLine;
 using util::geo::webMercMeterDist;
 using util::geo::webMercToLatLng;
 using util::geo::latLngToWebMerc;
@@ -91,11 +91,11 @@ const NodeCandGroup& ShapeBuilder::getNodeCands(const Stop* s) const {
 }
 
 // _____________________________________________________________________________
-FLine ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
+DLine ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
                            const router::RoutingAttrs& rAttrs) {
   const router::EdgeListHops& res = route(ncr, rAttrs);
 
-  FLine l;
+  DLine l;
   for (const auto& hop : res) {
     const trgraph::Node* last = hop.start;
     if (hop.edges.size() == 0) {
@@ -118,7 +118,7 @@ FLine ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
 }
 
 // _____________________________________________________________________________
-FLine ShapeBuilder::shapeL(Trip* trip) {
+DLine ShapeBuilder::shapeL(Trip* trip) {
   return shapeL(getNCR(trip), getRAttrs(trip));
 }
 
@@ -321,11 +321,11 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
   double dist = -1;
   double lastDist = -1;
   hopDists->push_back(0);
-  FPoint last(0, 0);
+  DPoint last(0, 0);
   for (const auto& hop : shp.hops) {
     const trgraph::Node* l = hop.start;
     if (hop.edges.size() == 0) {
-      FPoint ll = webMercToLatLng<float>(hop.start->pl().getGeom()->getX(),
+      DPoint ll = webMercToLatLng<double>(hop.start->pl().getGeom()->getX(),
                                          hop.start->pl().getGeom()->getY());
 
       if (dist > -0.5)
@@ -345,7 +345,7 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       last = *hop.end->pl().getGeom();
 
       if (dist - lastDist > 0.01) {
-        ll = webMercToLatLng<float>(hop.end->pl().getGeom()->getX(),
+        ll = webMercToLatLng<double>(hop.end->pl().getGeom()->getX(),
                                     hop.end->pl().getGeom()->getY());
         ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
@@ -356,14 +356,14 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       const auto* e = *i;
       if ((e->getFrom() == l) ^ e->pl().isRev()) {
         for (size_t i = 0; i < e->pl().getGeom()->size(); i++) {
-          const FPoint& cur = (*e->pl().getGeom())[i];
+          const DPoint& cur = (*e->pl().getGeom())[i];
           if (dist > -0.5)
             dist += webMercMeterDist(last, cur);
           else
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            FPoint ll = webMercToLatLng<float>(cur.getX(), cur.getY());
+            DPoint ll = webMercToLatLng<double>(cur.getX(), cur.getY());
             ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
@@ -371,14 +371,14 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
         }
       } else {
         for (int64_t i = e->pl().getGeom()->size() - 1; i >= 0; i--) {
-          const FPoint& cur = (*e->pl().getGeom())[i];
+          const DPoint& cur = (*e->pl().getGeom())[i];
           if (dist > -0.5)
             dist += webMercMeterDist(last, cur);
           else
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            FPoint ll = webMercToLatLng<float>(cur.getX(), cur.getY());
+            DPoint ll = webMercToLatLng<double>(cur.getX(), cur.getY());
             ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
@@ -452,10 +452,10 @@ BBoxIdx ShapeBuilder::getPaddedGtfsBox(const Feed* feed, double pad,
     if (tid.empty() && t.second->getShape() && !dropShapes) continue;
     if (t.second->getStopTimes().size() < 2) continue;
     if (mots.count(t.second->getRoute()->getType())) {
-      Box<float> cur = minbox<float>();
+      DBox cur = minbox<double>();
       for (const auto& st : t.second->getStopTimes()) {
         cur = extendBox(
-            Point<float>(st.getStop()->getLng(), st.getStop()->getLat()), cur);
+            DPoint(st.getStop()->getLng(), st.getStop()->getLat()), cur);
       }
       box.add(cur);
     }
@@ -511,8 +511,8 @@ double ShapeBuilder::avgHopDist(Trip* trip) const {
       prev = st.getStop();
       continue;
     }
-    auto a = util::geo::latLngToWebMerc<float>(prev->getLat(), prev->getLng());
-    auto b = util::geo::latLngToWebMerc<float>(st.getStop()->getLat(),
+    auto a = util::geo::latLngToWebMerc<double>(prev->getLat(), prev->getLng());
+    auto b = util::geo::latLngToWebMerc<double>(st.getStop()->getLat(),
                                                st.getStop()->getLng());
     sum += util::geo::webMercMeterDist(a, b);
 
@@ -573,8 +573,8 @@ bool ShapeBuilder::routingEqual(const Stop* a, const Stop* b) {
   auto trackb = _motCfg.osmBuildOpts.trackNormzer(b->getPlatformCode());
   if (tracka != trackb) return false;
 
-  FPoint ap = util::geo::latLngToWebMerc<float>(a->getLat(), a->getLng());
-  FPoint bp = util::geo::latLngToWebMerc<float>(b->getLat(), b->getLng());
+  DPoint ap = util::geo::latLngToWebMerc<double>(a->getLat(), a->getLng());
+  DPoint bp = util::geo::latLngToWebMerc<double>(b->getLat(), b->getLng());
 
   double d = util::geo::webMercMeterDist(ap, bp);
 

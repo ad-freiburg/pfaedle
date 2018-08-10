@@ -18,13 +18,13 @@ EdgeList* EdgePL::getEdges() { return &_edges; }
 const EdgeList& EdgePL::getEdges() const { return _edges; }
 
 // _____________________________________________________________________________
-const FPoint& EdgePL::frontHop() const {
+const DPoint& EdgePL::frontHop() const {
   if (!_edges.size()) return *_end->pl().getGeom();
   return _edges.back()->pl().frontHop();
 }
 
 // _____________________________________________________________________________
-const FPoint& EdgePL::backHop() const {
+const DPoint& EdgePL::backHop() const {
   if (!_edges.size()) return *_start->pl().getGeom();
   return _edges.front()->pl().backHop();
 }
@@ -36,7 +36,7 @@ const Node* EdgePL::backNode() const { return _end; }
 const Node* EdgePL::frontNode() const { return _start; }
 
 // _____________________________________________________________________________
-const util::geo::FLine* EdgePL::getGeom() const {
+const util::geo::DLine* EdgePL::getGeom() const {
   if (!_edges.size()) return 0;
   if (!_geom.size()) {
     const trgraph::Node* l = _start;

@@ -7,10 +7,10 @@
 using pfaedle::osm::BBoxIdx;
 
 // _____________________________________________________________________________
-BBoxIdx::BBoxIdx(float padding) : _padding(padding), _size(0) {}
+BBoxIdx::BBoxIdx(double padding) : _padding(padding), _size(0) {}
 
 // _____________________________________________________________________________
-void BBoxIdx::add(Box<float> box) {
+void BBoxIdx::add(Box<double> box) {
   // division by 83.000m is only correct here around a latitude deg of 25,
   // but should be a good heuristic. 1 deg is around 63km at latitude deg of 44,
   // and 110 at deg=0, since we usually dont do map matching in the arctic,
@@ -24,21 +24,21 @@ void BBoxIdx::add(Box<float> box) {
 size_t BBoxIdx::size() const { return _size; }
 
 // _____________________________________________________________________________
-bool BBoxIdx::contains(const Point<float>& p) const {
+bool BBoxIdx::contains(const Point<double>& p) const {
   return treeHas(p, _root);
 }
 
 // _____________________________________________________________________________
-util::geo::Box<float> BBoxIdx::getFullWebMercBox() const {
-  return util::geo::FBox(
-      util::geo::latLngToWebMerc<float>(_root.box.getLowerLeft().getY(),
+util::geo::Box<double> BBoxIdx::getFullWebMercBox() const {
+  return util::geo::DBox(
+      util::geo::latLngToWebMerc<double>(_root.box.getLowerLeft().getY(),
                                         _root.box.getLowerLeft().getX()),
-      util::geo::latLngToWebMerc<float>(_root.box.getUpperRight().getY(),
+      util::geo::latLngToWebMerc<double>(_root.box.getUpperRight().getY(),
                                         _root.box.getUpperRight().getX()));
 }
 
 // _____________________________________________________________________________
-bool BBoxIdx::treeHas(const Point<float>& p, const BBoxIdxNd& nd) const {
+bool BBoxIdx::treeHas(const Point<double>& p, const BBoxIdxNd& nd) const {
   if (!nd.childs.size()) return util::geo::contains(p, nd.box);
   for (const auto& child : nd.childs) {
     if (util::geo::contains(p, child.box)) return treeHas(p, child);
@@ -48,7 +48,7 @@ bool BBoxIdx::treeHas(const Point<float>& p, const BBoxIdxNd& nd) const {
 }
 
 // _____________________________________________________________________________
-void BBoxIdx::addToTree(const Box<float>& box, BBoxIdxNd* nd, size_t lvl) {
+void BBoxIdx::addToTree(const Box<double>& box, BBoxIdxNd* nd, size_t lvl) {
   double bestCommonArea = 0;
   ssize_t bestChild = -1;
 

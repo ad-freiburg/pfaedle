@@ -13,10 +13,11 @@
 #include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoEdgePL;
+using util::geo::DLine;
+using util::geo::DPoint;
 
 namespace pfaedle {
 namespace trgraph {
-
 
 /*
  * A line occuring on an edge
@@ -42,7 +43,7 @@ inline bool operator<(const TransitEdgeLine& a, const TransitEdgeLine& b) {
 /*
  * An edge payload class for the transit graph.
  */
-class EdgePL : public GeoEdgePL<float> {
+class EdgePL : public GeoEdgePL<double> {
  public:
   EdgePL();
   ~EdgePL();
@@ -50,11 +51,11 @@ class EdgePL : public GeoEdgePL<float> {
   EdgePL(const EdgePL& pl, bool geoFlat);
 
   // Return the geometry of this edge.
-  const util::geo::FLine* getGeom() const;
-  util::geo::FLine* getGeom();
+  const DLine* getGeom() const;
+  DLine* getGeom();
 
   // Extends this edge payload's geometry by Point p
-  void addPoint(const util::geo::FPoint& p);
+  void addPoint(const DPoint& p);
 
   // Fill obj with k/v pairs describing the parameters of this payload.
   util::json::Dict getAttrs() const;
@@ -102,11 +103,11 @@ class EdgePL : public GeoEdgePL<float> {
 
   // Returns the last hop of the payload - this is the (n-2)th point in
   // the payload geometry of length n > 1
-  const util::geo::FPoint& backHop() const;
+  const DPoint& backHop() const;
 
   // Returns the first hop of the payload - this is the 2nd point in
   // the payload geometry of length n > 1
-  const util::geo::FPoint& frontHop() const;
+  const DPoint& frontHop() const;
 
   // Obtain an exact copy of this edge, but in reverse.
   EdgePL revCopy() const;
@@ -118,13 +119,13 @@ class EdgePL : public GeoEdgePL<float> {
   bool _rev : 1;
   uint8_t _lvl : 3;
 
-  util::geo::FLine* _l;
+  DLine* _l;
 
   std::set<const TransitEdgeLine*> _lines;
 
   static void unRefTLine(const TransitEdgeLine* l);
 
-  static std::map<util::geo::FLine*, size_t> _flines;
+  static std::map<DLine*, size_t> _flines;
   static std::map<const TransitEdgeLine*, size_t> _tlines;
 };
 }  // namespace trgraph

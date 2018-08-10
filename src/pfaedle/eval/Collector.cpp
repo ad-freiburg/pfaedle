@@ -15,9 +15,9 @@
 #include "util/geo/output/GeoJsonOutput.h"
 #include "util/log/Log.h"
 
-using util::geo::FLine;
+using util::geo::DLine;
 using util::geo::PolyLine;
-using util::geo::FPoint;
+using util::geo::DPoint;
 using ad::cppgtfs::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
 using pfaedle::eval::Collector;
@@ -46,12 +46,12 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
   double unmatchedSegmentsLength;
 
   std::vector<double> oldDists;
-  FLine oldL = getWebMercLine(
+  DLine oldL = getWebMercLine(
       oldS, t->getStopTimes().begin()->getShapeDistanceTravelled(),
       (--t->getStopTimes().end())->getShapeDistanceTravelled(), &oldDists);
 
   std::vector<double> newDists;
-  FLine newL = getWebMercLine(newS, -1, -1, &newDists);
+  DLine newL = getWebMercLine(newS, -1, -1, &newDists);
 
   std::ofstream fstr(_evalOutPath + "/trip-" + t->getId() + ".json");
   GeoJsonOutput gjout(fstr);
@@ -61,8 +61,8 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
 
   // cut both result at the beginning and end to clear evaluation from
   // loops at the end
-  PolyLine<float> oldStart = oldSegs[0];
-  PolyLine<float> newStart = newSegs[0];
+  PolyLine<double> oldStart = oldSegs[0];
+  PolyLine<double> newStart = newSegs[0];
   auto oldStartNew =
       oldStart.getSegment(oldStart.projectOn(newSegs[0][0]).totalPos, 1);
   auto newStartNew =
@@ -77,8 +77,8 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
     newSegs[0] = newStartNew.getLine();
   }
 
-  PolyLine<float> oldEnd = oldSegs[oldSegs.size() - 1];
-  PolyLine<float> newEnd = newSegs[oldSegs.size() - 1];
+  PolyLine<double> oldEnd = oldSegs[oldSegs.size() - 1];
+  PolyLine<double> newEnd = newSegs[oldSegs.size() - 1];
   auto oldEndNew =
       oldEnd.getSegment(0, oldEnd.projectOn(newSegs.back().back()).totalPos);
   auto newEndNew =
@@ -103,8 +103,8 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
   }
 
   // new lines build from cleaned-up shapes
-  FLine oldLCut;
-  FLine newLCut;
+  DLine oldLCut;
+  DLine newLCut;
 
   for (auto oldL : oldSegs) {
     gjout.print(oldL, util::json::Dict{{"ver", "old"}});
@@ -171,26 +171,26 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
 }
 
 // _____________________________________________________________________________
-std::vector<FLine> Collector::segmentize(
-    const Trip* t, const FLine& shape, const std::vector<double>& dists,
+std::vector<DLine> Collector::segmentize(
+    const Trip* t, const DLine& shape, const std::vector<double>& dists,
     const std::vector<double>* newTripDists) {
-  std::vector<FLine> ret;
+  std::vector<DLine> ret;
 
   if (t->getStopTimes().size() < 2) return ret;
 
-  util::geo::PolyLine<float> pl(shape);
-  std::vector<std::pair<FPoint, double> > cuts;
+  util::geo::PolyLine<double> pl(shape);
+  std::vector<std::pair<DPoint, double> > cuts;
 
   size_t i = 0;
   for (auto st : t->getStopTimes()) {
     if (newTripDists) {
-      cuts.push_back(std::pair<FPoint, double>(
-          util::geo::latLngToWebMerc<float>(st.getStop()->getLat(),
+      cuts.push_back(std::pair<DPoint, double>(
+          util::geo::latLngToWebMerc<double>(st.getStop()->getLat(),
                                             st.getStop()->getLng()),
           (*newTripDists)[i]));
     } else {
-      cuts.push_back(std::pair<FPoint, double>(
-          util::geo::latLngToWebMerc<float>(st.getStop()->getLat(),
+      cuts.push_back(std::pair<DPoint, double>(
+          util::geo::latLngToWebMerc<double>(st.getStop()->getLat(),
                                             st.getStop()->getLng()),
           st.getShapeDistanceTravelled()));
     }
@@ -200,8 +200,8 @@ std::vector<FLine> Collector::segmentize(
   // get first half of geometry, and search for start point there!
   size_t before = std::upper_bound(dists.begin(), dists.end(), cuts[1].second) -
                   dists.begin();
-  util::geo::PolyLine<float> l(
-      FLine(shape.begin(), shape.begin() + before + 1));
+  util::geo::PolyLine<double> l(
+      DLine(shape.begin(), shape.begin() + before + 1));
   auto lastLp = l.projectOn(cuts.front().first);
 
   for (size_t i = 1; i < cuts.size(); i++) {
@@ -212,8 +212,8 @@ std::vector<FLine> Collector::segmentize(
           dists.begin();
     }
 
-    util::geo::PolyLine<float> beforePl(
-        FLine(shape.begin(), shape.begin() + before));
+    util::geo::PolyLine<double> beforePl(
+        DLine(shape.begin(), shape.begin() + before));
 
     auto curLp = beforePl.projectOnAfter(cuts[i].first, lastLp.lastIndex);
 
@@ -226,14 +226,14 @@ std::vector<FLine> Collector::segmentize(
 }
 
 // _____________________________________________________________________________
-FLine Collector::getWebMercLine(const Shape* s, double from, double t) {
+DLine Collector::getWebMercLine(const Shape* s, double from, double t) {
   return getWebMercLine(s, from, t, 0);
 }
 
 // _____________________________________________________________________________
-FLine Collector::getWebMercLine(const Shape* s, double from, double to,
+DLine Collector::getWebMercLine(const Shape* s, double from, double to,
                                 std::vector<double>* dists) {
-  FLine ret;
+  DLine ret;
 
   auto i = s->getPoints().begin();
 
@@ -243,7 +243,7 @@ FLine Collector::getWebMercLine(const Shape* s, double from, double to,
     if ((from < 0 || (p.travelDist - from) > -0.01)) {
       if (to >= 0 && (p.travelDist - to) > 0.01) break;
 
-      FPoint mercP = util::geo::latLngToWebMerc<float>(p.lat, p.lng);
+      DPoint mercP = util::geo::latLngToWebMerc<double>(p.lat, p.lng);
 
       ret.push_back(mercP);
       if (dists) dists->push_back(p.travelDist);
@@ -393,8 +393,8 @@ void Collector::printStats(std::ostream* os) const {
 }
 
 // _____________________________________________________________________________
-std::pair<size_t, double> Collector::getDa(const std::vector<FLine>& a,
-                                           const std::vector<FLine>& b) {
+std::pair<size_t, double> Collector::getDa(const std::vector<DLine>& a,
+                                           const std::vector<DLine>& b) {
   assert(a.size() == b.size());
   std::pair<size_t, double> ret{0, 0};
 

@@ -28,6 +28,8 @@ using ad::cppgtfs::gtfs::Stop;
 using ad::cppgtfs::gtfs::Trip;
 using ad::cppgtfs::gtfs::Feed;
 
+using util::geo::DLine;
+
 struct Shape {
   router::EdgeListHops hops;
   double avgHopDist;
@@ -55,9 +57,9 @@ class ShapeBuilder {
 
   const NodeCandGroup& getNodeCands(const Stop* s) const;
 
-  util::geo::FLine shapeL(const router::NodeCandRoute& ncr,
+  DLine shapeL(const router::NodeCandRoute& ncr,
                           const router::RoutingAttrs& rAttrs);
-  util::geo::FLine shapeL(Trip* trip);
+  DLine shapeL(Trip* trip);
 
   pfaedle::router::Shape shape(Trip* trip) const;
   pfaedle::router::Shape shape(Trip* trip);

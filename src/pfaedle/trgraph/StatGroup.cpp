@@ -64,7 +64,7 @@ double StatGroup::getPen(const Stop* s, trgraph::Node* n,
                             const trgraph::Normalizer& platformNorm,
                             double trackPen, double distPenFac,
                             double nonOsmPen) const {
-  FPoint p = util::geo::latLngToWebMerc<float>(s->getLat(), s->getLng());
+  DPoint p = util::geo::latLngToWebMerc<double>(s->getLat(), s->getLng());
 
   double distPen = util::geo::webMercMeterDist(p, *n->pl().getGeom());
   distPen *= distPenFac;

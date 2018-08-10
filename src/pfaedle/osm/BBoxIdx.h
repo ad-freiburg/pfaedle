@@ -15,9 +15,9 @@ using util::geo::Box;
 using util::geo::Point;
 
 struct BBoxIdxNd {
-  BBoxIdxNd() : box(util::geo::minbox<float>()) {}
-  explicit BBoxIdxNd(const Box<float>& box) : box(box) {}
-  Box<float> box;
+  BBoxIdxNd() : box(util::geo::minbox<double>()) {}
+  explicit BBoxIdxNd(const Box<double>& box) : box(box) {}
+  Box<double> box;
   std::vector<BBoxIdxNd> childs;
 };
 
@@ -26,16 +26,16 @@ struct BBoxIdxNd {
  */
 class BBoxIdx {
  public:
-  explicit BBoxIdx(float padding);
+  explicit BBoxIdx(double padding);
 
   // Add a bounding box to this index
-  void add(Box<float> box);
+  void add(Box<double> box);
 
   // Check if a point is contained in this index
-  bool contains(const Point<float>& box) const;
+  bool contains(const Point<double>& box) const;
 
   // Return the full total bounding box of this index
-  util::geo::Box<float> getFullWebMercBox() const;
+  util::geo::Box<double> getFullWebMercBox() const;
 
   // Return the size of this index
   size_t size() const;
@@ -46,8 +46,8 @@ class BBoxIdx {
 
   BBoxIdxNd _root;
 
-  void addToTree(const Box<float>& box, BBoxIdxNd* nd, size_t lvl);
-  bool treeHas(const Point<float>& p, const BBoxIdxNd& nd) const;
+  void addToTree(const Box<double>& box, BBoxIdxNd* nd, size_t lvl);
+  bool treeHas(const Point<double>& p, const BBoxIdxNd& nd) const;
 
   static const size_t MAX_LVL = 5;
   static constexpr double MIN_COM_AREA = 0.0;

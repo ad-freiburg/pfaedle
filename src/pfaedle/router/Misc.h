@@ -165,8 +165,8 @@ inline bool operator>(const EdgeCost& a, const EdgeCost& b) {
   return a.getValue() > b.getValue();
 }
 
-
-inline int angSmaller(const FPoint& f, const FPoint& m, const FPoint& t,
+template<typename F>
+inline bool angSmaller(const Point<F>& f, const Point<F>& m, const Point<F>& t,
                       double ang) {
   if (util::geo::innerProd(m, f, t) < ang) return 1;
   return 0;

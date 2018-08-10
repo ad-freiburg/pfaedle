@@ -17,7 +17,7 @@
 
 using ad::cppgtfs::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
-using util::geo::FLine;
+using util::geo::DLine;
 
 namespace pfaedle {
 namespace eval {
@@ -57,8 +57,8 @@ class Collector {
   // Return the averaged average frechet distance
   double getAvgDist() const;
 
-  static FLine getWebMercLine(const Shape* s, double from, double to);
-  static FLine getWebMercLine(const Shape* s, double from, double to,
+  static DLine getWebMercLine(const Shape* s, double from, double to);
+  static DLine getWebMercLine(const Shape* s, double from, double to,
                               std::vector<double>* dists);
 
  private:
@@ -78,10 +78,10 @@ class Collector {
 
   std::vector<double> _dfBins;
 
-  static std::pair<size_t, double> getDa(const std::vector<FLine>& a,
-                                         const std::vector<FLine>& b);
+  static std::pair<size_t, double> getDa(const std::vector<DLine>& a,
+                                         const std::vector<DLine>& b);
 
-  static std::vector<FLine> segmentize(const Trip* t, const FLine& shape,
+  static std::vector<DLine> segmentize(const Trip* t, const DLine& shape,
                                        const std::vector<double>& dists,
                                        const std::vector<double>* newTripDists);
 

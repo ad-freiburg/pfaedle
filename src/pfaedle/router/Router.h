@@ -100,7 +100,7 @@ struct DistHeur
 
   const RoutingOpts& _rOpts;
   uint8_t _lvl;
-  FPoint _center;
+  DPoint _center;
   double _maxCentD;
   EdgeCost operator()(const trgraph::Edge* a,
                       const std::set<trgraph::Edge*>& b) const;
@@ -111,7 +111,7 @@ struct NDistHeur
   NDistHeur(const RoutingOpts& rOpts, const std::set<trgraph::Node*>& tos);
 
   const RoutingOpts& _rOpts;
-  FPoint _center;
+  DPoint _center;
   double _maxCentD;
   EdgeCost operator()(const trgraph::Node* a,
                       const std::set<trgraph::Node*>& b) const;

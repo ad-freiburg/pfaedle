@@ -22,17 +22,17 @@ namespace netgraph {
  * A payload class for edges on a network graph - that is a graph
  * that exactly represents a physical public transit network
  */
-class EdgePL : public GeoEdgePL<float> {
+class EdgePL : public GeoEdgePL<double> {
  public:
   EdgePL() {}
-  EdgePL(const util::geo::FLine& l, const std::set<const Trip*>& trips)
+  EdgePL(const util::geo::DLine& l, const std::set<const Trip*>& trips)
       : _l(l), _trips(trips) {
     for (const auto t : _trips) {
       _routeShortNames.insert(t->getRoute()->getShortName());
       _tripShortNames.insert(t->getShortname());
     }
   }
-  const util::geo::FLine* getGeom() const { return &_l; }
+  const util::geo::DLine* getGeom() const { return &_l; }
   util::json::Dict getAttrs() const {
     util::json::Dict obj;
     obj["num_trips"] = static_cast<int>(_trips.size());
@@ -44,7 +44,7 @@ class EdgePL : public GeoEdgePL<float> {
   }
 
  private:
-  util::geo::FLine _l;
+  util::geo::DLine _l;
   std::set<const Trip*> _trips;
   std::set<std::string> _routeShortNames;
   std::set<std::string> _tripShortNames;

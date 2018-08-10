@@ -11,16 +11,17 @@
 #include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoNodePL;
+using util::geo::DPoint;
 
 namespace pfaedle {
 namespace router {
 
-class NodePL : public GeoNodePL<float> {
+class NodePL : public GeoNodePL<double> {
  public:
   NodePL() : _n(0) {}
   NodePL(const pfaedle::trgraph::Node* n) : _n(n) {}  // NOLINT
 
-  const util::geo::FPoint* getGeom() const {
+  const DPoint* getGeom() const {
     return !_n ? 0 : _n->pl().getGeom();
   }
   util::json::Dict getAttrs() const {

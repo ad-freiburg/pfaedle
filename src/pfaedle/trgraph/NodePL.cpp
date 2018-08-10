@@ -46,7 +46,7 @@ NodePL::NodePL(const NodePL& pl)
 }
 
 // _____________________________________________________________________________
-NodePL::NodePL(const DPoint& geom)
+NodePL::NodePL(const POINT& geom)
     : _geom(geom),
       _si(0),
       _component(0)
@@ -58,7 +58,7 @@ NodePL::NodePL(const DPoint& geom)
 }
 
 // _____________________________________________________________________________
-NodePL::NodePL(const DPoint& geom, const StatInfo& si)
+NodePL::NodePL(const POINT& geom, const StatInfo& si)
     : _geom(geom),
       _si(0),
       _component(0)
@@ -108,10 +108,10 @@ void NodePL::setComp(const Component* c) {
 }
 
 // _____________________________________________________________________________
-const DPoint* NodePL::getGeom() const { return &_geom; }
+const POINT* NodePL::getGeom() const { return &_geom; }
 
 // _____________________________________________________________________________
-void NodePL::setGeom(const DPoint& geom) { _geom = geom; }
+void NodePL::setGeom(const POINT& geom) { _geom = geom; }
 
 // _____________________________________________________________________________
 util::json::Dict NodePL::getAttrs() const {

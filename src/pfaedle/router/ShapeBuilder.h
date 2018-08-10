@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/Def.h"
 #include "pfaedle/config/MotConfig.h"
 #include "pfaedle/config/PfaedleConfig.h"
 #include "pfaedle/eval/Collector.h"
@@ -20,6 +21,7 @@
 #include "pfaedle/router/Misc.h"
 #include "pfaedle/router/Router.h"
 #include "pfaedle/trgraph/Graph.h"
+#include "util/geo/Geo.h"
 
 namespace pfaedle {
 namespace router {
@@ -27,8 +29,6 @@ namespace router {
 using ad::cppgtfs::gtfs::Stop;
 using ad::cppgtfs::gtfs::Trip;
 using ad::cppgtfs::gtfs::Feed;
-
-using util::geo::DLine;
 
 struct Shape {
   router::EdgeListHops hops;
@@ -57,9 +57,9 @@ class ShapeBuilder {
 
   const NodeCandGroup& getNodeCands(const Stop* s) const;
 
-  DLine shapeL(const router::NodeCandRoute& ncr,
-                          const router::RoutingAttrs& rAttrs);
-  DLine shapeL(Trip* trip);
+  LINE shapeL(const router::NodeCandRoute& ncr,
+              const router::RoutingAttrs& rAttrs);
+  LINE shapeL(Trip* trip);
 
   pfaedle::router::Shape shape(Trip* trip) const;
   pfaedle::router::Shape shape(Trip* trip);
@@ -67,8 +67,7 @@ class ShapeBuilder {
   const trgraph::Graph* getGraph() const;
 
   static osm::BBoxIdx getPaddedGtfsBox(const Feed* feed, double pad,
-                                       const MOTs& mots,
-                                       const std::string& tid,
+                                       const MOTs& mots, const std::string& tid,
                                        bool dropShapes);
 
  private:
@@ -103,7 +102,7 @@ class ShapeBuilder {
   std::string getFreeShapeId(Trip* t);
 
   ad::cppgtfs::gtfs::Shape* getGtfsShape(const Shape& shp, Trip* t,
-                            std::vector<double>* hopDists);
+                                         std::vector<double>* hopDists);
 
   void setShape(Trip* t, ad::cppgtfs::gtfs::Shape* s,
                 const std::vector<double>& dists);

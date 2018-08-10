@@ -6,6 +6,7 @@
 #define PFAEDLE_OSM_BBOXIDX_H_
 
 #include <vector>
+#include "pfaedle/Def.h"
 #include "util/geo/Geo.h"
 
 namespace pfaedle {
@@ -35,7 +36,7 @@ class BBoxIdx {
   bool contains(const Point<double>& box) const;
 
   // Return the full total bounding box of this index
-  util::geo::Box<double> getFullWebMercBox() const;
+  BOX getFullWebMercBox() const;
 
   // Return the size of this index
   size_t size() const;

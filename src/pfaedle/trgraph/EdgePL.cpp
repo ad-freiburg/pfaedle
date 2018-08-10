@@ -10,15 +10,15 @@
 
 using pfaedle::trgraph::EdgePL;
 using pfaedle::trgraph::TransitEdgeLine;
-using util::geo::DLine;
 
-std::map<DLine*, size_t> EdgePL::_flines;
+
+std::map<LINE*, size_t> EdgePL::_flines;
 std::map<const TransitEdgeLine*, size_t> EdgePL::_tlines;
 
 // _____________________________________________________________________________
 EdgePL::EdgePL()
     : _length(0), _oneWay(0), _hasRestr(false), _rev(false), _lvl(0) {
-  _l = new DLine();
+  _l = new LINE();
   _flines[_l] = 1;
 }
 
@@ -35,7 +35,7 @@ EdgePL::EdgePL(const EdgePL& pl, bool geoflat)
   if (geoflat) {
     _l = pl._l;
   } else {
-    _l = new DLine(*pl._l);
+    _l = new LINE(*pl._l);
   }
   _flines[_l]++;
 
@@ -101,13 +101,13 @@ const std::set<const TransitEdgeLine*>& EdgePL::getLines() const {
 }
 
 // _____________________________________________________________________________
-void EdgePL::addPoint(const util::geo::DPoint& p) { _l->push_back(p); }
+void EdgePL::addPoint(const POINT& p) { _l->push_back(p); }
 
 // _____________________________________________________________________________
-const DLine* EdgePL::getGeom() const { return _l; }
+const LINE* EdgePL::getGeom() const { return _l; }
 
 // _____________________________________________________________________________
-DLine* EdgePL::getGeom() { return _l; }
+LINE* EdgePL::getGeom() { return _l; }
 
 // _____________________________________________________________________________
 util::json::Dict EdgePL::getAttrs() const {
@@ -162,7 +162,7 @@ void EdgePL::setRev() { _rev = true; }
 bool EdgePL::isRev() const { return _rev; }
 
 // _____________________________________________________________________________
-const util::geo::DPoint& EdgePL::backHop() const {
+const POINT& EdgePL::backHop() const {
   if (isRev()) {
     return *(++(getGeom()->cbegin()));
   }
@@ -170,7 +170,7 @@ const util::geo::DPoint& EdgePL::backHop() const {
 }
 
 // _____________________________________________________________________________
-const util::geo::DPoint& EdgePL::frontHop() const {
+const POINT& EdgePL::frontHop() const {
   if (isRev()) {
     return *(++(getGeom()->crbegin()));
   }

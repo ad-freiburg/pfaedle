@@ -29,12 +29,12 @@ bool BBoxIdx::contains(const Point<double>& p) const {
 }
 
 // _____________________________________________________________________________
-util::geo::Box<double> BBoxIdx::getFullWebMercBox() const {
-  return util::geo::DBox(
-      util::geo::latLngToWebMerc<double>(_root.box.getLowerLeft().getY(),
-                                        _root.box.getLowerLeft().getX()),
-      util::geo::latLngToWebMerc<double>(_root.box.getUpperRight().getY(),
-                                        _root.box.getUpperRight().getX()));
+BOX BBoxIdx::getFullWebMercBox() const {
+  return BOX(
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
+          _root.box.getLowerLeft().getY(), _root.box.getLowerLeft().getX()),
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
+          _root.box.getUpperRight().getY(), _root.box.getUpperRight().getX()));
 }
 
 // _____________________________________________________________________________

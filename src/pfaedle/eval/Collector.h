@@ -12,12 +12,12 @@
 #include <utility>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/Def.h"
 #include "pfaedle/eval/Result.h"
 #include "util/geo/Geo.h"
 
 using ad::cppgtfs::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
-using util::geo::DLine;
 
 namespace pfaedle {
 namespace eval {
@@ -57,9 +57,9 @@ class Collector {
   // Return the averaged average frechet distance
   double getAvgDist() const;
 
-  static DLine getWebMercLine(const Shape* s, double from, double to);
-  static DLine getWebMercLine(const Shape* s, double from, double to,
-                              std::vector<double>* dists);
+  static LINE getWebMercLine(const Shape* s, double from, double to);
+  static LINE getWebMercLine(const Shape* s, double from, double to,
+                             std::vector<double>* dists);
 
  private:
   std::set<Result> _results;
@@ -78,12 +78,12 @@ class Collector {
 
   std::vector<double> _dfBins;
 
-  static std::pair<size_t, double> getDa(const std::vector<DLine>& a,
-                                         const std::vector<DLine>& b);
+  static std::pair<size_t, double> getDa(const std::vector<LINE>& a,
+                                         const std::vector<LINE>& b);
 
-  static std::vector<DLine> segmentize(const Trip* t, const DLine& shape,
-                                       const std::vector<double>& dists,
-                                       const std::vector<double>* newTripDists);
+  static std::vector<LINE> segmentize(const Trip* t, const LINE& shape,
+                                      const std::vector<double>& dists,
+                                      const std::vector<double>* newTripDists);
 
   static std::vector<double> getBins(double mind, double maxd, size_t steps);
 };

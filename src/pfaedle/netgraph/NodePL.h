@@ -11,7 +11,7 @@
 #include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoNodePL;
-using util::geo::DPoint;
+
 
 namespace pfaedle {
 namespace netgraph {
@@ -20,18 +20,18 @@ namespace netgraph {
  * A payload class for edges on a network graph - that is a graph
  * that exactly represents a physical public transit network
  */
-class NodePL : public GeoNodePL<double> {
+class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
  public:
   NodePL() {}
-  NodePL(const util::geo::DPoint& geom) { _geom = geom; }  // NOLINT
+  NodePL(const POINT& geom) { _geom = geom; }  // NOLINT
 
-  const DPoint* getGeom() const { return &_geom; }
+  const POINT* getGeom() const { return &_geom; }
   util::json::Dict getAttrs() const {
     return util::json::Dict();
   }
 
  private:
-  DPoint _geom;
+  POINT _geom;
 };
 }  // namespace netgraph
 }  // namespace pfaedle

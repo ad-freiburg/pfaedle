@@ -43,9 +43,7 @@ const NodeCandGroup& StatGroup::getNodeCands(const Stop* s) const {
 }
 
 // _____________________________________________________________________________
-const std::set<Node*>& StatGroup::getNodes() const {
-  return _nodes;
-}
+const std::set<Node*>& StatGroup::getNodes() const { return _nodes; }
 
 // _____________________________________________________________________________
 void StatGroup::remNode(trgraph::Node* n) {
@@ -61,10 +59,11 @@ const std::set<const Stop*>& StatGroup::getStops() const { return _stops; }
 
 // _____________________________________________________________________________
 double StatGroup::getPen(const Stop* s, trgraph::Node* n,
-                            const trgraph::Normalizer& platformNorm,
-                            double trackPen, double distPenFac,
-                            double nonOsmPen) const {
-  DPoint p = util::geo::latLngToWebMerc<double>(s->getLat(), s->getLng());
+                         const trgraph::Normalizer& platformNorm,
+                         double trackPen, double distPenFac,
+                         double nonOsmPen) const {
+  POINT p =
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(s->getLat(), s->getLng());
 
   double distPen = util::geo::webMercMeterDist(p, *n->pl().getGeom());
   distPen *= distPenFac;
@@ -83,8 +82,8 @@ double StatGroup::getPen(const Stop* s, trgraph::Node* n,
 
 // _____________________________________________________________________________
 void StatGroup::writePens(const trgraph::Normalizer& platformNorm,
-                             double trackPen, double distPenFac,
-                             double nonOsmPen) {
+                          double trackPen, double distPenFac,
+                          double nonOsmPen) {
   if (_stopNodePens.size()) return;  // already written
   for (auto* s : _stops) {
     for (auto* n : _nodes) {

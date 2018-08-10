@@ -9,19 +9,21 @@
 #include <string>
 #include "pfaedle/trgraph/Graph.h"
 #include "util/geo/GeoGraph.h"
+#include "util/geo/Geo.h"
+#include "pfaedle/Def.h"
 
 using util::geograph::GeoNodePL;
-using util::geo::DPoint;
+
 
 namespace pfaedle {
 namespace router {
 
-class NodePL : public GeoNodePL<double> {
+class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
  public:
   NodePL() : _n(0) {}
   NodePL(const pfaedle::trgraph::Node* n) : _n(n) {}  // NOLINT
 
-  const DPoint* getGeom() const {
+  const POINT* getGeom() const {
     return !_n ? 0 : _n->pl().getGeom();
   }
   util::json::Dict getAttrs() const {

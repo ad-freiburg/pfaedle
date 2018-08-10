@@ -7,21 +7,20 @@
 
 #include <map>
 #include <string>
+#include "pfaedle/Def.h"
 #include "pfaedle/router/Misc.h"
-#include "util/geo/GeoGraph.h"
 #include "util/geo/Geo.h"
+#include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoEdgePL;
-using util::geo::DPoint;
-using util::geo::DLine;
 
 namespace pfaedle {
 namespace router {
 
-class EdgePL : public GeoEdgePL<double> {
+class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
  public:
   EdgePL() : _cost(), _start(0), _end(0), _startE(0), _endE(0) {}
-  const util::geo::DLine* getGeom() const;
+  const LINE* getGeom() const;
   util::json::Dict getAttrs() const;
   router::EdgeList* getEdges();
   const router::EdgeList& getEdges() const;
@@ -31,8 +30,8 @@ class EdgePL : public GeoEdgePL<double> {
   void setEndEdge(const trgraph::Edge* s);
   const router::EdgeCost& getCost() const;
   void setCost(const router::EdgeCost& c);
-  const DPoint& frontHop() const;
-  const DPoint& backHop() const;
+  const POINT& frontHop() const;
+  const POINT& backHop() const;
   const trgraph::Node* frontNode() const;
   const trgraph::Node* backNode() const;
 
@@ -44,7 +43,7 @@ class EdgePL : public GeoEdgePL<double> {
   const trgraph::Node* _end;
   const trgraph::Edge* _startE;
   const trgraph::Edge* _endE;
-  mutable DLine _geom;
+  mutable LINE _geom;
 };
 }  // namespace router
 }  // namespace pfaedle

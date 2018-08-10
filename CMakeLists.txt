@@ -50,6 +50,8 @@ else ()
 	message(FATAL_ERROR "Your C++ compiler does not support C++11.")
 endif ()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPFAEDLE_PRECISION=${PFAEDLE_PRECISION}")
+
 # http://brianmilco.blogspot.de/2012/11/cmake-automatically-use-git-tags-as.html
 include(GetGitRevisionDescription)
 git_get_tag(VERSION_GIT)

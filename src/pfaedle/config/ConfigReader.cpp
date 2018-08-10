@@ -7,6 +7,7 @@
 #include <exception>
 #include <iostream>
 #include <string>
+#include "pfaedle/Def.h"
 #include "pfaedle/_config.h"
 #include "pfaedle/config/ConfigReader.h"
 #include "util/String.h"
@@ -27,7 +28,8 @@ static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
 void ConfigReader::help(const char* bin) {
   std::cout
       << std::setfill(' ') << std::left << "pfaedle GTFS map matcher\n"
-      << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__ << ")\n\n"
+      << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__
+      << " with geometry precision <" << PFAEDLE_PRECISION_STR << ">)\n\n"
       << "(C) " << YEAR << " " << COPY << "\n"
       << "Authors: " << AUTHORS << "\n\n"
       << "Usage: " << bin << " -x <OSM FILE> -c <CFG FILE> <GTFS FEED>\n\n"
@@ -170,7 +172,8 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 'v':
         std::cout << "pfaedle " << VERSION_FULL << " (built " << __DATE__ << " "
-                  << __TIME__ << ")\n"
+                  << __TIME__ << " with geometry precision <"
+                  << PFAEDLE_PRECISION_STR << ">)\n"
                   << "(C) " << YEAR << " " << COPY << "\n"
                   << "Authors: " << AUTHORS << "\nGNU General Public "
                                                "License v3.0\n";

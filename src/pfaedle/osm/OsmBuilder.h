@@ -5,14 +5,15 @@
 #ifndef PFAEDLE_OSM_OSMBUILDER_H_
 #define PFAEDLE_OSM_OSMBUILDER_H_
 
+#include <map>
 #include <queue>
 #include <set>
-#include <map>
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/Def.h"
 #include "pfaedle/osm/BBoxIdx.h"
 #include "pfaedle/osm/OsmFilter.h"
 #include "pfaedle/osm/OsmIdSet.h"
@@ -23,6 +24,7 @@
 #include "pfaedle/trgraph/Normalizer.h"
 #include "pfaedle/trgraph/StatInfo.h"
 #include "util/Nullable.h"
+#include "util/geo/Geo.h"
 #include "util/xml/XmlWriter.h"
 #include "xml/File.h"
 
@@ -88,7 +90,6 @@ class OsmBuilder {
   void read(const std::string& path, const OsmReadOpts& opts, Graph* g,
             const BBoxIdx& box, size_t gridSize, router::FeedStops* fs,
             Restrictor* res);
-
 
   // Based on the list of options, read an OSM file from in and output an
   // OSM file to out which contains exactly the entities that are needed
@@ -162,7 +163,7 @@ class OsmBuilder {
   OsmRel nextRel(xml::File* xml, const OsmFilter& filter,
                  const AttrKeySet& keepAttrs) const;
 
-  Nullable<StatInfo> getStatInfo(Node* node, osmid nid, const DPoint& pos,
+  Nullable<StatInfo> getStatInfo(Node* node, osmid nid, const POINT& pos,
                                  const AttrMap& m, StAttrGroups* groups,
                                  const RelMap& nodeRels, const RelLst& rels,
                                  const OsmReadOpts& ops) const;
@@ -172,14 +173,12 @@ class OsmBuilder {
   void deleteOrphEdgs(Graph* g) const;
   double dist(const Node* a, const Node* b) const;
   double webMercDist(const Node* a, const Node* b) const;
-  double webMercDistFactor(const DPoint& a) const;
+  double webMercDistFactor(const POINT& a) const;
 
-  NodeGrid buildNodeIdx(Graph* g, size_t size,
-                        const util::geo::Box<double>& webMercBox,
+  NodeGrid buildNodeIdx(Graph* g, size_t size, const BOX& webMercBox,
                         bool which) const;
 
-  EdgeGrid buildEdgeIdx(Graph* g, size_t size,
-                        const util::geo::Box<double>& webMercBox) const;
+  EdgeGrid buildEdgeIdx(Graph* g, size_t size, const BOX& webMercBox) const;
 
   void fixGaps(Graph* g, NodeGrid* ng) const;
   void collapseEdges(Graph* g) const;
@@ -190,7 +189,7 @@ class OsmBuilder {
   uint32_t writeComps(Graph* g) const;
   bool edgesSim(const Edge* a, const Edge* b) const;
   const EdgePL& mergeEdgePL(Edge* a, Edge* b) const;
-  void getEdgCands(const DPoint& s, EdgeCandPQ* ret, EdgeGrid* eg,
+  void getEdgCands(const POINT& s, EdgeCandPQ* ret, EdgeGrid* eg,
                    double d) const;
 
   std::set<Node*> getMatchingNds(const NodePL& s, NodeGrid* ng, double d) const;
@@ -204,15 +203,15 @@ class OsmBuilder {
   // Checks if from the edge e, a station similar to si can be reach with less
   // than maxD distance and less or equal to "maxFullTurns" full turns. If
   // such a station exists, it is returned. If not, 0 is returned.
-  Node* eqStatReach(const Edge* e, const StatInfo* si, const DPoint& p,
+  Node* eqStatReach(const Edge* e, const StatInfo* si, const POINT& p,
                     double maxD, int maxFullTurns, double maxAng) const;
 
-  Node* depthSearch(const Edge* e, const StatInfo* si,
-                    const DPoint& p, double maxD, int maxFullTurns,
-                    double minAngle, const SearchFunc& sfunc) const;
+  Node* depthSearch(const Edge* e, const StatInfo* si, const POINT& p,
+                    double maxD, int maxFullTurns, double minAngle,
+                    const SearchFunc& sfunc) const;
 
-  bool isBlocked(const Edge* e, const StatInfo* si, const DPoint& p,
-                 double maxD, int maxFullTurns, double minAngle) const;
+  bool isBlocked(const Edge* e, const StatInfo* si, const POINT& p, double maxD,
+                 int maxFullTurns, double minAngle) const;
 
   StatGroup* groupStats(const NodeSet& s) const;
 

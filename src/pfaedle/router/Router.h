@@ -20,6 +20,8 @@
 #include "pfaedle/trgraph/Graph.h"
 #include "util/graph/Dijkstra.h"
 #include "util/graph/EDijkstra.h"
+#include "util/geo/Geo.h"
+#include "pfaedle/Def.h"
 
 using util::graph::EDijkstra;
 using util::graph::Dijkstra;
@@ -100,7 +102,7 @@ struct DistHeur
 
   const RoutingOpts& _rOpts;
   uint8_t _lvl;
-  DPoint _center;
+  POINT _center;
   double _maxCentD;
   EdgeCost operator()(const trgraph::Edge* a,
                       const std::set<trgraph::Edge*>& b) const;
@@ -111,7 +113,7 @@ struct NDistHeur
   NDistHeur(const RoutingOpts& rOpts, const std::set<trgraph::Node*>& tos);
 
   const RoutingOpts& _rOpts;
-  DPoint _center;
+  POINT _center;
   double _maxCentD;
   EdgeCost operator()(const trgraph::Node* a,
                       const std::set<trgraph::Node*>& b) const;

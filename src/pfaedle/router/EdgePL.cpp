@@ -2,6 +2,8 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#include "pfaedle/Def.h"
+#include "util/geo/Geo.h"
 #include "pfaedle/router/EdgePL.h"
 #include "pfaedle/router/Router.h"
 #include "util/String.h"
@@ -18,13 +20,13 @@ EdgeList* EdgePL::getEdges() { return &_edges; }
 const EdgeList& EdgePL::getEdges() const { return _edges; }
 
 // _____________________________________________________________________________
-const DPoint& EdgePL::frontHop() const {
+const POINT& EdgePL::frontHop() const {
   if (!_edges.size()) return *_end->pl().getGeom();
   return _edges.back()->pl().frontHop();
 }
 
 // _____________________________________________________________________________
-const DPoint& EdgePL::backHop() const {
+const POINT& EdgePL::backHop() const {
   if (!_edges.size()) return *_start->pl().getGeom();
   return _edges.front()->pl().backHop();
 }
@@ -36,7 +38,7 @@ const Node* EdgePL::backNode() const { return _end; }
 const Node* EdgePL::frontNode() const { return _start; }
 
 // _____________________________________________________________________________
-const util::geo::DLine* EdgePL::getGeom() const {
+const LINE* EdgePL::getGeom() const {
   if (!_edges.size()) return 0;
   if (!_geom.size()) {
     const trgraph::Node* l = _start;
@@ -73,7 +75,6 @@ const EdgeCost& EdgePL::getCost() const { return _cost; }
 
 // _____________________________________________________________________________
 void EdgePL::setCost(const router::EdgeCost& c) { _cost = c; }
-
 
 // _____________________________________________________________________________
 util::json::Dict EdgePL::getAttrs() const {

@@ -14,20 +14,22 @@
 #include <unordered_map>
 #include <utility>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/Def.h"
 #include "pfaedle/eval/Collector.h"
 #include "pfaedle/osm/OsmBuilder.h"
 #include "pfaedle/router/ShapeBuilder.h"
 #include "pfaedle/trgraph/StatGroup.h"
+#include "util/geo/Geo.h"
 #include "util/geo/output/GeoGraphJsonOutput.h"
 #include "util/geo/output/GeoJsonOutput.h"
 #include "util/graph/EDijkstra.h"
 #include "util/log/Log.h"
 
-using util::geo::DPoint;
 using util::geo::extendBox;
 using util::geo::DBox;
+using util::geo::DPoint;
 using util::geo::minbox;
-using util::geo::DLine;
+
 using util::geo::webMercMeterDist;
 using util::geo::webMercToLatLng;
 using util::geo::latLngToWebMerc;
@@ -91,11 +93,11 @@ const NodeCandGroup& ShapeBuilder::getNodeCands(const Stop* s) const {
 }
 
 // _____________________________________________________________________________
-DLine ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
-                           const router::RoutingAttrs& rAttrs) {
+LINE ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
+                          const router::RoutingAttrs& rAttrs) {
   const router::EdgeListHops& res = route(ncr, rAttrs);
 
-  DLine l;
+  LINE l;
   for (const auto& hop : res) {
     const trgraph::Node* last = hop.start;
     if (hop.edges.size() == 0) {
@@ -118,7 +120,7 @@ DLine ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
 }
 
 // _____________________________________________________________________________
-DLine ShapeBuilder::shapeL(Trip* trip) {
+LINE ShapeBuilder::shapeL(Trip* trip) {
   return shapeL(getNCR(trip), getRAttrs(trip));
 }
 
@@ -218,8 +220,7 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
       {
         LOG(INFO) << "@ " << j << " / " << clusters.size() << " ("
                   << (static_cast<int>((j * 1.0) / clusters.size() * 100))
-                  << "%, "
-                  << (EDijkstra::ITERS - oiters) << " iters, "
+                  << "%, " << (EDijkstra::ITERS - oiters) << " iters, "
                   /**
                     TODO: this is actually misleading. We are counting the
                     Dijkstra iterations, but the measuring them against
@@ -275,16 +276,17 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
   LOG(INFO) << "Matched " << totNumTrips << " trips in " << clusters.size()
             << " clusters.";
   LOG(DEBUG) << "Took " << (EDijkstra::ITERS - totiters)
-            << " iterations in total.";
+             << " iterations in total.";
   LOG(DEBUG) << "Took " << TOOK(t2, TIME()) << " ms in total.";
   LOG(DEBUG) << "Total avg. tput "
-            << (static_cast<double>(EDijkstra::ITERS - totiters)) /
-                   TOOK(t2, TIME())
-            << " iters/sec";
+             << (static_cast<double>(EDijkstra::ITERS - totiters)) /
+                    TOOK(t2, TIME())
+             << " iters/sec";
   LOG(DEBUG) << "Total avg. trip tput "
-            << (clusters.size() / (TOOK(t2, TIME()) / 1000)) << " trips/sec";
+             << (clusters.size() / (TOOK(t2, TIME()) / 1000)) << " trips/sec";
   LOG(DEBUG) << "Avg hop distance was "
-            << (totAvgDist / static_cast<double>(clusters.size())) << " meters";
+             << (totAvgDist / static_cast<double>(clusters.size()))
+             << " meters";
 
   if (_cfg.buildTransitGraph) {
     LOG(INFO) << "Building transit network graph...";
@@ -321,12 +323,12 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
   double dist = -1;
   double lastDist = -1;
   hopDists->push_back(0);
-  DPoint last(0, 0);
+  POINT last(0, 0);
   for (const auto& hop : shp.hops) {
     const trgraph::Node* l = hop.start;
     if (hop.edges.size() == 0) {
-      DPoint ll = webMercToLatLng<double>(hop.start->pl().getGeom()->getX(),
-                                         hop.start->pl().getGeom()->getY());
+      POINT ll = webMercToLatLng<PFAEDLE_PRECISION>(
+          hop.start->pl().getGeom()->getX(), hop.start->pl().getGeom()->getY());
 
       if (dist > -0.5)
         dist += webMercMeterDist(last, *hop.start->pl().getGeom());
@@ -345,8 +347,8 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       last = *hop.end->pl().getGeom();
 
       if (dist - lastDist > 0.01) {
-        ll = webMercToLatLng<double>(hop.end->pl().getGeom()->getX(),
-                                    hop.end->pl().getGeom()->getY());
+        ll = webMercToLatLng<PFAEDLE_PRECISION>(
+            hop.end->pl().getGeom()->getX(), hop.end->pl().getGeom()->getY());
         ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
         lastDist = dist;
@@ -356,14 +358,15 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       const auto* e = *i;
       if ((e->getFrom() == l) ^ e->pl().isRev()) {
         for (size_t i = 0; i < e->pl().getGeom()->size(); i++) {
-          const DPoint& cur = (*e->pl().getGeom())[i];
+          const POINT& cur = (*e->pl().getGeom())[i];
           if (dist > -0.5)
             dist += webMercMeterDist(last, cur);
           else
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            DPoint ll = webMercToLatLng<double>(cur.getX(), cur.getY());
+            POINT ll =
+                webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
             ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
@@ -371,14 +374,15 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
         }
       } else {
         for (int64_t i = e->pl().getGeom()->size() - 1; i >= 0; i--) {
-          const DPoint& cur = (*e->pl().getGeom())[i];
+          const POINT& cur = (*e->pl().getGeom())[i];
           if (dist > -0.5)
             dist += webMercMeterDist(last, cur);
           else
             dist = 0;
           last = cur;
           if (dist - lastDist > 0.01) {
-            DPoint ll = webMercToLatLng<double>(cur.getX(), cur.getY());
+            POINT ll =
+                webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
             ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
@@ -452,10 +456,10 @@ BBoxIdx ShapeBuilder::getPaddedGtfsBox(const Feed* feed, double pad,
     if (tid.empty() && t.second->getShape() && !dropShapes) continue;
     if (t.second->getStopTimes().size() < 2) continue;
     if (mots.count(t.second->getRoute()->getType())) {
-      DBox cur = minbox<double>();
+      DBox cur;
       for (const auto& st : t.second->getStopTimes()) {
-        cur = extendBox(
-            DPoint(st.getStop()->getLng(), st.getStop()->getLat()), cur);
+        cur = extendBox(DPoint(st.getStop()->getLng(), st.getStop()->getLat()),
+                        cur);
       }
       box.add(cur);
     }
@@ -470,7 +474,6 @@ void ShapeBuilder::buildGraph() {
 
   osm::BBoxIdx box =
       getPaddedGtfsBox(_feed, 2500, _mots, _cfg.shapeTripId, _cfg.dropShapes);
-
 
   osmBuilder.read(_cfg.osmPath, _motCfg.osmBuildOpts, &_g, box, _cfg.gridSize,
                   getFeedStops(), &_restr);
@@ -511,9 +514,10 @@ double ShapeBuilder::avgHopDist(Trip* trip) const {
       prev = st.getStop();
       continue;
     }
-    auto a = util::geo::latLngToWebMerc<double>(prev->getLat(), prev->getLng());
-    auto b = util::geo::latLngToWebMerc<double>(st.getStop()->getLat(),
-                                               st.getStop()->getLng());
+    auto a = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(prev->getLat(),
+                                                           prev->getLng());
+    auto b = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
+        st.getStop()->getLat(), st.getStop()->getLng());
     sum += util::geo::webMercMeterDist(a, b);
 
     prev = st.getStop();
@@ -573,8 +577,10 @@ bool ShapeBuilder::routingEqual(const Stop* a, const Stop* b) {
   auto trackb = _motCfg.osmBuildOpts.trackNormzer(b->getPlatformCode());
   if (tracka != trackb) return false;
 
-  DPoint ap = util::geo::latLngToWebMerc<double>(a->getLat(), a->getLng());
-  DPoint bp = util::geo::latLngToWebMerc<double>(b->getLat(), b->getLng());
+  POINT ap =
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(a->getLat(), a->getLng());
+  POINT bp =
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(b->getLat(), b->getLng());
 
   double d = util::geo::webMercMeterDist(ap, bp);
 

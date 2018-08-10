@@ -9,12 +9,12 @@
 #include <string>
 #include <unordered_map>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/Def.h"
 #include "pfaedle/trgraph/StatInfo.h"
-#include "util/geo/GeoGraph.h"
 #include "util/geo/Geo.h"
+#include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoNodePL;
-using util::geo::DPoint;
 
 namespace pfaedle {
 namespace trgraph {
@@ -26,17 +26,17 @@ struct Component {
 /*
  * A node payload class for the transit graph.
  */
-class NodePL : public GeoNodePL<double> {
+class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
  public:
   NodePL();
-  NodePL(const NodePL& pl);  // NOLINT
-  NodePL(const DPoint& geom);  // NOLINT
-  NodePL(const DPoint& geom, const StatInfo& si);
+  NodePL(const NodePL& pl);   // NOLINT
+  NodePL(const POINT& geom);  // NOLINT
+  NodePL(const POINT& geom, const StatInfo& si);
   ~NodePL();
 
   // Return the geometry of this node.
-  const DPoint* getGeom() const;
-  void setGeom(const DPoint& geom);
+  const POINT* getGeom() const;
+  void setGeom(const POINT& geom);
 
   // Fill obj with k/v pairs describing the parameters of this payload.
   util::json::Dict getAttrs() const;
@@ -68,7 +68,7 @@ class NodePL : public GeoNodePL<double> {
   void setVisited() const;
 
  private:
-  DPoint _geom;
+  POINT _geom;
   StatInfo* _si;
   const Component* _component;
 

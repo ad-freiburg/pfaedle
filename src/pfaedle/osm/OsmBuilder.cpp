@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "pfaedle/Def.h"
 #include "pfaedle/osm/BBoxIdx.h"
 #include "pfaedle/osm/Osm.h"
 #include "pfaedle/osm/OsmBuilder.h"
@@ -136,7 +137,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
     for (double d : opts.maxSnapDistances) {
       for (auto s : orphanStations) {
-        DPoint geom = *s->pl().getGeom();
+        POINT geom = *s->pl().getGeom();
         NodePL pl = s->pl();
         pl.getSI()->setIsFromOsm(false);
         const auto& r = snapStation(g, &pl, &eg, &sng, opts, res, false, d);
@@ -374,9 +375,10 @@ void OsmBuilder::readWriteWays(xml::File* i, util::xml::XmlWriter* o,
 
 // _____________________________________________________________________________
 NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) const {
-  NodePL ret(util::geo::latLngToWebMerc<double>(s->getLat(), s->getLng()),
-             StatInfo(ops.statNormzer(s->getName()),
-                      ops.trackNormzer(s->getPlatformCode()), false));
+  NodePL ret(
+      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(s->getLat(), s->getLng()),
+      StatInfo(ops.statNormzer(s->getName()),
+               ops.trackNormzer(s->getPlatformCode()), false));
 
   if (s->getParentStation()) {
     ret.getSI()->addAltName(ops.statNormzer(s->getParentStation()->getName()));
@@ -705,7 +707,7 @@ void OsmBuilder::readNodes(xml::File* xml, Graph* g, const RelLst& rels,
                         keepAttrs, fl))
              .id) {
     Node* n = 0;
-    auto pos = util::geo::latLngToWebMerc<double>(nd.lat, nd.lng);
+    auto pos = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(nd.lat, nd.lng);
     if (nodes->count(nd.id)) {
       n = (*nodes)[nd.id];
       n->pl().setGeom(pos);
@@ -930,7 +932,7 @@ std::string OsmBuilder::getAttr(const DeepAttrRule& s, osmid id,
 
 // _____________________________________________________________________________
 Nullable<StatInfo> OsmBuilder::getStatInfo(Node* node, osmid nid,
-                                           const DPoint& pos, const AttrMap& m,
+                                           const POINT& pos, const AttrMap& m,
                                            StAttrGroups* groups,
                                            const RelMap& nodeRels,
                                            const RelLst& rels,
@@ -994,7 +996,7 @@ double OsmBuilder::dist(const Node* a, const Node* b) const {
 }
 
 // _____________________________________________________________________________
-double OsmBuilder::webMercDistFactor(const util::geo::DPoint& a) const {
+double OsmBuilder::webMercDistFactor(const POINT& a) const {
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
 
@@ -1035,7 +1037,7 @@ void OsmBuilder::fixGaps(Graph* g, NodeGrid* ng) const {
             otherN = (*nb->getAdjListOut().begin())->getOtherNd(nb);
           else
             otherN = (*nb->getAdjListIn().begin())->getOtherNd(nb);
-          DLine l;
+          LINE l;
           l.push_back(*otherN->pl().getGeom());
           l.push_back(*n->pl().getGeom());
 
@@ -1057,7 +1059,7 @@ void OsmBuilder::fixGaps(Graph* g, NodeGrid* ng) const {
 
 // _____________________________________________________________________________
 EdgeGrid OsmBuilder::buildEdgeIdx(Graph* g, size_t size,
-                                  const Box<double>& webMercBox) const {
+                                  const BOX& webMercBox) const {
   EdgeGrid ret(size, size, webMercBox, false);
   for (auto* n : *g->getNds()) {
     for (auto* e : n->getAdjListOut()) {
@@ -1070,7 +1072,7 @@ EdgeGrid OsmBuilder::buildEdgeIdx(Graph* g, size_t size,
 
 // _____________________________________________________________________________
 NodeGrid OsmBuilder::buildNodeIdx(Graph* g, size_t size,
-                                  const Box<double>& webMercBox,
+                                  const BOX& webMercBox,
                                   bool which) const {
   NodeGrid ret(size, size, webMercBox, false);
   for (auto* n : *g->getNds()) {
@@ -1083,9 +1085,8 @@ NodeGrid OsmBuilder::buildNodeIdx(Graph* g, size_t size,
 }
 
 // _____________________________________________________________________________
-Node* OsmBuilder::depthSearch(const Edge* e, const StatInfo* si,
-                              const util::geo::DPoint& p, double maxD,
-                              int maxFullTurns, double minAngle,
+Node* OsmBuilder::depthSearch(const Edge* e, const StatInfo* si, const POINT& p,
+                              double maxD, int maxFullTurns, double minAngle,
                               const SearchFunc& sfunc) const {
   // shortcuts
   double dFrom = webMercMeterDist(*e->getFrom()->pl().getGeom(), p);
@@ -1125,10 +1126,10 @@ Node* OsmBuilder::depthSearch(const Edge* e, const StatInfo* si,
       if (cur.fromEdge &&
           cur.node->getInDeg() + cur.node->getOutDeg() >
               2) {  // only intersection angles
-        const DPoint& toP = *cand->pl().getGeom();
-        const DPoint& fromP =
+        const POINT& toP = *cand->pl().getGeom();
+        const POINT& fromP =
             *cur.fromEdge->getOtherNd(cur.node)->pl().getGeom();
-        const DPoint& nodeP = *cur.node->pl().getGeom();
+        const POINT& nodeP = *cur.node->pl().getGeom();
 
         if (util::geo::innerProd(nodeP, fromP, toP) < minAngle) fullTurn = 1;
       }
@@ -1149,25 +1150,25 @@ Node* OsmBuilder::depthSearch(const Edge* e, const StatInfo* si,
 }
 
 // _____________________________________________________________________________
-bool OsmBuilder::isBlocked(const Edge* e, const StatInfo* si,
-                           const util::geo::DPoint& p, double maxD,
-                           int maxFullTurns, double minAngle) const {
+bool OsmBuilder::isBlocked(const Edge* e, const StatInfo* si, const POINT& p,
+                           double maxD, int maxFullTurns,
+                           double minAngle) const {
   return depthSearch(e, si, p, maxD, maxFullTurns, minAngle, BlockSearch());
 }
 
 // _____________________________________________________________________________
-Node* OsmBuilder::eqStatReach(const Edge* e, const StatInfo* si,
-                              const util::geo::DPoint& p, double maxD,
-                              int maxFullTurns, double minAngle) const {
+Node* OsmBuilder::eqStatReach(const Edge* e, const StatInfo* si, const POINT& p,
+                              double maxD, int maxFullTurns,
+                              double minAngle) const {
   return depthSearch(e, si, p, maxD, maxFullTurns, minAngle, EqSearch());
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::getEdgCands(const DPoint& geom, EdgeCandPQ* ret, EdgeGrid* eg,
+void OsmBuilder::getEdgCands(const POINT& geom, EdgeCandPQ* ret, EdgeGrid* eg,
                              double d) const {
   double distor = webMercDistFactor(geom);
   std::set<Edge*> neighs;
-  Box<double> box = util::geo::pad(util::geo::getBoundingBox(geom), d / distor);
+  BOX box = util::geo::pad(util::geo::getBoundingBox(geom), d / distor);
   eg->get(box, &neighs);
 
   for (auto* e : neighs) {
@@ -1186,7 +1187,7 @@ std::set<Node*> OsmBuilder::getMatchingNds(const NodePL& s, NodeGrid* ng,
   std::set<Node*> ret;
   double distor = webMercDistFactor(*s.getGeom());
   std::set<Node*> neighs;
-  Box<double> box =
+  BOX box =
       util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
   ng->get(box, &neighs);
 
@@ -1204,7 +1205,7 @@ std::set<Node*> OsmBuilder::getMatchingNds(const NodePL& s, NodeGrid* ng,
 Node* OsmBuilder::getMatchingNd(const NodePL& s, NodeGrid* ng, double d) const {
   double distor = webMercDistFactor(*s.getGeom());
   std::set<Node*> neighs;
-  Box<double> box =
+  BOX box =
       util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
   ng->get(box, &neighs);
 
@@ -1282,7 +1283,7 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
 
         auto ne = g->addEdg(e->getFrom(), n, e->pl());
         ne->pl().setLength(webMercDist(n, e->getFrom()));
-        DLine l;
+        LINE l;
         l.push_back(*e->getFrom()->pl().getGeom());
         l.push_back(*n->pl().getGeom());
         *ne->pl().getGeom() = l;
@@ -1290,7 +1291,7 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
 
         auto nf = g->addEdg(n, e->getTo(), e->pl());
         nf->pl().setLength(webMercDist(n, e->getTo()));
-        DLine ll;
+        LINE ll;
         ll.push_back(*n->pl().getGeom());
         ll.push_back(*e->getTo()->pl().getGeom());
         *nf->pl().getGeom() = ll;

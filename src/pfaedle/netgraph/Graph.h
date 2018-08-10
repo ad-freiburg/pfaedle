@@ -11,8 +11,8 @@
 
 using util::geo::Point;
 using util::geo::Line;
-using util::geo::DPoint;
-using util::geo::DLine;
+
+
 
 namespace pfaedle {
 namespace netgraph {

@@ -51,35 +51,35 @@ CASE("json") {
 
   util::json::Val f({1, json::Array{2, 3, 4}, 3});
 
-  ss = std::stringstream();
+  ss.str("");
   wr = util::json::Writer(&ss, 2, false);
   util::json::Val i({1, json::Array{2, json::Null(), 4}, true});
   wr.val(i);
   wr.closeAll();
   EXPECT(ss.str() == "[1,[2,null,4],true]");
 
-  ss = std::stringstream();
+  ss.str("");
   wr = util::json::Writer(&ss, 2, false);
   i = util::json::Val({1, json::Array{2, json::Null(), 4}, false});
   wr.val(i);
   wr.closeAll();
   EXPECT(ss.str() == "[1,[2,null,4],false]");
 
-  ss = std::stringstream();
+  ss.str("");
   wr = util::json::Writer(&ss, 2, false);
   i = util::json::Val({1, json::Array{2, json::Null(), 4}, false});
   wr.val(i);
   wr.closeAll();
   EXPECT(ss.str() == "[1,[2,null,4],false]");
 
-  ss = std::stringstream();
+  ss.str("");
   wr = util::json::Writer(&ss, 2, false);
   i = util::json::Val({1, json::Array{2.13, "", 4}, 0});
   wr.val(i);
   wr.closeAll();
   EXPECT(ss.str() == "[1,[2.13,\"\",4],0]");
 
-  ss = std::stringstream();
+  ss.str("");
   wr = util::json::Writer(&ss, 2, false);
   i = util::json::Val({1, json::Array{2.13, json::Dict{{"a", 1}, {"B", 2.123}}, 4}, 0});
   wr.val(i);

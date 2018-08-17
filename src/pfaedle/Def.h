@@ -1,5 +1,6 @@
-// Copyright 2018
-// Author: Patrick Brosi
+// Copyright 2018, University of Freiburg,
+// Chair of Algorithms and Data Structures.
+// Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
 #ifndef PFAEDLE_DEF_H_
 #define PFAEDLE_DEF_H_
@@ -19,7 +20,6 @@
 
 #define PFAEDLE_PRECISION_STR __str_a(PFAEDLE_PRECISION)
 
-// version number from cmake version module
 #define POINT util::geo::Point<PFAEDLE_PRECISION>
 #define LINE util::geo::Line<PFAEDLE_PRECISION>
 #define BOX util::geo::Box<PFAEDLE_PRECISION>

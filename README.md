@@ -1,5 +1,7 @@
-[![Left: station-to-station path of a single train through Switzerlanad, as contained in official timetable data. Right: path of the same train map-matched by pfaedle.](geo/schweiz_ex_res.png?raw=true)](geo/schweiz_ex.png?raw=true)
+[![Left: station-to-station path of a single train through Switzerland, as contained in official timetable data. Right: path of the same train map-matched by pfaedle.](geo/schweiz_ex_res.png?raw=true)](geo/schweiz_ex.png?raw=true)
+*Left: station-to-station path of a single train through Switzerland, as contained in official timetable data. Right: path of the same train map-matched by pfaedle.*
 [![Left: station-to-station path of a single bus through Stuttgart, as contained in official timetable data. Right: path of the same bus map-matched by pfaedle.](geo/stuttgart_ex_res.png?raw=true)](geo/stuttgart_ex.png?raw=true)
+*Left: station-to-station path of a single bus through Stuttgart, as contained in official timetable data. Right: path of the same bus map-matched by pfaedle.*
 
 [![Build
 Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://travis-ci.org/ad-freiburg/pfaedle)

@@ -972,11 +972,13 @@ CASE("geometry") {
 
   EXPECT(geo::intersects(lsa, lsb));
 
-  EXPECT(geo::intersects(lsa, lsa));
-  EXPECT(geo::intersects(lsb, lsb));
+  EXPECT(!geo::intersects(lsa, lsa));
+  EXPECT(!geo::intersects(lsb, lsb));
   EXPECT(!geo::intersects(lsa, lsc));
 
   EXPECT(!geo::intersects(geo::Point<double>(871569.2, 6104550.4), geo::Point<double>(871581.2, 6104536), geo::Point<double>(871580.3, 6104541.3), geo::Point<double>(871625.7, 6104510.1)));
+
+  EXPECT(!geo::intersects(geo::Point<double>(0, 0), geo::Point<double>(1, 1), geo::Point<double>(0.5, 0.5), geo::Point<double>(1.5, 1.5)));
 
   geo::Line<double> l{geo::Point<double>(1, 1), geo::Point<double>(2, 2), geo::Point<double>(2, 4)};
   EXPECT(!geo::contains(geo::Point<double>(1, 2), l));

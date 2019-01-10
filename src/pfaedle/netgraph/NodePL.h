@@ -12,7 +12,6 @@
 
 using util::geograph::GeoNodePL;
 
-
 namespace pfaedle {
 namespace netgraph {
 
@@ -20,15 +19,13 @@ namespace netgraph {
  * A payload class for edges on a network graph - that is a graph
  * that exactly represents a physical public transit network
  */
-class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
+class NodePL {
  public:
   NodePL() {}
   NodePL(const POINT& geom) { _geom = geom; }  // NOLINT
 
   const POINT* getGeom() const { return &_geom; }
-  util::json::Dict getAttrs() const {
-    return util::json::Dict();
-  }
+  util::json::Dict getAttrs() const { return util::json::Dict(); }
 
  private:
   POINT _geom;

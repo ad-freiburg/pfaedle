@@ -38,6 +38,31 @@ BOX BBoxIdx::getFullWebMercBox() const {
 }
 
 // _____________________________________________________________________________
+BOX BBoxIdx::getFullBox() const { return _root.box; }
+
+// _____________________________________________________________________________
+std::vector<util::geo::Box<double>> BBoxIdx::getLeafs() const {
+  std::vector<util::geo::Box<double>> ret;
+  getLeafsRec(_root, &ret);
+  return ret;
+}
+
+// _____________________________________________________________________________
+void BBoxIdx::getLeafsRec(const BBoxIdxNd& nd,
+                          std::vector<util::geo::Box<double>>* ret) const {
+  if (!nd.childs.size()) {
+    ret->push_back(nd.box);
+    return;
+  }
+
+  for (const auto& child : nd.childs) {
+    getLeafsRec(child, ret);
+  }
+
+  return;
+}
+
+// _____________________________________________________________________________
 bool BBoxIdx::treeHas(const Point<double>& p, const BBoxIdxNd& nd) const {
   if (!nd.childs.size()) return util::geo::contains(p, nd.box);
   for (const auto& child : nd.childs) {

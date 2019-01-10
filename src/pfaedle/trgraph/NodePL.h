@@ -26,7 +26,7 @@ struct Component {
 /*
  * A node payload class for the transit graph.
  */
-class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
+class NodePL {
  public:
   NodePL();
   NodePL(const NodePL& pl);   // NOLINT

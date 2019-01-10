@@ -12,11 +12,12 @@
 #include <utility>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/eval/Result.h"
 #include "util/geo/Geo.h"
 
-using ad::cppgtfs::gtfs::Trip;
+using pfaedle::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
 
 namespace pfaedle {
@@ -37,7 +38,7 @@ class Collector {
 
   // Add a shape found by our tool newS for a trip t with newly calculated
   // station dist values with the old shape oldS
-  double add(const Trip* t, const Shape* oldS, const Shape* newS,
+  double add(const Trip* t, const Shape* oldS, const Shape& newS,
              const std::vector<double>& newDists);
 
   // Return the set of all Result objects
@@ -65,8 +66,8 @@ class Collector {
   std::set<Result> _results;
   std::set<Result> _resultsAN;
   std::set<Result> _resultsAL;
-  std::map<const Shape*, std::map<const Shape*, double> > _dCache;
-  std::map<const Shape*, std::map<const Shape*, std::pair<size_t, double> > >
+  std::map<const Shape*, std::map<std::string, double> > _dCache;
+  std::map<const Shape*, std::map<std::string, std::pair<size_t, double> > >
       _dACache;
   size_t _noOrigShp;
 

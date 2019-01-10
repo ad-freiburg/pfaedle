@@ -39,7 +39,7 @@ EdgePL::EdgePL(const EdgePL& pl, bool geoflat)
   }
   _flines[_l]++;
 
-  for (auto l : _lines) addLine(l);
+  for (auto l : pl._lines) addLine(l);
 }
 
 // _____________________________________________________________________________
@@ -82,7 +82,9 @@ double EdgePL::getLength() const { return _length; }
 
 // _____________________________________________________________________________
 void EdgePL::addLine(const TransitEdgeLine* l) {
-  if (_lines.insert(l).second) {
+  if (std::find(_lines.begin(), _lines.end(), l) == _lines.end()) {
+    _lines.reserve(_lines.size() + 1);
+    _lines.push_back(l);
     if (_tlines.count(l))
       _tlines[l]++;
     else
@@ -96,7 +98,7 @@ void EdgePL::addLines(const std::vector<TransitEdgeLine*>& l) {
 }
 
 // _____________________________________________________________________________
-const std::set<const TransitEdgeLine*>& EdgePL::getLines() const {
+const std::vector<const TransitEdgeLine*>& EdgePL::getLines() const {
   return _lines;
 }
 

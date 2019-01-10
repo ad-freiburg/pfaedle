@@ -7,8 +7,8 @@
 
 #include <set>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "ad/cppgtfs/gtfs/Route.h"
 #include "pfaedle/trgraph/Graph.h"
@@ -67,90 +67,35 @@ inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
 }
 
 struct EdgeCost {
-  EdgeCost()
-      : meterDist(0),
-        meterDistLvl1(0),
-        meterDistLvl2(0),
-        meterDistLvl3(0),
-        meterDistLvl4(0),
-        meterDistLvl5(0),
-        meterDistLvl6(0),
-        meterDistLvl7(0),
-        fullTurns(0),
-        passThruStations(0),
-        oneWayMeters(0),
-        oneWayEdges(0),
-        lineUnmatchedMeters(0),
-        reachPen(0),
-        o(0) {}
+  EdgeCost() : _cost(0) {}
+  explicit EdgeCost(double cost) : _cost(cost) {}
   EdgeCost(double mDist, double mDistLvl1, double mDistLvl2, double mDistLvl3,
            double mDistLvl4, double mDistLvl5, double mDistLvl6,
            double mDistLvl7, uint32_t fullTurns, int32_t passThru,
            double oneWayMeters, size_t oneWayEdges, double lineUnmatchedMeters,
-           double reachPen, const RoutingOpts* o)
-      : meterDist(mDist),
-        meterDistLvl1(mDistLvl1),
-        meterDistLvl2(mDistLvl2),
-        meterDistLvl3(mDistLvl3),
-        meterDistLvl4(mDistLvl4),
-        meterDistLvl5(mDistLvl5),
-        meterDistLvl6(mDistLvl6),
-        meterDistLvl7(mDistLvl7),
-        fullTurns(fullTurns),
-        passThruStations(passThru),
-        oneWayMeters(oneWayMeters),
-        oneWayEdges(oneWayEdges),
-        lineUnmatchedMeters(lineUnmatchedMeters),
-        reachPen(reachPen),
-        o(o) {}
-  double meterDist;
-  double meterDistLvl1;
-  double meterDistLvl2;
-  double meterDistLvl3;
-  double meterDistLvl4;
-  double meterDistLvl5;
-  double meterDistLvl6;
-  double meterDistLvl7;
-  uint32_t fullTurns;
-  int32_t passThruStations;
-  double oneWayMeters;
-  size_t oneWayEdges;
-  double lineUnmatchedMeters;
-  double reachPen;
-  const RoutingOpts* o;
-
-  double getValue() const {
-    if (!o) return meterDist + reachPen;
-    return meterDist * o->levelPunish[0] + meterDistLvl1 * o->levelPunish[1] +
-           meterDistLvl2 * o->levelPunish[2] +
-           meterDistLvl3 * o->levelPunish[3] +
-           meterDistLvl4 * o->levelPunish[4] +
-           meterDistLvl5 * o->levelPunish[5] +
-           meterDistLvl6 * o->levelPunish[6] +
-           meterDistLvl7 * o->levelPunish[7] +
-           oneWayMeters * o->oneWayPunishFac +
-           oneWayEdges * o->oneWayEdgePunish +
-           lineUnmatchedMeters * o->lineUnmatchedPunishFact +
-           fullTurns * o->fullTurnPunishFac +
-           passThruStations * o->passThruStationsPunish + reachPen;
+           double reachPen, const RoutingOpts* o) {
+    if (!o) {
+      _cost = mDist + reachPen;
+    } else {
+      _cost = mDist * o->levelPunish[0] + mDistLvl1 * o->levelPunish[1] +
+              mDistLvl2 * o->levelPunish[2] + mDistLvl3 * o->levelPunish[3] +
+              mDistLvl4 * o->levelPunish[4] + mDistLvl5 * o->levelPunish[5] +
+              mDistLvl6 * o->levelPunish[6] + mDistLvl7 * o->levelPunish[7] +
+              oneWayMeters * o->oneWayPunishFac +
+              oneWayEdges * o->oneWayEdgePunish +
+              lineUnmatchedMeters * o->lineUnmatchedPunishFact +
+              fullTurns * o->fullTurnPunishFac +
+              passThru * o->passThruStationsPunish + reachPen;
+    }
   }
 
-  double getTotalMeters() const {
-    return meterDist + meterDistLvl1 + meterDistLvl2 + meterDistLvl3 +
-           meterDistLvl4 + meterDistLvl5 + meterDistLvl6 + meterDistLvl7;
-  }
+  float _cost;
+
+  double getValue() const { return _cost; }
 };
 
 inline EdgeCost operator+(const EdgeCost& a, const EdgeCost& b) {
-  return EdgeCost(
-      a.meterDist + b.meterDist, a.meterDistLvl1 + b.meterDistLvl1,
-      a.meterDistLvl2 + b.meterDistLvl2, a.meterDistLvl3 + b.meterDistLvl3,
-      a.meterDistLvl4 + b.meterDistLvl4, a.meterDistLvl5 + b.meterDistLvl5,
-      a.meterDistLvl6 + b.meterDistLvl6, a.meterDistLvl7 + b.meterDistLvl7,
-      a.fullTurns + b.fullTurns, a.passThruStations + b.passThruStations,
-      a.oneWayMeters + b.oneWayMeters, a.oneWayEdges + b.oneWayEdges,
-      a.lineUnmatchedMeters + b.lineUnmatchedMeters, a.reachPen + b.reachPen,
-      a.o ? a.o : b.o);
+  return EdgeCost(a.getValue() + b.getValue());
 }
 
 inline bool operator<=(const EdgeCost& a, const EdgeCost& b) {
@@ -165,9 +110,9 @@ inline bool operator>(const EdgeCost& a, const EdgeCost& b) {
   return a.getValue() > b.getValue();
 }
 
-template<typename F>
+template <typename F>
 inline bool angSmaller(const Point<F>& f, const Point<F>& m, const Point<F>& t,
-                      double ang) {
+                       double ang) {
   if (util::geo::innerProd(m, f, t) < ang) return 1;
   return 0;
 }

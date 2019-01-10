@@ -17,7 +17,7 @@ using util::geograph::GeoEdgePL;
 namespace pfaedle {
 namespace router {
 
-class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
+class EdgePL {
  public:
   EdgePL() : _cost(), _start(0), _end(0), _startE(0), _endE(0) {}
   const LINE* getGeom() const;

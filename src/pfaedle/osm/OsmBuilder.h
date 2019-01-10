@@ -59,10 +59,10 @@ struct SearchFunc {
 };
 
 struct EqSearch : public SearchFunc {
+  explicit EqSearch(bool orphanSnap) : orphanSnap(orphanSnap) {}
   double minSimi = 0.9;
-  bool operator()(const Node* cand, const StatInfo* si) const {
-    return cand->pl().getSI() && cand->pl().getSI()->simi(si) > minSimi;
-  }
+  bool orphanSnap;
+  bool operator()(const Node* cand, const StatInfo* si) const;
 };
 
 struct BlockSearch : public SearchFunc {
@@ -90,6 +90,11 @@ class OsmBuilder {
   void read(const std::string& path, const OsmReadOpts& opts, Graph* g,
             const BBoxIdx& box, size_t gridSize, router::FeedStops* fs,
             Restrictor* res);
+
+  // Based on the list of options, output an overpass XML query for getting
+  // the data needed for routing
+  void overpassQryWrite(std::ostream* out, const std::vector<OsmReadOpts>& opts,
+                        const BBoxIdx& latLngBox) const;
 
   // Based on the list of options, read an OSM file from in and output an
   // OSM file to out which contains exactly the entities that are needed
@@ -170,7 +175,7 @@ class OsmBuilder {
 
   void writeGeoms(Graph* g) const;
   void deleteOrphNds(Graph* g) const;
-  void deleteOrphEdgs(Graph* g) const;
+  void deleteOrphEdgs(Graph* g, const OsmReadOpts& opts) const;
   double dist(const Node* a, const Node* b) const;
   double webMercDist(const Node* a, const Node* b) const;
   double webMercDistFactor(const POINT& a) const;
@@ -198,13 +203,14 @@ class OsmBuilder {
 
   NodeSet snapStation(Graph* g, NodePL* s, EdgeGrid* eg, NodeGrid* sng,
                       const OsmReadOpts& opts, Restrictor* restor, bool surHeur,
-                      double maxD) const;
+                      bool orphSnap, double maxD) const;
 
   // Checks if from the edge e, a station similar to si can be reach with less
   // than maxD distance and less or equal to "maxFullTurns" full turns. If
   // such a station exists, it is returned. If not, 0 is returned.
   Node* eqStatReach(const Edge* e, const StatInfo* si, const POINT& p,
-                    double maxD, int maxFullTurns, double maxAng) const;
+                    double maxD, int maxFullTurns, double maxAng,
+                    bool orph) const;
 
   Node* depthSearch(const Edge* e, const StatInfo* si, const POINT& p,
                     double maxD, int maxFullTurns, double minAngle,
@@ -242,6 +248,8 @@ class OsmBuilder {
                       const RelMap& entRels, const RelLst& rels) const;
 
   bool relKeep(osmid id, const RelMap& rels, const FlatRels& fl) const;
+
+  bool keepFullTurn(const trgraph::Node* n, double ang) const;
 
   std::map<TransitEdgeLine, TransitEdgeLine*> _lines;
   std::map<size_t, TransitEdgeLine*> _relLines;

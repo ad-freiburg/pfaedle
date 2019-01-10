@@ -26,67 +26,96 @@ static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
 
 // _____________________________________________________________________________
 void ConfigReader::help(const char* bin) {
-  std::cout
-      << std::setfill(' ') << std::left << "pfaedle GTFS map matcher\n"
-      << VERSION_FULL << " (built " << __DATE__ << " " << __TIME__
-      << " with geometry precision <" << PFAEDLE_PRECISION_STR << ">)\n\n"
-      << "(C) " << YEAR << " " << COPY << "\n"
-      << "Authors: " << AUTHORS << "\n\n"
-      << "Usage: " << bin << " -x <OSM FILE> -c <CFG FILE> <GTFS FEED>\n\n"
-      << "Allowed options:\n\n"
-      << "General:\n"
-      << std::setw(35) << "  -v [ --version ]"
-      << "print version\n"
-      << std::setw(35) << "  -h [ --help ]"
-      << "show this help message\n"
-      << std::setw(35) << "  -D [ --drop-shapes ]"
-      << "drop shapes already present in the feed and recalculate them\n"
-      << "\nInput:\n"
-      << std::setw(35) << "  -c [ --config ] arg"
-      << "pfaedle config file\n"
-      << std::setw(35) << "  -i [ --input ] arg"
-      << "gtfs feed(s), may also be given as positional parameter (see usage)\n"
-      << std::setw(35) << "  -x [ --osm-file ] arg"
-      << "OSM xml input file\n"
-      << std::setw(35) << "  -m [ --mots ] arg (=all)"
-      << "MOTs to calculate shapes for, comma separated, either as string "
-         "{all,\n"
-      << std::setw(35) << " "
-      << "tram | streetcar, subway | metro, rail | train, bus, ferry | boat | "
-         "\n"
-      << std::setw(35) << " "
-      << "ship, cableclar, gondola, funicular} or as GTFS mot codes\n"
-      << "\nOutput:\n"
-      << std::setw(35) << "  -o [ --output ] arg (=gtfs-out)"
-      << "GTFS output path\n"
-      << std::setw(35) << "  -X [ --osm-out ] arg"
-      << "if specified, a filtered OSM file will be written to <arg>\n"
-      << "\nDebug Output:\n"
-      << std::setw(35) << "  -d [ --dbg-path ] arg (=geo)"
-      << "output path for debug files\n"
-      << std::setw(35) << "  --write-trgraph"
-      << "write transit graph as GeoJSON to <dbg-path>/trgraph.json\n"
-      << std::setw(35) << "  --write-graph"
-      << "write routing graph as GeoJSON to <dbg-path>/graph.json\n"
-      << std::setw(35) << "  --write-cgraph"
-      << "if -T is set, write combination graph as GeoJSON to "
-         "<dbg-path>/combgraph.json\n"
-      << std::setw(35) << "  --method arg (=global)"
-      << "matching method to use, either 'global' (based on HMM), 'greedy' or "
-         "'greedy2'\n"
-      << std::setw(35) << "  --eval"
-      << "evaluate existing shapes against matched shapes and print results\n"
-      << std::setw(35) << "  --eval-path arg (=.)"
-      << "path for eval file output\n"
-      << std::setw(35) << "  --eval-df-bins arg (= )"
-      << "bins to use for d_f histogram, comma separated (e.g. 10,20,30,40)\n"
-      << "\nMisc:\n"
-      << std::setw(35) << "  -T [ --trip-id ] arg"
-      << "Do routing only for trip <arg>, write result to\n"
-      << std::setw(35) << " "
-      << "<dbg-path>/path.json\n"
-      << std::setw(35) << "  --grid-size arg (=2000)"
-      << "Grid cell size\n";
+  std::cout << std::setfill(' ') << std::left << "pfaedle GTFS map matcher "
+            << VERSION_FULL << "\n(built " << __DATE__ << " " << __TIME__
+            << " with geometry precision <" << PFAEDLE_PRECISION_STR << ">)\n\n"
+            << "(C) " << YEAR << " " << COPY << "\n"
+            << "Authors: " << AUTHORS << "\n\n"
+            << "Usage: " << bin
+            << " -x <OSM FILE> <GTFS FEED>\n\n"
+            << "Allowed options:\n\n"
+            << "General:\n"
+            << std::setw(35) << "  -v [ --version ]"
+            << "print version\n"
+            << std::setw(35) << "  -h [ --help ]"
+            << "show this help message\n"
+            << std::setw(35) << "  -D [ --drop-shapes ]"
+            << "drop shapes already present in the feed and\n"
+            << std::setw(35) << " "
+            << "  recalculate them\n"
+            << "\nInput:\n"
+            << std::setw(35) << "  -c [ --config ] arg"
+            << "pfaedle config file\n"
+            << std::setw(35) << "  -i [ --input ] arg"
+            << "gtfs feed(s), may also be given as positional\n"
+            << std::setw(35) << " "
+            << "  parameter (see usage)\n"
+            << std::setw(35) << "  -x [ --osm-file ] arg"
+            << "OSM xml input file\n"
+            << std::setw(35) << "  -m [ --mots ] arg (=all)"
+            << "MOTs to calculate shapes for, comma sep.,\n"
+            << std::setw(35) << " "
+            << "  either as string "
+               "{all, tram | streetcar,\n"
+            << std::setw(35) << " "
+            << "  subway | metro, rail | train, bus,\n"
+            << std::setw(35) << " "
+            << "  ferry | boat | ship, cablecar, gondola,\n"
+            << std::setw(35) << " "
+            << "  funicular, coach} or as GTFS mot codes\n"
+            << "\nOutput:\n"
+            << std::setw(35) << "  -o [ --output ] arg (=gtfs-out)"
+            << "GTFS output path\n"
+            << std::setw(35) << "  -X [ --osm-out ] arg"
+            << "if specified, a filtered OSM file will be\n"
+            << std::setw(35) << " "
+            << "  written to <arg>\n"
+            << std::setw(35) << "  --inplace"
+            << "overwrite input GTFS feed with output feed\n"
+            << "\nDebug Output:\n"
+            << std::setw(35) << "  -d [ --dbg-path ] arg (=geo)"
+            << "output path for debug files\n"
+            << std::setw(35) << "  --write-trgraph"
+            << "write transit graph as GeoJSON to\n"
+            << std::setw(35) << " "
+            << "  <dbg-path>/trgraph.json\n"
+            << std::setw(35) << "  --write-graph"
+            << "write routing graph as GeoJSON to\n"
+            << std::setw(35) << " "
+            << "  <dbg-path>/graph.json\n"
+            << std::setw(35) << "  --write-cgraph"
+            << "if -T is set, write combination graph as\n"
+            << std::setw(35) << " "
+            << "  GeoJSON to "
+               "<dbg-path>/combgraph.json\n"
+            << std::setw(35) << "  --method arg (=global)"
+            << "matching method to use, either 'global'\n"
+            << std::setw(35) << " "
+            << "  (based on HMM), 'greedy' or "
+               "'greedy2'\n"
+            << std::setw(35) << "  --eval"
+            << "evaluate existing shapes against matched\n"
+            << std::setw(35) << " "
+            << "  shapes and print results\n"
+            << std::setw(35) << "  --eval-path arg (=.)"
+            << "path for eval file output\n"
+            << std::setw(35) << "  --eval-df-bins arg (= )"
+            << "bins to use for d_f histogram, comma sep.\n"
+            << std::setw(35) << " "
+            << "  (e.g. 10,20,30,40)\n"
+            << "\nMisc:\n"
+            << std::setw(35) << "  -T [ --trip-id ] arg"
+            << "Do routing only for trip <arg>, write result \n"
+            << std::setw(35) << " "
+            << "  to <dbg-path>/path.json\n"
+            << std::setw(35) << "  --overpass"
+            << "Output overpass query for matching OSM data\n"
+            << std::setw(35) << "  --grid-size arg (=2000)"
+            << "Grid cell size\n"
+            << std::setw(35) << "  --use-route-cache"
+            << "(experimental) cache intermediate routing\n"
+            << std::setw(35) << " "
+            << "  results\n";
 }
 
 // _____________________________________________________________________________
@@ -101,6 +130,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"drop-shapes", required_argument, 0, 'D'},
                          {"mots", required_argument, NULL, 'm'},
                          {"grid-size", required_argument, 0, 'g'},
+                         {"overpass", no_argument, 0, 'a'},
                          {"osm-out", required_argument, 0, 'X'},
                          {"trip-id", required_argument, 0, 'T'},
                          {"write-graph", no_argument, 0, 1},
@@ -113,6 +143,8 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"dbg-path", required_argument, 0, 'd'},
                          {"version", no_argument, 0, 'v'},
                          {"help", no_argument, 0, 'h'},
+                         {"inplace", no_argument, 0, 9},
+                         {"use-route-cache", no_argument, 0, 8},
                          {0, 0, 0, 0}};
 
   char c;
@@ -139,6 +171,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 7:
         cfg->evalDfBins = optarg;
+        break;
+      case 8:
+        cfg->useCaching = true;
         break;
       case 'o':
         cfg->outputPath = optarg;
@@ -169,6 +204,12 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 'd':
         cfg->dbgOutputPath = optarg;
+        break;
+      case 'a':
+        cfg->writeOverpass = true;
+        break;
+      case 9:
+        cfg->inPlace = true;
         break;
       case 'v':
         std::cout << "pfaedle " << VERSION_FULL << " (built " << __DATE__ << " "
@@ -204,7 +245,8 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
 
   auto v = util::split(motStr, ',');
   for (const auto& motStr : v) {
-    const auto& mots = Route::getTypesFromString(util::trim(motStr));
+    const auto& mots =
+        ad::cppgtfs::gtfs::flat::Route::getTypesFromString(util::trim(motStr));
     cfg->mots.insert(mots.begin(), mots.end());
   }
 

@@ -40,7 +40,7 @@ make install
 ## Generating shapes for a GTFS feed
 
 ```
-pfaedle -c <CFG FILE> -x <OSM FILE> <GTFS INPUT FOLDER>
+pfaedle -x <OSM FILE> <GTFS INPUT FOLDER>
 ```
 
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
@@ -51,22 +51,15 @@ input feed. To drop all existing shapes, use the `-D` flag.
 For example, you may generate (and replace existing, see -D parameter) shapes for the GTFS dataset for Freiburg like this:
 
 ```
-$ mkdir freiburg_gtfs && cd freiburg_gtfs
-$ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip
-$ unzip VAGFR.zip
-$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2
-$ bunzip2 freiburg-regbez-latest.osm.bz2
-$ mkdir gtfs-out
-$ pfaedle -D -c pfaedle.cfg -x freiburg-regbez-latest.osm .
+$ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip && unzip VAGFR.zip
+$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2 && bunzip2 freiburg-regbez-latest.osm.bz2
+$ pfaedle -D -x freiburg-regbez-latest.osm .
 ```
-
-A default configuration file `pfaedle.cfg` can be found in this repo.
-
 
 ## Generating shapes for a specific MOT
 
 To generate shapes only for a specific mot, use the `-m` option. Possible
-values are either `tram`, `bus`, `rail`, `subway`, `ferry`, `funicular`,
+values are either `tram`, `bus`, `coach`, `rail`, `subway`, `ferry`, `funicular`,
 `gondola`, `all` (default) or GTFS vehicle type codes (0, 1, 2, 3, 4, 5, 6, 7).
 
 Multiple values can be specified (comma separated).
@@ -75,7 +68,7 @@ Multiple values can be specified (comma separated).
 
 `pfaedle` comes with the ability to filter OpenStreetMap data. If you specify
 the `-X` flag, `pfaedle` will filter the input OSM file and output a new OSM
-file which contains *exactly* the data needed to calculate the shapes for the
+file which contains exactly the data needed to calculate the shapes for the
 input GTFS feed and the input configuration.
 
 This can be used to avoid parsing (for example) the entire world.osm on each
@@ -95,9 +88,7 @@ The following flags may be useful for debugging:
 
 # Configuration
 
-The main config file distributed with this repository is `pfaedle.cfg`. The
-config file has some comments which hopefully explain the meaning behind the
-parameters.
+A default configuration file `pfaedle.cfg` can be found in this repo and will be installed with `make install`. Custom configuration files can be specified with the `-c` flag. If no `-c` flag is set, `pfaedle` will parse and merge the following cfg files in the given order (if present): `<install prefix>/etc/pfaedle/pfaedle.cfg`, `$HOME/.config/pfaedle/pfaedle.cfg`, `<CWD>/pfaedle.cfg`. Values given in later files will overwrite earlier defined values.
 
 # Evaluation
 

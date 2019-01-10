@@ -45,7 +45,7 @@ inline bool operator<(const TransitEdgeLine& a, const TransitEdgeLine& b) {
 /*
  * An edge payload class for the transit graph.
  */
-class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
+class EdgePL {
  public:
   EdgePL();
   ~EdgePL();
@@ -101,7 +101,7 @@ class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
   void addLines(const std::vector<TransitEdgeLine*>& l);
 
   // Return the TransitEdgeLines stored for this payload
-  const std::set<const TransitEdgeLine*>& getLines() const;
+  const std::vector<const TransitEdgeLine*>& getLines() const;
 
   // Returns the last hop of the payload - this is the (n-2)th point in
   // the payload geometry of length n > 1
@@ -123,7 +123,7 @@ class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
 
   LINE* _l;
 
-  std::set<const TransitEdgeLine*> _lines;
+  std::vector<const TransitEdgeLine*> _lines;
 
   static void unRefTLine(const TransitEdgeLine* l);
 

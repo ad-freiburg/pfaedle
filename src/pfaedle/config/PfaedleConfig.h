@@ -28,6 +28,9 @@ struct Config {
         writeCombGraph(false),
         evaluate(false),
         buildTransitGraph(false),
+        useCaching(false),
+        writeOverpass(false),
+        inPlace(false),
         gridSize(2000) {}
   std::string dbgOutputPath;
   std::string solveMethod;
@@ -46,6 +49,9 @@ struct Config {
   bool writeCombGraph;
   bool evaluate;
   bool buildTransitGraph;
+  bool useCaching;
+  bool writeOverpass;
+  bool inPlace;
   double gridSize;
 
   std::string toString() {
@@ -60,6 +66,8 @@ struct Config {
        << "write-graph: " << writeGraph << "\n"
        << "write-cgraph: " << writeCombGraph << "\n"
        << "grid-size: " << gridSize << "\n"
+       << "use-cache: " << useCaching << "\n"
+       << "write-overpass: " << writeOverpass << "\n"
        << "feed-paths: ";
 
     for (const auto& p : feedPaths) {

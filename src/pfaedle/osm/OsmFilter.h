@@ -33,6 +33,9 @@ class OsmFilter {
 
   OsmFilter merge(const OsmFilter& other) const;
 
+  const MultAttrMap& getKeepRules() const;
+  const MultAttrMap& getDropRules() const;
+
   std::string toString() const;
 
   static bool valMatches(const std::string& a, const std::string& b, bool m);

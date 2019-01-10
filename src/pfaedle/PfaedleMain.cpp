@@ -2,19 +2,25 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#include <limits.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <fstream>
 #include <map>
 #include <string>
 #include <vector>
 #include "ad/cppgtfs/Parser.h"
 #include "ad/cppgtfs/Writer.h"
-#include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/config/ConfigReader.h"
 #include "pfaedle/config/MotConfig.h"
 #include "pfaedle/config/MotConfigReader.h"
 #include "pfaedle/eval/Collector.h"
+#include "pfaedle/gtfs/Feed.h"
+#include "pfaedle/gtfs/Writer.h"
 #include "pfaedle/netgraph/Graph.h"
 #include "pfaedle/osm/OsmIdSet.h"
 #include "pfaedle/router/ShapeBuilder.h"
@@ -30,13 +36,28 @@ using pfaedle::osm::OsmBuilder;
 using pfaedle::config::MotConfig;
 using pfaedle::config::Config;
 using pfaedle::router::ShapeBuilder;
+using configparser::ParseFileExc;
 using pfaedle::config::MotConfigReader;
 using pfaedle::config::ConfigReader;
 using pfaedle::eval::Collector;
 
+enum class RetCode {
+  SUCCESS = 0,
+  NO_INPUT_FEED = 1,
+  MULT_FEEDS_NOT_ALWD = 2,
+  TRIP_NOT_FOUND = 3,
+  GTFS_PARSE_ERR = 4,
+  NO_OSM_INPUT = 5,
+  MOT_CFG_PARSE_ERR = 6,
+  OSM_PARSE_ERR = 7,
+  GTFS_WRITE_ERR = 8,
+  NO_MOT_CFG = 9
+};
+
 std::string getMotStr(const MOTs& mots);
 std::string getFileNameMotStr(const MOTs& mots);
 MOTs getContMots(const MotConfig& motCfg, const MOTs& mots);
+std::vector<std::string> getCfgPaths(const Config& cfg);
 
 // _____________________________________________________________________________
 int main(int argc, char** argv) {
@@ -52,44 +73,90 @@ int main(int argc, char** argv) {
   ConfigReader cr;
   cr.read(&cfg, argc, argv);
 
-  ad::cppgtfs::gtfs::Feed gtfs;
+  std::vector<pfaedle::gtfs::Feed> gtfs(cfg.feedPaths.size());
+  // feed containing the shapeas in memory for evaluation
+  ad::cppgtfs::gtfs::Feed evalFeed;
 
-  motCfgReader.parse(cfg.configPaths);
+  std::vector<std::string> cfgPaths = getCfgPaths(cfg);
 
-  if (cfg.osmPath.empty()) {
+  try {
+    motCfgReader.parse(cfgPaths);
+  } catch (configparser::ParseExc ex) {
+    LOG(ERROR) << "Could not parse MOT configurations, reason was:";
+    std::cerr << ex.what() << std::endl;
+    exit(static_cast<int>(RetCode::MOT_CFG_PARSE_ERR));
+  }
+
+  if (cfg.osmPath.empty() && !cfg.writeOverpass) {
     std::cerr << "No OSM input file specified (-x), see --help." << std::endl;
-    exit(5);
+    exit(static_cast<int>(RetCode::NO_OSM_INPUT));
+  }
+
+  if (motCfgReader.getConfigs().size() == 0) {
+    LOG(ERROR) << "No MOT configurations specified and no implicit "
+                  "configurations found, see --help.";
+    exit(static_cast<int>(RetCode::NO_MOT_CFG));
   }
 
   if (cfg.feedPaths.size() == 1) {
-    LOG(INFO) << "Reading " << cfg.feedPaths[0] << " ...";
-    ad::cppgtfs::Parser p;
-    p.parse(&gtfs, cfg.feedPaths[0]);
-    LOG(INFO) << "Done.";
+    if (cfg.inPlace) cfg.outputPath = cfg.feedPaths[0];
+    if (!cfg.writeOverpass)
+      LOG(INFO) << "Reading " << cfg.feedPaths[0] << " ...";
+    try {
+      ad::cppgtfs::Parser p;
+      p.parse(&gtfs[0], cfg.feedPaths[0]);
+      if (cfg.evaluate) {
+        // read the shapes and store them in memory
+        p.parseShapes(&evalFeed, cfg.feedPaths[0]);
+      }
+    } catch (ad::cppgtfs::ParserException ex) {
+      LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
+    }
+    if (!cfg.writeOverpass) LOG(INFO) << "Done.";
+  } else if (cfg.writeOsm.size() || cfg.writeOverpass) {
+    for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
+      if (!cfg.writeOverpass)
+        LOG(INFO) << "Reading " << cfg.feedPaths[i] << " ...";
+      ad::cppgtfs::Parser p;
+      try {
+        p.parse(&gtfs[i], cfg.feedPaths[i]);
+      } catch (ad::cppgtfs::ParserException ex) {
+        LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
+        std::cerr << ex.what() << std::endl;
+        exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
+      }
+      if (!cfg.writeOverpass) LOG(INFO) << "Done.";
+    }
   } else if (cfg.feedPaths.size() > 1) {
-    std::cerr << "Maximally one input feed allowed." << std::endl;
-    exit(2);
+    std::cerr << "Multiple feeds only allowed in filter mode." << std::endl;
+    exit(static_cast<int>(RetCode::MULT_FEEDS_NOT_ALWD));
   }
 
   LOG(DEBUG) << "Read " << motCfgReader.getConfigs().size()
              << " unique MOT configs.";
   MOTs cmdCfgMots = cfg.mots;
-  ad::cppgtfs::gtfs::Trip* singleTrip = 0;
+  pfaedle::gtfs::Trip* singleTrip = 0;
 
   if (cfg.shapeTripId.size()) {
-    singleTrip = gtfs.getTrips().get(cfg.shapeTripId);
+    if (!cfg.feedPaths.size()) {
+      std::cout << "No input feed specified, see --help" << std::endl;
+      exit(static_cast<int>(RetCode::NO_INPUT_FEED));
+    }
+    singleTrip = gtfs[0].getTrips().get(cfg.shapeTripId);
     if (!singleTrip) {
       LOG(ERROR) << "Trip #" << cfg.shapeTripId << " not found.";
-      exit(3);
+      exit(static_cast<int>(RetCode::TRIP_NOT_FOUND));
     }
   }
 
   if (cfg.writeOsm.size()) {
     LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
-    BBoxIdx box(2500);
-    if (cfg.feedPaths.size()) {
-      box = ShapeBuilder::getPaddedGtfsBox(&gtfs, 2500, cmdCfgMots,
-                                           cfg.shapeTripId, true);
+    BBoxIdx box(BOX_PADDING);
+    for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
+      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
+                               &box);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -99,15 +166,33 @@ int main(int argc, char** argv) {
         opts.push_back(o.osmBuildOpts);
       }
     }
-    osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
-    exit(0);
+    try {
+      osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
+    } catch (xml::XmlFileException ex) {
+      LOG(ERROR) << "Could not parse OSM data, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
+    }
+    exit(static_cast<int>(RetCode::SUCCESS));
+  } else if (cfg.writeOverpass) {
+    BBoxIdx box(BOX_PADDING);
+    for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
+      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
+                               &box);
+    }
+    OsmBuilder osmBuilder;
+    std::vector<pfaedle::osm::OsmReadOpts> opts;
+    for (const auto& o : motCfgReader.getConfigs()) {
+      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
+                             cmdCfgMots.end()) != o.mots.end()) {
+        opts.push_back(o.osmBuildOpts);
+      }
+    }
+    osmBuilder.overpassQryWrite(&std::cout, opts, box);
+    exit(static_cast<int>(RetCode::SUCCESS));
   } else if (!cfg.feedPaths.size()) {
     std::cout << "No input feed specified, see --help" << std::endl;
-    exit(1);
-  }
-
-  if (motCfgReader.getConfigs().size() == 0) {
-    LOG(WARN) << "No MOT configurations specified, see --help.";
+    exit(static_cast<int>(RetCode::NO_INPUT_FEED));
   }
 
   std::vector<double> dfBins;
@@ -119,62 +204,76 @@ int main(int argc, char** argv) {
     std::string filePost;
     auto usedMots = getContMots(motCfg, cmdCfgMots);
     if (!usedMots.size()) continue;
+    if (singleTrip && !usedMots.count(singleTrip->getRoute()->getType()))
+      continue;
     if (motCfgReader.getConfigs().size() > 1)
       filePost = getFileNameMotStr(usedMots);
 
     std::string motStr = getMotStr(usedMots);
     LOG(INFO) << "Calculating shapes for mots " << motStr;
 
-    ShapeBuilder shapeBuilder(&gtfs, cmdCfgMots, motCfg, &ecoll, cfg);
+    try {
+      ShapeBuilder shapeBuilder(&gtfs[0], &evalFeed, cmdCfgMots, motCfg, &ecoll,
+                                cfg);
 
-    if (cfg.writeGraph) {
-      LOG(INFO) << "Outputting graph.json...";
-      util::geo::output::GeoGraphJsonOutput out;
-      std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
-      out.print(*shapeBuilder.getGraph(), fstr);
-      fstr.close();
-    }
-
-    if (singleTrip) {
-      LOG(INFO) << "Outputting path.json...";
-      std::ofstream pstr(cfg.dbgOutputPath + "/path.json");
-      util::geo::output::GeoJsonOutput o(pstr);
-
-      auto l = shapeBuilder.shapeL(singleTrip);
-
-      if (singleTrip->getShape()) {
-        auto orig = Collector::getWebMercLine(singleTrip->getShape(), -1, -1);
-        o.print(orig, util::json::Dict{{"ver", "old"}});
+      if (cfg.writeGraph) {
+        LOG(INFO) << "Outputting graph.json...";
+        util::geo::output::GeoGraphJsonOutput out;
+        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
+        out.print(*shapeBuilder.getGraph(), fstr);
+        fstr.close();
       }
 
-      o.print(l, util::json::Dict{{"ver", "new"}});
-      o.flush();
-      pstr.close();
+      if (singleTrip) {
+        LOG(INFO) << "Outputting path.json...";
+        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        std::ofstream pstr(cfg.dbgOutputPath + "/path.json");
+        util::geo::output::GeoJsonOutput o(pstr);
 
-      exit(0);
-    }
+        auto l = shapeBuilder.shapeL(singleTrip);
 
-    pfaedle::netgraph::Graph ng;
-    shapeBuilder.shape(&ng);
+        o.print(l, util::json::Dict{{"ver", "new"}});
+        o.flush();
+        pstr.close();
 
-    if (cfg.buildTransitGraph) {
-      util::geo::output::GeoGraphJsonOutput out;
-      LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
-      std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
-      out.print(ng, fstr);
-      fstr.close();
+        exit(static_cast<int>(RetCode::SUCCESS));
+      }
+
+      pfaedle::netgraph::Graph ng;
+      shapeBuilder.shape(&ng);
+
+      if (cfg.buildTransitGraph) {
+        util::geo::output::GeoGraphJsonOutput out;
+        LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
+        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
+        out.print(ng, fstr);
+        fstr.close();
+      }
+    } catch (xml::XmlFileException ex) {
+      LOG(ERROR) << "Could not parse OSM data, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
     }
   }
 
   if (cfg.evaluate) ecoll.printStats(&std::cout);
 
   if (cfg.feedPaths.size()) {
-    LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
-    ad::cppgtfs::Writer w;
-    w.write(&gtfs, cfg.outputPath);
+    try {
+      mkdir(cfg.outputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
+      pfaedle::gtfs::Writer w;
+      w.write(&gtfs[0], cfg.outputPath);
+    } catch (ad::cppgtfs::WriterException ex) {
+      LOG(ERROR) << "Could not write final GTFS feed, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::GTFS_WRITE_ERR));
+    }
   }
 
-  return (0);
+  return static_cast<int>(RetCode::SUCCESS);
 }
 
 // _____________________________________________________________________________
@@ -183,7 +282,7 @@ std::string getMotStr(const MOTs& mots) {
   std::string motStr;
   for (const auto& mot : mots) {
     if (first) motStr += ", ";
-    motStr += "<" + Route::getTypeString(mot) + ">";
+    motStr += "<" + ad::cppgtfs::gtfs::flat::Route::getTypeString(mot) + ">";
     first = true;
   }
 
@@ -194,7 +293,7 @@ std::string getMotStr(const MOTs& mots) {
 std::string getFileNameMotStr(const MOTs& mots) {
   std::string motStr;
   for (const auto& mot : mots) {
-    motStr += "-" + Route::getTypeString(mot);
+    motStr += "-" + ad::cppgtfs::gtfs::flat::Route::getTypeString(mot);
   }
 
   return motStr;
@@ -206,6 +305,76 @@ MOTs getContMots(const MotConfig& motCfg, const MOTs& mots) {
   for (const auto& mot : mots) {
     if (motCfg.mots.count(mot)) {
       ret.insert(mot);
+    }
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+std::vector<std::string> getCfgPaths(const Config& cfg) {
+  if (cfg.configPaths.size()) return cfg.configPaths;
+  std::vector<std::string> ret;
+
+  // parse implicit paths
+  const char* homedir = 0;
+  char* buf = 0;
+
+  if ((homedir = getenv("HOME")) == 0) {
+    homedir = "";
+    struct passwd pwd;
+    struct passwd* result;
+    size_t bufsize;
+    bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufsize == static_cast<size_t>(-1)) bufsize = 0x4000;
+    buf = static_cast<char*>(malloc(bufsize));
+    if (buf != 0) {
+      getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
+      if (result != NULL) homedir = result->pw_dir;
+    }
+  }
+
+  // install prefix global configuration path, if available
+  {
+    auto path = std::string(INSTALL_PREFIX) +
+                std::string(XDG_CONFIG_DIRS_DEFAULT) + "/" + "pfaedle" + "/" +
+                CFG_FILE_NAME;
+    std::ifstream is(path);
+
+    LOG(DEBUG) << "Testing for config file at " << path;
+    if (is.good()) {
+      ret.push_back(path);
+      LOG(DEBUG) << "Found implicit config file " << path;
+    }
+  }
+
+  // local user configuration path, if available
+  {
+    auto path = std::string(homedir) + XDG_CONFIG_HOME_SUFFIX + "/" +
+                "pfaedle" + "/" + CFG_FILE_NAME;
+    std::ifstream is(path);
+
+    LOG(DEBUG) << "Testing for config file at " << path;
+    if (is.good()) {
+      ret.push_back(path);
+      LOG(DEBUG) << "Found implicit config file " << path;
+    }
+  }
+
+  if (buf) free(buf);
+
+  // CWD
+  {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd))) {
+      auto path = std::string(cwd) + "/" + CFG_FILE_NAME;
+      std::ifstream is(path);
+
+      LOG(DEBUG) << "Testing for config file at " << path;
+      if (is.good()) {
+        ret.push_back(path);
+        LOG(DEBUG) << "Found implicit config file " << path;
+      }
     }
   }
 

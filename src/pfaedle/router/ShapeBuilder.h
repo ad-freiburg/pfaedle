@@ -16,6 +16,7 @@
 #include "pfaedle/config/MotConfig.h"
 #include "pfaedle/config/PfaedleConfig.h"
 #include "pfaedle/eval/Collector.h"
+#include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/netgraph/Graph.h"
 #include "pfaedle/osm/Restrictor.h"
 #include "pfaedle/router/Misc.h"
@@ -27,8 +28,8 @@ namespace pfaedle {
 namespace router {
 
 using ad::cppgtfs::gtfs::Stop;
-using ad::cppgtfs::gtfs::Trip;
-using ad::cppgtfs::gtfs::Feed;
+using pfaedle::gtfs::Trip;
+using pfaedle::gtfs::Feed;
 
 struct Shape {
   router::EdgeListHops hops;
@@ -48,8 +49,9 @@ typedef std::unordered_map<const trgraph::Edge*, std::set<const Trip*>>
  */
 class ShapeBuilder {
  public:
-  ShapeBuilder(Feed* feed, MOTs mots, const config::MotConfig& motCfg,
-               eval::Collector* ecoll, const config::Config& cfg);
+  ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed, MOTs mots,
+               const config::MotConfig& motCfg, eval::Collector* ecoll,
+               const config::Config& cfg);
 
   void shape(pfaedle::netgraph::Graph* ng);
 
@@ -66,12 +68,13 @@ class ShapeBuilder {
 
   const trgraph::Graph* getGraph() const;
 
-  static osm::BBoxIdx getPaddedGtfsBox(const Feed* feed, double pad,
-                                       const MOTs& mots, const std::string& tid,
-                                       bool dropShapes);
+  static void getGtfsBox(const Feed* feed, const MOTs& mots,
+                         const std::string& tid, bool dropShapes,
+                         osm::BBoxIdx* box);
 
  private:
   Feed* _feed;
+  ad::cppgtfs::gtfs::Feed* _evalFeed;
   MOTs _mots;
   config::MotConfig _motCfg;
   eval::Collector* _ecoll;
@@ -101,10 +104,10 @@ class ShapeBuilder {
 
   std::string getFreeShapeId(Trip* t);
 
-  ad::cppgtfs::gtfs::Shape* getGtfsShape(const Shape& shp, Trip* t,
+  ad::cppgtfs::gtfs::Shape getGtfsShape(const Shape& shp, Trip* t,
                                          std::vector<double>* hopDists);
 
-  void setShape(Trip* t, ad::cppgtfs::gtfs::Shape* s,
+  void setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
                 const std::vector<double>& dists);
 
   router::NodeCandRoute getNCR(Trip* trip) const;

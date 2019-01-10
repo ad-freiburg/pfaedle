@@ -5,9 +5,10 @@
 #ifndef PFAEDLE_EVAL_RESULT_H_
 #define PFAEDLE_EVAL_RESULT_H_
 
+#include "pfaedle/gtfs/Feed.h"
 #include "ad/cppgtfs/gtfs/Feed.h"
 
-using ad::cppgtfs::gtfs::Trip;
+using pfaedle::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
 
 namespace pfaedle {

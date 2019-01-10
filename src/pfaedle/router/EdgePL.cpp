@@ -82,21 +82,6 @@ util::json::Dict EdgePL::getAttrs() const {
   obj["cost"] = std::to_string(_cost.getValue());
   obj["from_edge"] = util::toString(_startE);
   obj["to_edge"] = util::toString(_endE);
-  obj["cost_m_lvl1"] = std::to_string(_cost.meterDistLvl1);
-  obj["cost_m_lvl0"] = std::to_string(_cost.meterDist);
-  obj["cost_m_lvl1"] = std::to_string(_cost.meterDistLvl1);
-  obj["cost_m_lvl2"] = std::to_string(_cost.meterDistLvl2);
-  obj["cost_m_lvl3"] = std::to_string(_cost.meterDistLvl3);
-  obj["cost_m_lvl4"] = std::to_string(_cost.meterDistLvl4);
-  obj["cost_m_lvl5"] = std::to_string(_cost.meterDistLvl5);
-  obj["cost_m_lvl6"] = std::to_string(_cost.meterDistLvl6);
-  obj["cost_m_lvl7"] = std::to_string(_cost.meterDistLvl7);
-  obj["cost_fullturn"] = std::to_string(_cost.fullTurns);
-  obj["cost_st_passthru"] = std::to_string(_cost.passThruStations);
-  obj["cost_m_oneway"] = std::to_string(_cost.oneWayMeters);
-  obj["cost_m_lineunmatch"] = std::to_string(_cost.lineUnmatchedMeters);
-  obj["cost_reach_node_pen"] = std::to_string(_cost.reachPen);
-  obj["cost_oneway_event"] = std::to_string(_cost.oneWayEdges);
   obj["dummy"] = _edges.size() ? "no" : "yes";
 
   return obj;

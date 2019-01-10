@@ -7,4 +7,7 @@
 // version number from cmake version module
 #define VERSION_FULL "@VERSION_GIT_FULL@"
 
+// version number from cmake version module
+#define INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+
 #endif  // SRC_PFAEDLE_CONFIG_H_N

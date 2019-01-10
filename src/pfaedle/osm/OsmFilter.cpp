@@ -102,12 +102,12 @@ uint64_t OsmFilter::contained(const AttrMap& attrs, const Attr& attr) {
 // _____________________________________________________________________________
 uint8_t OsmFilter::level(const AttrMap& attrs) const {
   // the best matching level is always returned
-  for (int16_t i = 0; i < 7; i++) {
+  for (int16_t i = 0; i < 8; i++) {
     for (const auto& kv : attrs) {
       const auto& lkv = (_levels + i)->find(kv.first);
       if (lkv != (_levels + i)->end()) {
         for (const auto& val : lkv->second) {
-          if (valMatches(kv.second, val.first)) return i + 1;
+          if (valMatches(kv.second, val.first)) return i;
         }
       }
     }
@@ -169,7 +169,7 @@ std::vector<std::string> OsmFilter::getAttrKeys() const {
   for (const auto& kv : _noRestr) {
     ret.push_back(kv.first);
   }
-  for (uint8_t i = 0; i < 7; i++) {
+  for (uint8_t i = 0; i < 8; i++) {
     for (const auto& kv : *(_levels + i)) {
       ret.push_back(kv.first);
     }
@@ -190,27 +190,6 @@ OsmFilter OsmFilter::merge(const OsmFilter& other) const {
   for (const auto& kv : other._keep) {
     keep[kv.first].insert(kv.second.begin(), kv.second.end());
   }
-
-  // TODO(patrick): multi-level combination for filters. otherwise
-  // filter drop filters meant as a refinement for keep filters
-  // interfere with other keeps
-
-  // const auto* d = &_drop;
-
-  // for (size_t i = 0; i < 2; i++) {
-    // for (const auto& kv : *d) {
-      // if (keep.find(kv.first) != keep.end()) {
-        // for (const auto& val : kv.second) {
-          // if (keep[kv.first].find(val.first) == keep[kv.first].end()) {
-            // drop[kv.first].insert(val);
-          // }
-        // }
-      // } else {
-        // drop[kv.first].insert(kv.second.begin(), kv.second.end());
-      // }
-    // }
-    // d = &other._drop;
-  // }
 
   return OsmFilter(keep, drop);
 }
@@ -257,4 +236,14 @@ uint64_t OsmFilter::negRestr(const AttrMap& attrs) const {
 uint64_t OsmFilter::posRestr(const AttrMap& attrs) const {
   if (contained(attrs, _noRestr, ALL)) return false;
   return (contained(attrs, _posRestr, ALL));
+}
+
+// _____________________________________________________________________________
+const pfaedle::osm::MultAttrMap& OsmFilter::getKeepRules() const {
+  return _keep;
+}
+
+// _____________________________________________________________________________
+const pfaedle::osm::MultAttrMap& OsmFilter::getDropRules() const {
+  return _drop;
 }

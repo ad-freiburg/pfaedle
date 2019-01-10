@@ -43,7 +43,19 @@ using pfaedle::osm::OsmRel;
 using pfaedle::osm::OsmNode;
 using pfaedle::osm::EdgeGrid;
 using pfaedle::osm::NodeGrid;
+using pfaedle::osm::EqSearch;
+using pfaedle::osm::BlockSearch;
 using ad::cppgtfs::gtfs::Stop;
+
+// _____________________________________________________________________________
+bool EqSearch::operator()(const Node* cand, const StatInfo* si) const {
+  if (orphanSnap && cand->pl().getSI() &&
+      (!cand->pl().getSI()->getGroup() ||
+       cand->pl().getSI()->getGroup()->getStops().size() == 0)) {
+    return true;
+  }
+  return cand->pl().getSI() && cand->pl().getSI()->simi(si) > minSimi;
+}
 
 // _____________________________________________________________________________
 OsmBuilder::OsmBuilder() {}
@@ -140,7 +152,8 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
         POINT geom = *s->pl().getGeom();
         NodePL pl = s->pl();
         pl.getSI()->setIsFromOsm(false);
-        const auto& r = snapStation(g, &pl, &eg, &sng, opts, res, false, d);
+        const auto& r =
+            snapStation(g, &pl, &eg, &sng, opts, res, false, false, d);
         groupStats(r);
         for (auto n : r) {
           // if the snapped station is very near to the original OSM
@@ -153,32 +166,70 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
       }
     }
 
+    std::vector<const Stop*> notSnapped;
+
     for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
       double d = opts.maxSnapDistances[i];
       for (auto& s : *fs) {
         auto pl = plFromGtfs(s.first, opts);
 
-        StatGroup* group =
-            groupStats(snapStation(g, &pl, &eg, &sng, opts, res,
-                                   i == opts.maxSnapDistances.size() - 1, d));
+        StatGroup* group = groupStats(
+            snapStation(g, &pl, &eg, &sng, opts, res,
+                        i == opts.maxSnapDistances.size() - 1, false, d));
 
         if (group) {
           group->addStop(s.first);
           (*fs)[s.first] = *group->getNodes().begin();
+        } else if (i == opts.maxSnapDistances.size() - 1) {
+          LOG(VDEBUG) << "Could not snap station "
+                      << "(" << pl.getSI()->getName() << ")"
+                      << " (" << s.first->getLat() << "," << s.first->getLng()
+                      << ") in normal run, trying again later in orphan mode.";
+          notSnapped.push_back(s.first);
+        }
+      }
+    }
+
+    if (notSnapped.size())
+      LOG(VDEBUG) << notSnapped.size() << " stations could not be snapped in "
+                                          "normal run, trying again in orphan "
+                                          "mode.";
+
+    // try again, but aggressively snap to orphan OSM stations which have
+    // not been assigned to any GTFS stop yet
+    for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
+      double d = opts.maxSnapDistances[i];
+      for (auto& s : notSnapped) {
+        auto pl = plFromGtfs(s, opts);
+
+        StatGroup* group = groupStats(
+            snapStation(g, &pl, &eg, &sng, opts, res,
+                        i == opts.maxSnapDistances.size() - 1, true, d));
+
+        if (group) {
+          group->addStop(s);
+          // add the added station name as an alt name to ensure future
+          // similarity
+          for (auto n : group->getNodes()) {
+            if (n->pl().getSI())
+              n->pl().getSI()->addAltName(pl.getSI()->getName());
+          }
+          (*fs)[s] = *group->getNodes().begin();
         } else if (i ==
                    opts.maxSnapDistances.size() - 1) {  // only fail on last
+          // finally give up
+
           // add a group with only this stop in it
           StatGroup* dummyGroup = new StatGroup();
           Node* dummyNode = g->addNd(pl);
 
           dummyNode->pl().getSI()->setGroup(dummyGroup);
           dummyGroup->addNode(dummyNode);
-          dummyGroup->addStop(s.first);
-          (*fs)[s.first] = dummyNode;
+          dummyGroup->addStop(s);
+          (*fs)[s] = dummyNode;
           LOG(WARN) << "Could not snap station "
                     << "(" << pl.getSI()->getName() << ")"
-                    << " (" << s.first->getLat() << "," << s.first->getLng()
-                    << ")";
+                    << " (" << s->getLat() << "," << s->getLng() << ")";
         }
       }
     }
@@ -188,7 +239,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   deleteOrphNds(g);
 
   LOG(VDEBUG) << "Deleting orphan edges...";
-  deleteOrphEdgs(g);
+  deleteOrphEdgs(g, opts);
 
   LOG(VDEBUG) << "Collapsing edges...";
   collapseEdges(g);
@@ -197,7 +248,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   deleteOrphNds(g);
 
   LOG(VDEBUG) << "Deleting orphan edges...";
-  deleteOrphEdgs(g);
+  deleteOrphEdgs(g, opts);
 
   LOG(VDEBUG) << "Writing graph components...";
   // the restrictor is needed here to prevent connections in the graph
@@ -221,6 +272,89 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
   LOG(DEBUG) << "Graph has " << g->getNds()->size() << " nodes, " << numEdges
              << " edges and " << comps << " connected component(s)";
+}
+
+// _____________________________________________________________________________
+void OsmBuilder::overpassQryWrite(std::ostream* out,
+                                  const std::vector<OsmReadOpts>& opts,
+                                  const BBoxIdx& latLngBox) const {
+  OsmIdSet bboxNodes, noHupNodes;
+  MultAttrMap emptyF;
+
+  RelLst rels;
+  OsmIdList ways;
+  RelMap nodeRels, wayRels;
+
+  // TODO(patrick): not needed here!
+  Restrictions rests;
+
+  NIdMap nodes;
+
+  // always empty
+  NIdMultMap multNodes;
+  util::xml::XmlWriter wr(out, true, 4);
+
+  *out << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+  wr.openComment();
+  wr.writeText(" - written by pfaedle -");
+  wr.closeTag();
+  wr.openTag("osm-script",
+             {{"timeout", "99999"}, {"element-limit", "1073741824"}});
+
+  OsmFilter filter;
+
+  for (const OsmReadOpts& o : opts) {
+    filter = filter.merge(OsmFilter(o.keepFilter, o.dropFilter));
+  }
+
+  wr.openTag("union");
+  size_t c = 0;
+  for (auto box : latLngBox.getLeafs()) {
+    if (box.getLowerLeft().getX() > box.getUpperRight().getX()) continue;
+    c++;
+    wr.openComment();
+    wr.writeText(std::string("Bounding box #") + std::to_string(c) + " (" +
+                 std::to_string(box.getLowerLeft().getY()) + ", " +
+                 std::to_string(box.getLowerLeft().getX()) + ", " +
+                 std::to_string(box.getUpperRight().getY()) + ", " +
+                 std::to_string(box.getUpperRight().getX()) + ")");
+    wr.closeTag();
+    for (auto t : std::vector<std::string>{"way", "node", "relation"}) {
+      for (auto r : filter.getKeepRules()) {
+        for (auto val : r.second) {
+          if (t == "way" && (val.second & OsmFilter::WAY)) continue;
+          if (t == "relation" && (val.second & OsmFilter::REL)) continue;
+          if (t == "node" && (val.second & OsmFilter::NODE)) continue;
+
+          wr.openTag("query", {{"type", t}});
+          if (val.first == "*")
+            wr.openTag("has-kv", {{"k", r.first}});
+          else
+            wr.openTag("has-kv", {{"k", r.first}, {"v", val.first}});
+          wr.closeTag();
+          wr.openTag("bbox-query",
+                     {{"s", std::to_string(box.getLowerLeft().getY())},
+                      {"w", std::to_string(box.getLowerLeft().getX())},
+                      {"n", std::to_string(box.getUpperRight().getY())},
+                      {"e", std::to_string(box.getUpperRight().getX())}});
+          wr.closeTag();
+          wr.closeTag();
+        }
+      }
+    }
+  }
+
+  wr.closeTag();
+
+  wr.openTag("union");
+  wr.openTag("item");
+  wr.closeTag();
+  wr.openTag("recurse", {{"type", "down"}});
+  wr.closeTag();
+  wr.closeTag();
+  wr.openTag("print");
+
+  wr.closeTags();
 }
 
 // _____________________________________________________________________________
@@ -250,8 +384,15 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
 
   outstr << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
   wr.openTag("osm");
-
-  // TODO(patrick): write bounding box tag
+  wr.openTag(
+      "bounds",
+      {{"minlat", std::to_string(latLngBox.getFullBox().getLowerLeft().getY())},
+       {"minlon", std::to_string(latLngBox.getFullBox().getLowerLeft().getX())},
+       {"maxlat",
+        std::to_string(latLngBox.getFullBox().getUpperRight().getY())},
+       {"maxlon",
+        std::to_string(latLngBox.getFullBox().getUpperRight().getX())}});
+  wr.closeTag();
 
   OsmFilter filter;
   AttrKeySet attrKeys[3] = {};
@@ -1071,8 +1212,7 @@ EdgeGrid OsmBuilder::buildEdgeIdx(Graph* g, size_t size,
 }
 
 // _____________________________________________________________________________
-NodeGrid OsmBuilder::buildNodeIdx(Graph* g, size_t size,
-                                  const BOX& webMercBox,
+NodeGrid OsmBuilder::buildNodeIdx(Graph* g, size_t size, const BOX& webMercBox,
                                   bool which) const {
   NodeGrid ret(size, size, webMercBox, false);
   for (auto* n : *g->getNds()) {
@@ -1158,9 +1298,10 @@ bool OsmBuilder::isBlocked(const Edge* e, const StatInfo* si, const POINT& p,
 
 // _____________________________________________________________________________
 Node* OsmBuilder::eqStatReach(const Edge* e, const StatInfo* si, const POINT& p,
-                              double maxD, int maxFullTurns,
-                              double minAngle) const {
-  return depthSearch(e, si, p, maxD, maxFullTurns, minAngle, EqSearch());
+                              double maxD, int maxFullTurns, double minAngle,
+                              bool orphanSnap) const {
+  return depthSearch(e, si, p, maxD, maxFullTurns, minAngle,
+                     EqSearch(orphanSnap));
 }
 
 // _____________________________________________________________________________
@@ -1187,8 +1328,7 @@ std::set<Node*> OsmBuilder::getMatchingNds(const NodePL& s, NodeGrid* ng,
   std::set<Node*> ret;
   double distor = webMercDistFactor(*s.getGeom());
   std::set<Node*> neighs;
-  BOX box =
-      util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
+  BOX box = util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
   ng->get(box, &neighs);
 
   for (auto* n : neighs) {
@@ -1205,8 +1345,7 @@ std::set<Node*> OsmBuilder::getMatchingNds(const NodePL& s, NodeGrid* ng,
 Node* OsmBuilder::getMatchingNd(const NodePL& s, NodeGrid* ng, double d) const {
   double distor = webMercDistFactor(*s.getGeom());
   std::set<Node*> neighs;
-  BOX box =
-      util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
+  BOX box = util::geo::pad(util::geo::getBoundingBox(*s.getGeom()), d / distor);
   ng->get(box, &neighs);
 
   Node* ret = 0;
@@ -1229,7 +1368,7 @@ Node* OsmBuilder::getMatchingNd(const NodePL& s, NodeGrid* ng, double d) const {
 std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
                                         NodeGrid* sng, const OsmReadOpts& opts,
                                         Restrictor* restor, bool surrHeur,
-                                        double d) const {
+                                        bool orphSnap, double d) const {
   assert(s->getSI());
   std::set<Node*> ret;
 
@@ -1239,10 +1378,14 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
 
   if (pq.empty() && surrHeur) {
     // no station found in the first round, try again with the nearest
-    // surrounding
-    // station with matching name
+    // surrounding station with matching name
     const Node* best = getMatchingNd(*s, sng, opts.maxSnapFallbackHeurDistance);
-    if (best) getEdgCands(*best->pl().getGeom(), &pq, eg, d);
+    if (best) {
+      getEdgCands(*best->pl().getGeom(), &pq, eg, d);
+    } else {
+      // if still no luck, get edge cands in fallback snap distance
+      getEdgCands(*s->getGeom(), &pq, eg, opts.maxSnapFallbackHeurDistance);
+    }
   }
 
   while (!pq.empty()) {
@@ -1254,7 +1397,7 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
 
     Node* eq = 0;
     if (!(eq = eqStatReach(e, s->getSI(), geom, 2 * d, 0,
-                           opts.maxAngleSnapReach))) {
+                           opts.maxAngleSnapReach, orphSnap))) {
       if (e->pl().lvl() > opts.maxSnapLevel) continue;
       if (isBlocked(e, s->getSI(), geom, opts.maxBlockDistance, 0,
                     opts.maxAngleSnapReach)) {
@@ -1309,11 +1452,6 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
     }
   }
 
-  // get surrounding nodes
-  // TODO(patrick): own distance configuration for this!
-  const auto& sur = getMatchingNds(*s, sng, opts.maxGroupSearchDistance);
-  ret.insert(sur.begin(), sur.end());
-
   return ret;
 }
 
@@ -1336,7 +1474,10 @@ StatGroup* OsmBuilder::groupStats(const NodeSet& s) const {
     }
   }
 
-  if (!used) delete ret;
+  if (!used) {
+    delete ret;
+    return 0;
+  }
 
   return ret;
 }
@@ -1507,7 +1648,7 @@ void OsmBuilder::getKeptAttrKeys(const OsmReadOpts& opts,
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::deleteOrphEdgs(Graph* g) const {
+void OsmBuilder::deleteOrphEdgs(Graph* g, const OsmReadOpts& opts) const {
   size_t ROUNDS = 3;
   for (size_t c = 0; c < ROUNDS; c++) {
     for (auto i = g->getNds()->begin(); i != g->getNds()->end();) {
@@ -1515,6 +1656,15 @@ void OsmBuilder::deleteOrphEdgs(Graph* g) const {
         ++i;
         continue;
       }
+
+      // check if the removal of this edge would transform a steep angle
+      // full turn at an intersection into a node 2 eligible for contraction
+      // if so, dont delete
+      if (keepFullTurn(*i, opts.fullTurnAngle)) {
+        ++i;
+        continue;
+      }
+
       i = g->delNd(*i);
       continue;
       i++;
@@ -1705,4 +1855,44 @@ void OsmBuilder::writeSelfEdgs(Graph* g) const {
       g->addEdg(n, n);
     }
   }
+}
+
+// _____________________________________________________________________________
+bool OsmBuilder::keepFullTurn(const trgraph::Node* n, double ang) const {
+  if (n->getInDeg() + n->getOutDeg() != 1) return false;
+
+  const trgraph::Edge* e = 0;
+  if (n->getOutDeg())
+    e = n->getAdjListOut().front();
+  else
+    e = n->getAdjListIn().front();
+
+  auto other = e->getOtherNd(n);
+
+  if (other->getInDeg() + other->getOutDeg() == 3) {
+    const trgraph::Edge* a = 0;
+    const trgraph::Edge* b = 0;
+    for (auto f : other->getAdjListIn()) {
+      if (f != e && !a)
+        a = f;
+      else if (f != e && !b)
+        b = f;
+    }
+
+    for (auto f : other->getAdjListOut()) {
+      if (f != e && !a)
+        a = f;
+      else if (f != e && !b)
+        b = f;
+    }
+
+    auto ap = a->pl().backHop();
+    auto bp = b->pl().backHop();
+    if (a->getTo() != other) ap = a->pl().frontHop();
+    if (b->getTo() != other) bp = b->pl().frontHop();
+
+    return router::angSmaller(ap, *other->pl().getGeom(), bp, ang);
+  }
+
+  return false;
 }

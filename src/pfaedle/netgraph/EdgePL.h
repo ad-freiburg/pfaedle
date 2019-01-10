@@ -9,11 +9,12 @@
 #include <string>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
+#include "pfaedle/gtfs/Feed.h"
 #include "util/String.h"
 #include "util/geo/GeoGraph.h"
 
 using util::geograph::GeoEdgePL;
-using ad::cppgtfs::gtfs::Trip;
+using pfaedle::gtfs::Trip;
 
 namespace pfaedle {
 namespace netgraph {
@@ -22,7 +23,7 @@ namespace netgraph {
  * A payload class for edges on a network graph - that is a graph
  * that exactly represents a physical public transit network
  */
-class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
+class EdgePL {
  public:
   EdgePL() {}
   EdgePL(const LINE& l, const std::set<const Trip*>& trips)
@@ -36,10 +37,10 @@ class EdgePL : public GeoEdgePL<PFAEDLE_PRECISION> {
   util::json::Dict getAttrs() const {
     util::json::Dict obj;
     obj["num_trips"] = static_cast<int>(_trips.size());
-    obj["route_short_names"] = util::json::Array(
-        _routeShortNames.begin(), _routeShortNames.end());
-    obj["trip_short_names"] = util::json::Array(_tripShortNames.begin(),
-                                                       _tripShortNames.end());
+    obj["route_short_names"] =
+        util::json::Array(_routeShortNames.begin(), _routeShortNames.end());
+    obj["trip_short_names"] =
+        util::json::Array(_tripShortNames.begin(), _tripShortNames.end());
     return obj;
   }
 

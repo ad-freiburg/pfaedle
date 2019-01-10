@@ -113,7 +113,7 @@ struct OsmReadOpts {
 
   MultAttrMap noHupFilter;
   MultAttrMap keepFilter;
-  MultAttrMap levelFilters[7];
+  MultAttrMap levelFilters[8];
   MultAttrMap dropFilter;
   MultAttrMap oneWayFilter;
   MultAttrMap oneWayFilterRev;
@@ -136,13 +136,14 @@ struct OsmReadOpts {
   double maxAngleSnapReach;
   std::vector<double> maxSnapDistances;
   double maxSnapFallbackHeurDistance;
-  double maxGroupSearchDistance;
   double maxBlockDistance;
 
   double maxOsmStationDistance;
 
   // TODO(patrick): this is not implemented yet
   double levelSnapPunishFac[7] = {0, 0, 0, 0, 0, 0, 0};
+
+  double fullTurnAngle;
 
   // restriction system
   MultAttrMap restrPosRestr;
@@ -179,7 +180,6 @@ inline bool operator==(const OsmReadOpts& a, const OsmReadOpts& b) {
          fabs(a.maxOsmStationDistance - b.maxOsmStationDistance) < 0.1 &&
          fabs(a.maxSnapFallbackHeurDistance - b.maxSnapFallbackHeurDistance) <
              0.1 &&
-         fabs(a.maxGroupSearchDistance - b.maxGroupSearchDistance) < 0.1 &&
          fabs(a.maxBlockDistance - b.maxBlockDistance) < 0.1 &&
          fabs(a.levelSnapPunishFac[0] - b.levelSnapPunishFac[0]) < 0.1 &&
          fabs(a.levelSnapPunishFac[1] - b.levelSnapPunishFac[1]) < 0.1 &&
@@ -188,6 +188,7 @@ inline bool operator==(const OsmReadOpts& a, const OsmReadOpts& b) {
          fabs(a.levelSnapPunishFac[4] - b.levelSnapPunishFac[4]) < 0.1 &&
          fabs(a.levelSnapPunishFac[5] - b.levelSnapPunishFac[5]) < 0.1 &&
          fabs(a.levelSnapPunishFac[6] - b.levelSnapPunishFac[6]) < 0.1 &&
+         fabs(a.fullTurnAngle - b.fullTurnAngle) < 0.1 &&
          a.restrPosRestr == b.restrPosRestr &&
          a.restrNegRestr == b.restrNegRestr &&
          a.noRestrFilter == b.noRestrFilter;

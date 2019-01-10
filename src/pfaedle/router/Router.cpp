@@ -191,7 +191,8 @@ double CombCostFunc::operator()(const router::Edge* from, const router::Node* n,
 }
 
 // _____________________________________________________________________________
-Router::Router(size_t numThreads) : _cache(numThreads) {
+Router::Router(size_t numThreads, bool caching)
+    : _cache(numThreads), _caching(caching) {
   for (size_t i = 0; i < numThreads; i++) {
     _cache[i] = new Cache();
   }
@@ -219,6 +220,9 @@ bool Router::compConned(const NodeCandGroup& a, const NodeCandGroup& b) const {
 HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
                            const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
                            const osm::Restrictor& rest) const {
+  assert(a.size());
+  assert(b.size());
+
   double pend = 0;
   for (size_t i = 0; i < a.size(); i++) {
     for (size_t j = 0; j < b.size(); j++) {
@@ -231,6 +235,7 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
   LOG(VDEBUG) << "Pending max hop distance is " << pend << " meters";
 
   const trgraph::StatGroup* tgGrpTo = 0;
+
   if (b.begin()->nd->pl().getSI())
     tgGrpTo = b.begin()->nd->pl().getSI()->getGroup();
 
@@ -556,6 +561,7 @@ void Router::nestedCache(const EdgeList* el,
                          const std::set<trgraph::Edge*>& froms,
                          const CostFunc& cost,
                          const RoutingAttrs& rAttrs) const {
+  if (!_caching) return;
   if (el->size() == 0) return;
   // iterate over result edges backwards
   EdgeList curEdges;
@@ -586,7 +592,7 @@ std::set<pfaedle::trgraph::Edge*> Router::getCachedHops(
     const RoutingAttrs& rAttrs) const {
   std::set<trgraph::Edge*> ret;
   for (auto to : tos) {
-    if ((*_cache[omp_get_thread_num()])[rAttrs][from].count(to)) {
+    if (_caching && (*_cache[omp_get_thread_num()])[rAttrs][from].count(to)) {
       const auto& cv = (*_cache[omp_get_thread_num()])[rAttrs][from][to];
       (*rCosts)[to] = cv.first;
       *edgesRet.at(to) = cv.second;
@@ -601,6 +607,7 @@ std::set<pfaedle::trgraph::Edge*> Router::getCachedHops(
 // _____________________________________________________________________________
 void Router::cache(trgraph::Edge* from, trgraph::Edge* to, const EdgeCost& c,
                    EdgeList* edges, const RoutingAttrs& rAttrs) const {
+  if (!_caching) return;
   if (from == to) return;
   (*_cache[omp_get_thread_num()])[rAttrs][from][to] =
       std::pair<EdgeCost, EdgeList>(c, *edges);

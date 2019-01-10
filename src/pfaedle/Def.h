@@ -25,4 +25,6 @@
 #define BOX util::geo::Box<PFAEDLE_PRECISION>
 #define POLYLINE util::geo::PolyLine<PFAEDLE_PRECISION>
 
+#define BOX_PADDING 2500
+
 #endif  // PFAEDLE_DEF_H_

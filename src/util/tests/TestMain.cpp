@@ -8,6 +8,7 @@
 #include "util/String.h"
 #include "util/geo/Geo.h"
 #include "util/json/Writer.h"
+#include "util/graph/Algorithm.h"
 #include "util/graph/DirGraph.h"
 #include "util/graph/UndirGraph.h"
 #include "util/graph/Dijkstra.h"
@@ -405,6 +406,46 @@ CASE("editdist") {
 
 // ___________________________________________________________________________
 {
+CASE("prefixeditdist") {
+  EXPECT(util::prefixEditDist("hello", "hello", 0) == (size_t)0);
+  EXPECT(util::prefixEditDist("hello", "hello", 100) == (size_t)0);
+  EXPECT(util::prefixEditDist("hello", "hello") == (size_t)0);
+  EXPECT(util::prefixEditDist("hel", "hello") == (size_t)0);
+  EXPECT(util::prefixEditDist("hel", "hello", 0) == (size_t)0);
+  EXPECT(util::prefixEditDist("hel", "hello", 1) == (size_t)0);
+  EXPECT(util::prefixEditDist("hel", "hello", 2) == (size_t)0);
+  EXPECT(util::prefixEditDist("hal", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("hal", "hello", 1) == (size_t)1);
+  EXPECT(util::prefixEditDist("hal", "hello", 0) > (size_t)0);
+  EXPECT(util::prefixEditDist("fel", "hello", 0) > (size_t)0);
+  EXPECT(util::prefixEditDist("fel", "hello", 1) == (size_t)1);
+  EXPECT(util::prefixEditDist("fel", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("fal", "hello", 2) == (size_t)2);
+  EXPECT(util::prefixEditDist("fal", "hello", 1) > (size_t)1);
+  EXPECT(util::prefixEditDist("fal", "hello", 0) > (size_t)0);
+  EXPECT(util::prefixEditDist("far", "hello", 0) > (size_t)0);
+  EXPECT(util::prefixEditDist("far", "hello", 1) > (size_t)1);
+  EXPECT(util::prefixEditDist("far", "hello", 2) > (size_t)2);
+  EXPECT(util::prefixEditDist("far", "hello", 3) == (size_t)3);
+  EXPECT(util::prefixEditDist("far", "hello", 4) == (size_t)3);
+  EXPECT(util::prefixEditDist("far", "hello") == (size_t)3);
+  EXPECT(util::prefixEditDist("hefar", "hello") == (size_t)3);
+  EXPECT(util::prefixEditDist("hefaree", "hello") == (size_t)5);
+  EXPECT(util::prefixEditDist("helloo", "hello") == (size_t)1);
+  EXPECT(util::prefixEditDist("helloo", "hello", 0) > (size_t)0);
+  EXPECT(util::prefixEditDist("helloo", "hello", 1) == (size_t)1);
+  EXPECT(util::prefixEditDist("helloo", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("", "hello", 2) == (size_t)0);
+  EXPECT(util::prefixEditDist("e", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("el", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("ello", "hello", 2) == (size_t)1);
+  EXPECT(util::prefixEditDist("hell", "hello", 2) == (size_t)0);
+  EXPECT(util::prefixEditDist("hell", "", 2) > (size_t)2);
+  EXPECT(util::prefixEditDist("hell", "") == (size_t)4);
+}},
+
+// ___________________________________________________________________________
+{
 CASE("toString") {
   EXPECT(util::toString(34) == "34");
   EXPECT(util::toString("34") == "34");
@@ -445,6 +486,51 @@ CASE("replace") {
 
   EXPECT(!util::replaceAll(b, "", "ee"));
   EXPECT(b == "loree aaaau aaaau loree");
+}},
+
+// ___________________________________________________________________________
+{
+CASE("Connected components undirected") {
+  UndirGraph<std::string, int> g;
+
+  auto a = g.addNd("A");
+  auto b = g.addNd("B");
+  auto c = g.addNd("C");
+  auto d = g.addNd("D");
+  auto e = g.addNd("E");
+
+  g.addEdg(a, c, 1);
+  g.addEdg(a, b, 5);
+  g.addEdg(d, c, 1);
+  g.addEdg(d, b, 3);
+  g.addEdg(e, d, 1);
+  g.addEdg(e, b, 1);
+
+  auto comps = util::graph::Algorithm::connectedComponents(g);
+
+  EXPECT(comps.size() == static_cast<size_t>(1));
+  EXPECT(comps[0].count(a));
+  EXPECT(comps[0].count(b));
+  EXPECT(comps[0].count(c));
+  EXPECT(comps[0].count(d));
+  EXPECT(comps[0].count(e));
+
+  auto f = g.addNd("F");
+  comps = util::graph::Algorithm::connectedComponents(g);
+  EXPECT(comps.size() == static_cast<size_t>(2));
+
+  auto gn = g.addNd("G");
+  comps = util::graph::Algorithm::connectedComponents(g);
+  EXPECT(comps.size() == static_cast<size_t>(3));
+
+  g.addEdg(f, gn, 1);
+  comps = util::graph::Algorithm::connectedComponents(g);
+  EXPECT(comps.size() == static_cast<size_t>(2));
+
+  g.addEdg(f, a, 1);
+  comps = util::graph::Algorithm::connectedComponents(g);
+  EXPECT(comps.size() == static_cast<size_t>(1));
+
 }},
 
 // ___________________________________________________________________________

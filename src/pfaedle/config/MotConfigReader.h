@@ -5,6 +5,30 @@
 #ifndef PFAEDLE_CONFIG_MOTCONFIGREADER_H_
 #define PFAEDLE_CONFIG_MOTCONFIGREADER_H_
 
+#include "pfaedle/_config.h"
+
+#ifndef HOME_VAR
+#define HOME_VAR "HOME"
+#endif
+#ifndef XDG_DATA_HOME_SUFFIX
+#define XDG_DATA_HOME_SUFFIX "/.local/share"
+#endif
+#ifndef XDG_CONFIG_HOME_SUFFIX
+#define XDG_CONFIG_HOME_SUFFIX "/.config"
+#endif
+#ifndef XDG_CACHE_HOME_SUFFIX
+#define XDG_CACHE_HOME_SUFFIX "/.cache"
+#endif
+#ifndef XDG_DATA_DIRS_DEFAULT
+#define XDG_DATA_DIRS_DEFAULT "/usr/local/share"
+#endif
+#ifndef XDG_CONFIG_DIRS_DEFAULT
+#define XDG_CONFIG_DIRS_DEFAULT "/etc"
+#endif
+#ifndef CFG_FILE_NAME
+#define CFG_FILE_NAME "pfaedle.cfg"
+#endif
+
 #include <unordered_map>
 #include <vector>
 #include <set>

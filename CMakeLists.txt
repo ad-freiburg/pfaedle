@@ -14,10 +14,11 @@ set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 
 
 find_package(OpenMP)
-if(OPENMP_FOUND)
+if (OPENMP_FOUND)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
 
 # set compiler flags, see http://stackoverflow.com/questions/7724569/debug-vs-release-in-cmake
 if(OPENMP_FOUND)
@@ -71,18 +72,17 @@ add_test("utilTest" utilTest)
 # custom eval target
 
 add_custom_target(
-   eval
-   COMMAND make
-   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}//eval
-)
+	eval
+	COMMAND make
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}//eval
+	)
 
 # handles install target
-
 install(
 	FILES pfaedle.cfg DESTINATION etc/${PROJECT_NAME} COMPONENT config PERMISSIONS WORLD_READ
-)
+	)
 
 install(
 	FILES build/pfaedle DESTINATION bin
 	PERMISSIONS WORLD_EXECUTE COMPONENT binaries
-)
+	)

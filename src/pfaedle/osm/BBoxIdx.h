@@ -38,8 +38,14 @@ class BBoxIdx {
   // Return the full total bounding box of this index
   BOX getFullWebMercBox() const;
 
+  // Return the full total bounding box of this index
+  BOX getFullBox() const;
+
   // Return the size of this index
   size_t size() const;
+
+  // return the leaf bounding boxes of this idx
+  std::vector<Box<double>> getLeafs() const;
 
  private:
   double _padding;
@@ -49,6 +55,9 @@ class BBoxIdx {
 
   void addToTree(const Box<double>& box, BBoxIdxNd* nd, size_t lvl);
   bool treeHas(const Point<double>& p, const BBoxIdxNd& nd) const;
+
+  void getLeafsRec(const BBoxIdxNd& nd,
+                   std::vector<util::geo::Box<double>>* ret) const;
 
   static const size_t MAX_LVL = 5;
   static constexpr double MIN_COM_AREA = 0.0;

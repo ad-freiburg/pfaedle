@@ -9,6 +9,7 @@
 #define omp_get_num_procs() 1
 #endif
 
+#include <exception>
 #include <map>
 #include <mutex>
 #include <unordered_map>
@@ -16,6 +17,8 @@
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/eval/Collector.h"
+#include "pfaedle/gtfs/Feed.h"
+#include "pfaedle/gtfs/StopTime.h"
 #include "pfaedle/osm/OsmBuilder.h"
 #include "pfaedle/router/ShapeBuilder.h"
 #include "pfaedle/trgraph/StatGroup.h"
@@ -43,38 +46,36 @@ using pfaedle::router::EdgeListHops;
 using pfaedle::router::Clusters;
 using pfaedle::osm::BBoxIdx;
 using ad::cppgtfs::gtfs::Stop;
-using ad::cppgtfs::gtfs::Trip;
-using ad::cppgtfs::gtfs::Feed;
-using ad::cppgtfs::gtfs::StopTime;
+using pfaedle::gtfs::Trip;
+using pfaedle::gtfs::Feed;
+using pfaedle::gtfs::StopTime;
 using ad::cppgtfs::gtfs::ShapePoint;
 
 // _____________________________________________________________________________
-ShapeBuilder::ShapeBuilder(Feed* feed, MOTs mots,
-                           const config::MotConfig& motCfg,
+ShapeBuilder::ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed,
+                           MOTs mots, const config::MotConfig& motCfg,
                            eval::Collector* ecoll, const config::Config& cfg)
     : _feed(feed),
+      _evalFeed(evalFeed),
       _mots(mots),
       _motCfg(motCfg),
       _ecoll(ecoll),
       _cfg(cfg),
-      _crouter(omp_get_num_procs()),
+      _crouter(omp_get_num_procs(), cfg.useCaching),
       _curShpCnt(0) {
   _numThreads = _crouter.getCacheNumber();
   writeMotStops();
 
-  // TODO(patrick): maybe do this on demand to avoid graph filtering / reading
-  // for input where no routing is necessary (already shape'd)
   buildGraph();
 }
 
 // _____________________________________________________________________________
 void ShapeBuilder::writeMotStops() {
   for (auto t : _feed->getTrips()) {
-    if (!_cfg.shapeTripId.empty() && t.second->getId() != _cfg.shapeTripId)
-      continue;
-    if (_mots.count(t.second->getRoute()->getType()) &&
-        _motCfg.mots.count(t.second->getRoute()->getType())) {
-      for (auto st : t.second->getStopTimes()) {
+    if (!_cfg.shapeTripId.empty() && t.getId() != _cfg.shapeTripId) continue;
+    if (_mots.count(t.getRoute()->getType()) &&
+        _motCfg.mots.count(t.getRoute()->getType())) {
+      for (auto st : t.getStopTimes()) {
         _stops[st.getStop()] = 0;
       }
     }
@@ -95,28 +96,34 @@ const NodeCandGroup& ShapeBuilder::getNodeCands(const Stop* s) const {
 // _____________________________________________________________________________
 LINE ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
                           const router::RoutingAttrs& rAttrs) {
-  const router::EdgeListHops& res = route(ncr, rAttrs);
+  try {
+    const router::EdgeListHops& res = route(ncr, rAttrs);
 
-  LINE l;
-  for (const auto& hop : res) {
-    const trgraph::Node* last = hop.start;
-    if (hop.edges.size() == 0) {
-      l.push_back(*hop.start->pl().getGeom());
-      l.push_back(*hop.end->pl().getGeom());
-    }
-    for (auto i = hop.edges.rbegin(); i != hop.edges.rend(); i++) {
-      const auto* e = *i;
-      if ((e->getFrom() == last) ^ e->pl().isRev()) {
-        l.insert(l.end(), e->pl().getGeom()->begin(), e->pl().getGeom()->end());
-      } else {
-        l.insert(l.end(), e->pl().getGeom()->rbegin(),
-                 e->pl().getGeom()->rend());
+    LINE l;
+    for (const auto& hop : res) {
+      const trgraph::Node* last = hop.start;
+      if (hop.edges.size() == 0) {
+        l.push_back(*hop.start->pl().getGeom());
+        l.push_back(*hop.end->pl().getGeom());
       }
-      last = e->getOtherNd(last);
+      for (auto i = hop.edges.rbegin(); i != hop.edges.rend(); i++) {
+        const auto* e = *i;
+        if ((e->getFrom() == last) ^ e->pl().isRev()) {
+          l.insert(l.end(), e->pl().getGeom()->begin(),
+                   e->pl().getGeom()->end());
+        } else {
+          l.insert(l.end(), e->pl().getGeom()->rbegin(),
+                   e->pl().getGeom()->rend());
+        }
+        last = e->getOtherNd(last);
+      }
     }
-  }
 
-  return l;
+    return l;
+  } catch (const std::runtime_error& e) {
+    LOG(ERROR) << e.what();
+    return LINE();
+  }
 }
 
 // _____________________________________________________________________________
@@ -193,9 +200,9 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
   Clusters clusters = clusterTrips(_feed, _mots);
   LOG(DEBUG) << "Clustered trips into " << clusters.size() << " clusters.";
 
-  std::map<ad::cppgtfs::gtfs::Shape*, size_t> shpUsage;
+  std::map<std::string, size_t> shpUsage;
   for (auto t : _feed->getTrips()) {
-    if (t.second->getShape()) shpUsage[t.second->getShape()]++;
+    if (!t.getShape().empty()) shpUsage[t.getShape()]++;
   }
 
   // to avoid unfair load balance on threads
@@ -223,7 +230,7 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
                   << "%, " << (EDijkstra::ITERS - oiters) << " iters, "
                   /**
                     TODO: this is actually misleading. We are counting the
-                    Dijkstra iterations, but the measuring them against
+                    Dijkstra iterations, but measuring them against
                     the total running time (including all overhead + HMM solve)
                   << tput "
                   << (static_cast<double>(EDijkstra::ITERS - oiters)) /
@@ -249,7 +256,7 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
     }
 
     std::vector<double> distances;
-    ad::cppgtfs::gtfs::Shape* shp =
+    const ad::cppgtfs::gtfs::Shape& shp =
         getGtfsShape(cshp, clusters[i][0], &distances);
 
     LOG(DEBUG) << "Took " << EDijkstra::ITERS - iters << " iterations.";
@@ -259,14 +266,14 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
 
     for (auto t : clusters[i]) {
       if (_cfg.evaluate) {
-        _ecoll->add(t, t->getShape(), shp, distances);
+        _ecoll->add(t, _evalFeed->getShapes().get(t->getShape()), shp,
+                    distances);
       }
 
-      if (t->getShape() && shpUsage[t->getShape()] > 0) {
+      if (!t->getShape().empty() && shpUsage[t->getShape()] > 0) {
         shpUsage[t->getShape()]--;
         if (shpUsage[t->getShape()] == 0) {
-          _feed->getShapes().remove(t->getShape()->getId());
-          delete t->getShape();
+          _feed->getShapes().remove(t->getShape());
         }
       }
       setShape(t, shp, distances);
@@ -295,27 +302,25 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
 }
 
 // _____________________________________________________________________________
-void ShapeBuilder::setShape(Trip* t, ad::cppgtfs::gtfs::Shape* s,
+void ShapeBuilder::setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
                             const std::vector<double>& distances) {
   assert(distances.size() == t->getStopTimes().size());
   // set distances
   size_t i = 0;
-  for (const StopTime& st : t->getStopTimes()) {
-    const_cast<StopTime&>(st).setShapeDistanceTravelled(distances[i]);
+  for (const auto& st : t->getStopTimes()) {
+    const_cast<StopTime<Stop>&>(st).setShapeDistanceTravelled(distances[i]);
     i++;
   }
 
-  t->setShape(s);
-
   std::lock_guard<std::mutex> guard(_shpMutex);
-  _feed->getShapes().add(s);
+  // TODO(patrick):
+  t->setShape(_feed->getShapes().add(s));
 }
 
 // _____________________________________________________________________________
-ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
+ad::cppgtfs::gtfs::Shape ShapeBuilder::getGtfsShape(
     const Shape& shp, Trip* t, std::vector<double>* hopDists) {
-  ad::cppgtfs::gtfs::Shape* ret =
-      new ad::cppgtfs::gtfs::Shape(getFreeShapeId(t));
+  ad::cppgtfs::gtfs::Shape ret(getFreeShapeId(t));
 
   assert(shp.hops.size() == t->getStopTimes().size() - 1);
 
@@ -338,7 +343,7 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       last = *hop.start->pl().getGeom();
 
       if (dist - lastDist > 0.01) {
-        ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
+        ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
         lastDist = dist;
       }
@@ -349,11 +354,12 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
       if (dist - lastDist > 0.01) {
         ll = webMercToLatLng<PFAEDLE_PRECISION>(
             hop.end->pl().getGeom()->getX(), hop.end->pl().getGeom()->getY());
-        ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
+        ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
         seq++;
         lastDist = dist;
       }
     }
+
     for (auto i = hop.edges.rbegin(); i != hop.edges.rend(); i++) {
       const auto* e = *i;
       if ((e->getFrom() == l) ^ e->pl().isRev()) {
@@ -367,7 +373,7 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
           if (dist - lastDist > 0.01) {
             POINT ll =
                 webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
-            ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
+            ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
           }
@@ -383,7 +389,7 @@ ad::cppgtfs::gtfs::Shape* ShapeBuilder::getGtfsShape(
           if (dist - lastDist > 0.01) {
             POINT ll =
                 webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
-            ret->addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
+            ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
             seq++;
             lastDist = dist;
           }
@@ -447,33 +453,30 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) const {
 }
 
 // _____________________________________________________________________________
-BBoxIdx ShapeBuilder::getPaddedGtfsBox(const Feed* feed, double pad,
-                                       const MOTs& mots, const std::string& tid,
-                                       bool dropShapes) {
-  osm::BBoxIdx box(pad);
+void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
+                              const std::string& tid, bool dropShapes,
+                              osm::BBoxIdx* box) {
   for (const auto& t : feed->getTrips()) {
-    if (!tid.empty() && t.second->getId() != tid) continue;
-    if (tid.empty() && t.second->getShape() && !dropShapes) continue;
-    if (t.second->getStopTimes().size() < 2) continue;
-    if (mots.count(t.second->getRoute()->getType())) {
+    if (!tid.empty() && t.getId() != tid) continue;
+    if (tid.empty() && !t.getShape().empty() && !dropShapes) continue;
+    if (t.getStopTimes().size() < 2) continue;
+    if (mots.count(t.getRoute()->getType())) {
       DBox cur;
-      for (const auto& st : t.second->getStopTimes()) {
+      for (const auto& st : t.getStopTimes()) {
         cur = extendBox(DPoint(st.getStop()->getLng(), st.getStop()->getLat()),
                         cur);
       }
-      box.add(cur);
+      box->add(cur);
     }
   }
-
-  return box;
 }
 
 // _____________________________________________________________________________
 void ShapeBuilder::buildGraph() {
   osm::OsmBuilder osmBuilder;
 
-  osm::BBoxIdx box =
-      getPaddedGtfsBox(_feed, 2500, _mots, _cfg.shapeTripId, _cfg.dropShapes);
+  osm::BBoxIdx box(BOX_PADDING);
+  getGtfsBox(_feed, _mots, _cfg.shapeTripId, _cfg.dropShapes, &box);
 
   osmBuilder.read(_cfg.osmPath, _motCfg.osmBuildOpts, &_g, box, _cfg.gridSize,
                   getFeedStops(), &_restr);
@@ -497,6 +500,11 @@ NodeCandRoute ShapeBuilder::getNCR(Trip* trip) const {
 
   for (const auto& st : trip->getStopTimes()) {
     ncr[i] = getNodeCands(st.getStop());
+    if (ncr[i].size() == 0) {
+      throw std::runtime_error("No node candidate found for station '" +
+                               st.getStop()->getName() + "' on trip '" +
+                               trip->getId() + "'");
+    }
     i++;
   }
   return ncr;
@@ -535,29 +543,29 @@ Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
   size_t j = 0;
 
   Clusters ret;
-  for (const auto& trip : f->getTrips()) {
-    if (trip.second->getShape() && !_cfg.dropShapes) continue;
-    if (trip.second->getStopTimes().size() < 2) continue;
-    if (!mots.count(trip.second->getRoute()->getType()) ||
-        !_motCfg.mots.count(trip.second->getRoute()->getType()))
+  for (auto& trip : f->getTrips()) {
+    if (!trip.getShape().empty() && !_cfg.dropShapes) continue;
+    if (trip.getStopTimes().size() < 2) continue;
+    if (!mots.count(trip.getRoute()->getType()) ||
+        !_motCfg.mots.count(trip.getRoute()->getType()))
       continue;
     bool found = false;
-    auto spair = StopPair(trip.second->getStopTimes().begin()->getStop(),
-                          trip.second->getStopTimes().rbegin()->getStop());
+    auto spair = StopPair(trip.getStopTimes().begin()->getStop(),
+                          trip.getStopTimes().rbegin()->getStop());
     const auto& c = clusterIdx[spair];
 
     for (size_t i = 0; i < c.size(); i++) {
       j++;
-      if (routingEqual(ret[c[i]][0], trip.second)) {
-        ret[c[i]].push_back(trip.second);
+      if (routingEqual(ret[c[i]][0], &trip)) {
+        ret[c[i]].push_back(&trip);
         found = true;
         break;
       }
     }
     if (!found) {
-      ret.push_back({trip.second});
+      ret.push_back(Cluster{&trip});
       // explicit call to write render attrs to cache
-      getRAttrs(trip.second);
+      getRAttrs(&trip);
       clusterIdx[spair].push_back(ret.size() - 1);
     }
   }

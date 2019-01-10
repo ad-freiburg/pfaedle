@@ -18,7 +18,7 @@ using util::geograph::GeoNodePL;
 namespace pfaedle {
 namespace router {
 
-class NodePL : public GeoNodePL<PFAEDLE_PRECISION> {
+class NodePL {
  public:
   NodePL() : _n(0) {}
   NodePL(const pfaedle::trgraph::Node* n) : _n(n) {}  // NOLINT

@@ -18,14 +18,14 @@
 
 using util::geo::PolyLine;
 
-using ad::cppgtfs::gtfs::Trip;
+using pfaedle::gtfs::Trip;
 using ad::cppgtfs::gtfs::Shape;
 using pfaedle::eval::Collector;
 using pfaedle::eval::Result;
 using util::geo::output::GeoJsonOutput;
 
 // _____________________________________________________________________________
-double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
+double Collector::add(const Trip* t, const Shape* oldS, const Shape& newS,
                       const std::vector<double>& newTripDists) {
   if (!oldS) {
     _noOrigShp++;
@@ -51,7 +51,7 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
       (--t->getStopTimes().end())->getShapeDistanceTravelled(), &oldDists);
 
   std::vector<double> newDists;
-  LINE newL = getWebMercLine(newS, -1, -1, &newDists);
+  LINE newL = getWebMercLine(&newS, -1, -1, &newDists);
 
   std::ofstream fstr(_evalOutPath + "/trip-" + t->getId() + ".json");
   GeoJsonOutput gjout(fstr);
@@ -123,19 +123,19 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape* newS,
                                 6378137.0)) -
                    1.5707965);
 
-  if (_dCache.count(oldS) && _dCache.find(oldS)->second.count(newS)) {
-    fd = _dCache[oldS][newS];
+  if (_dCache.count(oldS) && _dCache.find(oldS)->second.count(newS.getId())) {
+    fd = _dCache[oldS][newS.getId()];
   } else {
     fd = util::geo::accFrechetDistC(oldLCut, newLCut, 5 / fac) * fac;
-    _dCache[oldS][newS] = fd;
+    _dCache[oldS][newS.getId()] = fd;
   }
 
-  if (_dACache.count(oldS) && _dACache.find(oldS)->second.count(newS)) {
-    unmatchedSegments = _dACache[oldS][newS].first;
-    unmatchedSegmentsLength = _dACache[oldS][newS].second;
+  if (_dACache.count(oldS) && _dACache.find(oldS)->second.count(newS.getId())) {
+    unmatchedSegments = _dACache[oldS][newS.getId()].first;
+    unmatchedSegmentsLength = _dACache[oldS][newS.getId()].second;
   } else {
     auto dA = getDa(oldSegs, newSegs);
-    _dACache[oldS][newS] = dA;
+    _dACache[oldS][newS.getId()] = dA;
     unmatchedSegments = dA.first;
     unmatchedSegmentsLength = dA.second;
   }
@@ -199,6 +199,8 @@ std::vector<LINE> Collector::segmentize(
   // get first half of geometry, and search for start point there!
   size_t before = std::upper_bound(dists.begin(), dists.end(), cuts[1].second) -
                   dists.begin();
+  if (before + 1 > shape.size()) before = shape.size() - 1;
+  assert(shape.begin() + before + 1 <= shape.end());
   POLYLINE l(LINE(shape.begin(), shape.begin() + before + 1));
   auto lastLp = l.projectOn(cuts.front().first);
 

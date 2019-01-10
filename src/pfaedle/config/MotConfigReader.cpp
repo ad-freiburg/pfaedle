@@ -7,6 +7,7 @@
 #include "pfaedle/config/MotConfigReader.h"
 #include "util/Misc.h"
 #include "util/String.h"
+#include "util/log/Log.h"
 
 using pfaedle::config::MotConfigReader;
 using pfaedle::config::MotConfig;
@@ -23,341 +24,336 @@ MotConfigReader::MotConfigReader() {}
 
 // _____________________________________________________________________________
 void MotConfigReader::parse(const std::vector<std::string>& paths) {
+  ConfigFileParser p;
+
+  // parse explicitely given paths
   for (const auto& s : paths) {
-    ConfigFileParser p;
+    LOG(DEBUG) << "Reading config file " << s;
     p.parse(s);
+  }
 
-    for (const auto& sec : p.getSecs()) {
-      MotConfig curCfg;
-      std::string secStr = sec.first;
+  for (const auto& sec : p.getSecs()) {
+    MotConfig curCfg;
+    std::string secStr = sec.first;
 
-      if (p.hasKey(secStr, "osm_filter_keep")) {
-        for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_keep", ' ')) {
+    if (p.hasKey(secStr, "osm_filter_keep")) {
+      for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_keep", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.keepFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    for (uint8_t i = 0; i < 8; i++) {
+      std::string name = std::string("osm_filter_lvl") + std::to_string(i);
+      if (p.hasKey(secStr, name)) {
+        for (const auto& kvs : p.getStrArr(sec.first, name, ' ')) {
           auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.keepFilter[fRule.kv.first].insert(
+          curCfg.osmBuildOpts.levelFilters[i][fRule.kv.first].insert(
               osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
         }
       }
+    }
 
-      for (uint8_t i = 0; i < 7; i++) {
-        std::string name =
-            std::string("osm_filter_lvl") + std::to_string(i + 1);
-        if (p.hasKey(secStr, name)) {
-          for (const auto& kvs : p.getStrArr(sec.first, name, ' ')) {
-            auto fRule = getFRule(kvs);
-            curCfg.osmBuildOpts.levelFilters[i][fRule.kv.first].insert(
-                osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-          }
-        }
+    if (p.hasKey(secStr, "osm_filter_drop")) {
+      for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_drop", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.dropFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
+    }
 
-      if (p.hasKey(secStr, "osm_filter_drop")) {
-        for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_drop", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.dropFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
+    if (p.hasKey(secStr, "osm_max_snap_level")) {
+      curCfg.osmBuildOpts.maxSnapLevel =
+          p.getInt(sec.first, "osm_max_snap_level");
+    } else {
+      curCfg.osmBuildOpts.maxSnapLevel = 7;
+    }
+
+    if (p.hasKey(secStr, "osm_filter_nohup")) {
+      for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_nohup", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.noHupFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
+    }
 
-      if (p.hasKey(secStr, "osm_max_snap_level")) {
-        curCfg.osmBuildOpts.maxSnapLevel =
-            p.getInt(sec.first, "osm_max_snap_level");
+    if (p.hasKey(secStr, "osm_filter_oneway")) {
+      for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_oneway", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.oneWayFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_oneway_reverse")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_oneway_reverse", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.oneWayFilterRev[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_undirected")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_undirected", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.twoWayFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_station")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_station", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.stationFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_station_blocker")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_station_blocker", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.stationBlockerFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_node_positive_restriction")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_node_positive_restriction", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.restrPosRestr[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_node_negative_restriction")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_node_negative_restriction", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.restrNegRestr[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_no_restriction")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_no_restriction", ' ')) {
+        auto fRule = getFRule(kvs);
+        curCfg.osmBuildOpts.noRestrFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_station_name_attrs")) {
+      for (const std::string& r :
+           p.getStrArr(sec.first, "osm_station_name_attrs", ' ')) {
+        curCfg.osmBuildOpts.statAttrRules.nameRule.push_back(
+            getDeepAttrRule(r));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_track_number_tags")) {
+      for (const std::string& r :
+           p.getStrArr(sec.first, "osm_track_number_tags", ' ')) {
+        curCfg.osmBuildOpts.statAttrRules.platformRule.push_back(
+            getDeepAttrRule(r));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_edge_track_number_tags")) {
+      for (const std::string& r :
+           p.getStrArr(sec.first, "osm_edge_track_number_tags", ' ')) {
+        curCfg.osmBuildOpts.edgePlatformRules.push_back(getDeepAttrRule(r));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_station_group_attrs")) {
+      auto arr = p.getStrArr(secStr, "osm_station_group_attrs", ' ');
+
+      for (const auto& ruleStr : arr) {
+        auto deep = getDeepAttrRule(ruleStr);
+        // TODO(patrick): getKv is misused here as a a=b parser
+        auto attrD = getKv(deep.attr);
+        deep.attr = attrD.first;
+        double dist = atof(attrD.second.c_str());
+        curCfg.osmBuildOpts.statGroupNAttrRules.push_back({deep, dist});
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_line_relation_tags")) {
+      auto arr = p.getStrArr(secStr, "osm_line_relation_tags", ' ');
+
+      for (const auto& ruleStr : arr) {
+        auto rule = getKv(ruleStr);
+        auto tags = util::split(rule.second, ',');
+        if (rule.first == "from_name")
+          curCfg.osmBuildOpts.relLinerules.fromNameRule = tags;
+        else if (rule.first == "to_name")
+          curCfg.osmBuildOpts.relLinerules.toNameRule = tags;
+        else if (rule.first == "line_name")
+          curCfg.osmBuildOpts.relLinerules.sNameRule = tags;
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_max_snap_distance")) {
+      curCfg.osmBuildOpts.maxSnapDistances =
+          p.getDoubleArr(secStr, "osm_max_snap_distance", ',');
+    } else {
+      curCfg.osmBuildOpts.maxSnapDistances.push_back(50);
+    }
+
+    if (p.hasKey(secStr, "osm_max_snap_fallback_distance")) {
+      curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
+          p.getDouble(secStr, "osm_max_snap_fallback_distance");
+    } else {
+      curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
+          *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
+                            curCfg.osmBuildOpts.maxSnapDistances.end()) *
+          2;
+    }
+
+    if (p.hasKey(secStr, "osm_max_osm_station_distance")) {
+      curCfg.osmBuildOpts.maxOsmStationDistance =
+          p.getDouble(secStr, "osm_max_osm_station_distance");
+    } else {
+      curCfg.osmBuildOpts.maxOsmStationDistance = 5;
+    }
+
+    if (p.hasKey(secStr, "osm_max_node_block_distance")) {
+      curCfg.osmBuildOpts.maxBlockDistance =
+          p.getDouble(secStr, "osm_max_node_block_distance");
+    } else {
+      curCfg.osmBuildOpts.maxBlockDistance =
+          *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
+                            curCfg.osmBuildOpts.maxSnapDistances.end()) /
+          8;
+    }
+
+    for (uint8_t i = 0; i < 8; i++) {
+      std::string name =
+          std::string("routing_lvl") + std::to_string(i) + "_fac";
+      if (p.hasKey(secStr, name)) {
+        double v = p.getDouble(sec.first, name);
+        curCfg.routingOpts.levelPunish[i] = v;
       } else {
-        curCfg.osmBuildOpts.maxSnapLevel = 7;
+        curCfg.routingOpts.levelPunish[i] = 1;
       }
+    }
 
-      if (p.hasKey(secStr, "osm_filter_nohup")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_nohup", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.noHupFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+    if (p.hasKey(secStr, "routing_full_turn_punish")) {
+      curCfg.routingOpts.fullTurnPunishFac =
+          p.getDouble(secStr, "routing_full_turn_punish");
+    }
+    if (p.hasKey(secStr, "routing_full_turn_angle")) {
+      double ang = p.getDouble(secStr, "routing_full_turn_angle");
+      curCfg.routingOpts.fullTurnAngle = ang;
+      curCfg.osmBuildOpts.fullTurnAngle = ang;
+    } else {
+      curCfg.routingOpts.fullTurnAngle = 5;
+      curCfg.osmBuildOpts.fullTurnAngle = 5;
+    }
+    if (p.hasKey(secStr, "routing_snap_full_turn_angle")) {
+      double ang = p.getDouble(secStr, "routing_snap_full_turn_angle");
+      curCfg.osmBuildOpts.maxAngleSnapReach = ang;
+    } else {
+      curCfg.osmBuildOpts.maxAngleSnapReach = curCfg.routingOpts.fullTurnAngle;
+    }
+    if (p.hasKey(secStr, "routing_pass_thru_station_punish")) {
+      curCfg.routingOpts.passThruStationsPunish =
+          p.getDouble(secStr, "routing_pass_thru_station_punish");
+    }
+    if (p.hasKey(secStr, "routing_one_way_meter_punish_fac")) {
+      curCfg.routingOpts.oneWayPunishFac =
+          p.getDouble(secStr, "routing_one_way_meter_punish_fac");
+    }
+    if (p.hasKey(secStr, "routing_one_way_edge_punish")) {
+      curCfg.routingOpts.oneWayEdgePunish =
+          p.getDouble(secStr, "routing_one_way_edge_punish");
+    }
+    if (p.hasKey(secStr, "routing_line_unmatched_punish_fac")) {
+      curCfg.routingOpts.lineUnmatchedPunishFact =
+          p.getDouble(secStr, "routing_line_unmatched_punish_fac");
+    }
+    if (p.hasKey(secStr, "routing_platform_unmatched_punish")) {
+      curCfg.routingOpts.platformUnmatchedPen =
+          p.getDouble(secStr, "routing_platform_unmatched_punish");
+    }
+    if (p.hasKey(secStr, "routing_non_osm_station_punish")) {
+      curCfg.routingOpts.nonOsmPen =
+          p.getDouble(secStr, "routing_non_osm_station_punish");
+    } else {
+      curCfg.routingOpts.nonOsmPen = 0;
+    }
+    if (p.hasKey(secStr, "routing_station_distance_punish_fac")) {
+      curCfg.routingOpts.stationDistPenFactor =
+          p.getDouble(secStr, "routing_station_distance_punish_fac");
+    } else {
+      curCfg.routingOpts.stationDistPenFactor = 1;
+    }
+
+    if (p.hasKey(secStr, "station_normalize_chain")) {
+      try {
+        auto arr = p.getStrArr(secStr, "station_normalize_chain", ';');
+        curCfg.osmBuildOpts.statNormzer =
+            trgraph::Normalizer(getNormRules(arr));
+      } catch (const std::exception& e) {
+        throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
+                       p.getVal(secStr, "station_normalize_chain").pos,
+                       "<valid regular expression>",
+                       std::string("<regex error: ") + e.what() + ">",
+                       p.getVal(secStr, "station_normalize_chain").file);
+      }
+    }
+
+    if (p.hasKey(secStr, "track_normalize_chain")) {
+      try {
+        auto arr = p.getStrArr(secStr, "track_normalize_chain", ';');
+        curCfg.osmBuildOpts.trackNormzer =
+            trgraph::Normalizer(getNormRules(arr));
+      } catch (const std::exception& e) {
+        throw ParseExc(p.getVal(secStr, "track_normalize_chain").line,
+                       p.getVal(secStr, "track_normalize_chain").pos,
+                       "<valid regular expression>",
+                       std::string("<regex error: ") + e.what() + ">",
+                       p.getVal(secStr, "track_normalize_chain").file);
+      }
+    }
+
+    if (p.hasKey(secStr, "line_normalize_chain")) {
+      try {
+        auto arr = p.getStrArr(secStr, "line_normalize_chain", ';');
+        curCfg.osmBuildOpts.lineNormzer =
+            trgraph::Normalizer(getNormRules(arr));
+      } catch (const std::exception& e) {
+        throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
+                       p.getVal(secStr, "station_normalize_chain").pos,
+                       "<valid regular expression>",
+                       std::string("<regex error: ") + e.what() + ">",
+                       p.getVal(secStr, "station_normalize_chain").file);
+      }
+    }
+
+    bool found = false;
+
+    for (auto& cfg : _cfgs) {
+      if (cfg == curCfg) {
+        for (auto mot :
+             ad::cppgtfs::gtfs::flat::Route::getTypesFromString(secStr)) {
+          cfg.mots.insert(mot);
         }
+        found = true;
+        break;
       }
+    }
 
-      if (p.hasKey(secStr, "osm_filter_oneway")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_oneway", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.oneWayFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_filter_oneway_reverse")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_oneway_reverse", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.oneWayFilterRev[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_filter_undirected")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_undirected", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.twoWayFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_filter_station")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_station", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.stationFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_filter_station_blocker")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_station_blocker", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.stationBlockerFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_node_positive_restriction")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_node_positive_restriction", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.restrPosRestr[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_node_negative_restriction")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_node_negative_restriction", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.restrNegRestr[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_filter_no_restriction")) {
-        for (const auto& kvs :
-             p.getStrArr(sec.first, "osm_filter_no_restriction", ' ')) {
-          auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.noRestrFilter[fRule.kv.first].insert(
-              osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_station_name_attrs")) {
-        for (const std::string& r :
-             p.getStrArr(sec.first, "osm_station_name_attrs", ' ')) {
-          curCfg.osmBuildOpts.statAttrRules.nameRule.push_back(
-              getDeepAttrRule(r));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_track_number_tags")) {
-        for (const std::string& r :
-             p.getStrArr(sec.first, "osm_track_number_tags", ' ')) {
-          curCfg.osmBuildOpts.statAttrRules.platformRule.push_back(
-              getDeepAttrRule(r));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_edge_track_number_tags")) {
-        for (const std::string& r :
-             p.getStrArr(sec.first, "osm_edge_track_number_tags", ' ')) {
-          curCfg.osmBuildOpts.edgePlatformRules.push_back(getDeepAttrRule(r));
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_station_group_attrs")) {
-        auto arr = p.getStrArr(secStr, "osm_station_group_attrs", ' ');
-
-        for (const auto& ruleStr : arr) {
-          auto deep = getDeepAttrRule(ruleStr);
-          // TODO(patrick): getKv is misused here as a a=b parser
-          auto attrD = getKv(deep.attr);
-          deep.attr = attrD.first;
-          double dist = atof(attrD.second.c_str());
-          curCfg.osmBuildOpts.statGroupNAttrRules.push_back({deep, dist});
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_line_relation_tags")) {
-        auto arr = p.getStrArr(secStr, "osm_line_relation_tags", ' ');
-
-        for (const auto& ruleStr : arr) {
-          auto rule = getKv(ruleStr);
-          auto tags = util::split(rule.second, ',');
-          if (rule.first == "from_name")
-            curCfg.osmBuildOpts.relLinerules.fromNameRule = tags;
-          else if (rule.first == "to_name")
-            curCfg.osmBuildOpts.relLinerules.toNameRule = tags;
-          else if (rule.first == "line_name")
-            curCfg.osmBuildOpts.relLinerules.sNameRule = tags;
-        }
-      }
-
-      if (p.hasKey(secStr, "osm_max_snap_distance")) {
-        curCfg.osmBuildOpts.maxSnapDistances =
-            p.getDoubleArr(secStr, "osm_max_snap_distance", ',');
-      } else {
-        curCfg.osmBuildOpts.maxSnapDistances.push_back(50);
-      }
-
-      if (p.hasKey(secStr, "osm_max_snap_fallback_distance")) {
-        curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
-            p.getDouble(secStr, "osm_max_snap_fallback_distance");
-      } else {
-        curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
-            *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
-                              curCfg.osmBuildOpts.maxSnapDistances.end()) *
-            2;
-      }
-
-      if (p.hasKey(secStr, "osm_max_group_search_distance")) {
-        curCfg.osmBuildOpts.maxGroupSearchDistance =
-            p.getDouble(secStr, "osm_max_group_search_distance");
-      } else {
-        curCfg.osmBuildOpts.maxGroupSearchDistance =
-            *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
-                              curCfg.osmBuildOpts.maxSnapDistances.end()) *
-            4;
-      }
-
-      if (p.hasKey(secStr, "osm_max_osm_station_distance")) {
-        curCfg.osmBuildOpts.maxOsmStationDistance =
-            p.getDouble(secStr, "osm_max_osm_station_distance");
-      } else {
-        curCfg.osmBuildOpts.maxOsmStationDistance = 5;
-      }
-
-      if (p.hasKey(secStr, "osm_max_node_block_distance")) {
-        curCfg.osmBuildOpts.maxBlockDistance =
-            p.getDouble(secStr, "osm_max_node_block_distance");
-      } else {
-        curCfg.osmBuildOpts.maxBlockDistance =
-            *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
-                              curCfg.osmBuildOpts.maxSnapDistances.end()) /
-            8;
-      }
-
-      for (uint8_t i = 0; i < 8; i++) {
-        std::string name =
-            std::string("routing_lvl") + std::to_string(i) + "_fac";
-        if (p.hasKey(secStr, name)) {
-          double v = p.getDouble(sec.first, name);
-          curCfg.routingOpts.levelPunish[i] = v;
-        } else {
-          curCfg.routingOpts.levelPunish[i] = 1;
-        }
-      }
-
-      if (p.hasKey(secStr, "routing_full_turn_punish")) {
-        curCfg.routingOpts.fullTurnPunishFac =
-            p.getDouble(secStr, "routing_full_turn_punish");
-      }
-      if (p.hasKey(secStr, "routing_full_turn_angle")) {
-        double ang = p.getDouble(secStr, "routing_full_turn_angle");
-        curCfg.routingOpts.fullTurnAngle = ang;
-      } else {
-        curCfg.routingOpts.fullTurnAngle = 5;
-      }
-      if (p.hasKey(secStr, "routing_snap_full_turn_angle")) {
-        double ang = p.getDouble(secStr, "routing_snap_full_turn_angle");
-        curCfg.osmBuildOpts.maxAngleSnapReach = ang;
-      } else {
-        curCfg.osmBuildOpts.maxAngleSnapReach =
-            curCfg.routingOpts.fullTurnAngle;
-      }
-      if (p.hasKey(secStr, "routing_pass_thru_station_punish")) {
-        curCfg.routingOpts.passThruStationsPunish =
-            p.getDouble(secStr, "routing_pass_thru_station_punish");
-      }
-      if (p.hasKey(secStr, "routing_one_way_meter_punish_fac")) {
-        curCfg.routingOpts.oneWayPunishFac =
-            p.getDouble(secStr, "routing_one_way_meter_punish_fac");
-      }
-      if (p.hasKey(secStr, "routing_one_way_edge_punish")) {
-        curCfg.routingOpts.oneWayEdgePunish =
-            p.getDouble(secStr, "routing_one_way_edge_punish");
-      }
-      if (p.hasKey(secStr, "routing_line_unmatched_punish_fac")) {
-        curCfg.routingOpts.lineUnmatchedPunishFact =
-            p.getDouble(secStr, "routing_line_unmatched_punish_fac");
-      }
-      if (p.hasKey(secStr, "routing_platform_unmatched_punish")) {
-        curCfg.routingOpts.platformUnmatchedPen =
-            p.getDouble(secStr, "routing_platform_unmatched_punish");
-      }
-      if (p.hasKey(secStr, "routing_non_osm_station_punish")) {
-        curCfg.routingOpts.nonOsmPen =
-            p.getDouble(secStr, "routing_non_osm_station_punish");
-      } else {
-        curCfg.routingOpts.nonOsmPen = 0;
-      }
-      if (p.hasKey(secStr, "routing_station_distance_punish_fac")) {
-        curCfg.routingOpts.stationDistPenFactor =
-            p.getDouble(secStr, "routing_station_distance_punish_fac");
-      } else {
-        curCfg.routingOpts.stationDistPenFactor = 1;
-      }
-
-      if (p.hasKey(secStr, "station_normalize_chain")) {
-        try {
-          auto arr = p.getStrArr(secStr, "station_normalize_chain", ';');
-          curCfg.osmBuildOpts.statNormzer =
-              trgraph::Normalizer(getNormRules(arr));
-        } catch (const std::exception& e) {
-          throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
-                         p.getVal(secStr, "station_normalize_chain").pos,
-                         "<valid regular expression>",
-                         std::string("<regex error: ") + e.what() + ">", s);
-        }
-      }
-
-      if (p.hasKey(secStr, "track_normalize_chain")) {
-        try {
-          auto arr = p.getStrArr(secStr, "track_normalize_chain", ';');
-          curCfg.osmBuildOpts.trackNormzer =
-              trgraph::Normalizer(getNormRules(arr));
-        } catch (const std::exception& e) {
-          throw ParseExc(p.getVal(secStr, "track_normalize_chain").line,
-                         p.getVal(secStr, "station_normalize_chain").pos,
-                         "<valid regular expression>",
-                         std::string("<regex error: ") + e.what() + ">", s);
-        }
-      }
-
-      if (p.hasKey(secStr, "line_normalize_chain")) {
-        try {
-          auto arr = p.getStrArr(secStr, "line_normalize_chain", ';');
-          curCfg.osmBuildOpts.lineNormzer =
-              trgraph::Normalizer(getNormRules(arr));
-        } catch (const std::exception& e) {
-          throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
-                         p.getVal(secStr, "station_normalize_chain").pos,
-                         "<valid regular expression>",
-                         std::string("<regex error: ") + e.what() + ">", s);
-        }
-      }
-
-      bool found = false;
-
-      for (auto& cfg : _cfgs) {
-        if (cfg == curCfg) {
-          for (auto mot : Route::getTypesFromString(secStr)) {
-            cfg.mots.insert(mot);
-          }
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        curCfg.mots = Route::getTypesFromString(secStr);
-        _cfgs.push_back(curCfg);
-      }
+    if (!found) {
+      curCfg.mots = ad::cppgtfs::gtfs::flat::Route::getTypesFromString(secStr);
+      _cfgs.push_back(curCfg);
     }
   }
 }

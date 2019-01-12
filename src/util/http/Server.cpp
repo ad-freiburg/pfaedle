@@ -45,8 +45,6 @@ Socket::Socket(int port) {
   memset(&(addr.sin_zero), '\0', 8);
 
   setsockopt(_sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y));
-  // https://news.ycombinator.com/item?id=10608356
-  setsockopt(_sock, IPPROTO_TCP, TCP_QUICKACK, &y, sizeof(y));
 
   if (bind(_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
     throw std::runtime_error(std::string("Could not bind to port ") +
@@ -85,9 +83,6 @@ void HttpServer::send(int sock, Answer* aw) {
   std::string buff = ss.str();
 
   size_t writes = 0;
-  // https://news.ycombinator.com/item?id=10608356
-  int y = 1;
-  setsockopt(sock, IPPROTO_TCP, TCP_QUICKACK, &y, sizeof(y));
 
   while (writes != buff.size()) {
     int64_t out = write(sock, buff.c_str() + writes, buff.size() - writes);

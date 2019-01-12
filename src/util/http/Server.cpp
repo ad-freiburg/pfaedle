@@ -150,7 +150,7 @@ Req HttpServer::getReq(int connection) {
   size_t rcvd = 0;
   int64_t curRcvd = 0;
   HeaderState state = NONE;
-  Req ret{"", "", "", "", {}};
+  Req ret;
   char *tmp = 0;
   char *tmp2 = 0;
   char* brk = 0;

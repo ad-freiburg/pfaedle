@@ -33,6 +33,7 @@ class Writer {
   bool writeStopTimes(Feed* f, std::ostream* os) const;
 
   static void cannotWrite(const std::string& file, const std::string& file2);
+  static std::string getTmpFName(const std::string& postf);
 };
 
 }  // namespace gtfs

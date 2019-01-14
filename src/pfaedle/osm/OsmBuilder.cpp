@@ -168,10 +168,11 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
     std::vector<const Stop*> notSnapped;
 
-    for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
-      double d = opts.maxSnapDistances[i];
-      for (auto& s : *fs) {
-        auto pl = plFromGtfs(s.first, opts);
+    for (auto& s : *fs) {
+      bool snapped = false;
+      auto pl = plFromGtfs(s.first, opts);
+      for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
+        double d = opts.maxSnapDistances[i];
 
         StatGroup* group = groupStats(
             snapStation(g, &pl, &eg, &sng, opts, res,
@@ -180,13 +181,15 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
         if (group) {
           group->addStop(s.first);
           (*fs)[s.first] = *group->getNodes().begin();
-        } else if (i == opts.maxSnapDistances.size() - 1) {
-          LOG(VDEBUG) << "Could not snap station "
-                      << "(" << pl.getSI()->getName() << ")"
-                      << " (" << s.first->getLat() << "," << s.first->getLng()
-                      << ") in normal run, trying again later in orphan mode.";
-          notSnapped.push_back(s.first);
+          snapped = true;
         }
+      }
+      if (!snapped) {
+        LOG(VDEBUG) << "Could not snap station "
+                    << "(" << pl.getSI()->getName() << ")"
+                    << " (" << s.first->getLat() << "," << s.first->getLng()
+                    << ") in normal run, trying again later in orphan mode.";
+        notSnapped.push_back(s.first);
       }
     }
 
@@ -197,10 +200,11 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
     // try again, but aggressively snap to orphan OSM stations which have
     // not been assigned to any GTFS stop yet
-    for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
-      double d = opts.maxSnapDistances[i];
-      for (auto& s : notSnapped) {
-        auto pl = plFromGtfs(s, opts);
+    for (auto& s : notSnapped) {
+      bool snapped = false;
+      auto pl = plFromGtfs(s, opts);
+      for (size_t i = 0; i < opts.maxSnapDistances.size(); i++) {
+        double d = opts.maxSnapDistances[i];
 
         StatGroup* group = groupStats(
             snapStation(g, &pl, &eg, &sng, opts, res,
@@ -215,22 +219,23 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
               n->pl().getSI()->addAltName(pl.getSI()->getName());
           }
           (*fs)[s] = *group->getNodes().begin();
-        } else if (i ==
-                   opts.maxSnapDistances.size() - 1) {  // only fail on last
-          // finally give up
-
-          // add a group with only this stop in it
-          StatGroup* dummyGroup = new StatGroup();
-          Node* dummyNode = g->addNd(pl);
-
-          dummyNode->pl().getSI()->setGroup(dummyGroup);
-          dummyGroup->addNode(dummyNode);
-          dummyGroup->addStop(s);
-          (*fs)[s] = dummyNode;
-          LOG(WARN) << "Could not snap station "
-                    << "(" << pl.getSI()->getName() << ")"
-                    << " (" << s->getLat() << "," << s->getLng() << ")";
+          snapped = true;
         }
+      }
+      if (!snapped) {
+        // finally give up
+
+        // add a group with only this stop in it
+        StatGroup* dummyGroup = new StatGroup();
+        Node* dummyNode = g->addNd(pl);
+
+        dummyNode->pl().getSI()->setGroup(dummyGroup);
+        dummyGroup->addNode(dummyNode);
+        dummyGroup->addStop(s);
+        (*fs)[s] = dummyNode;
+        LOG(WARN) << "Could not snap station "
+                  << "(" << pl.getSI()->getName() << ")"
+                  << " (" << s->getLat() << "," << s->getLng() << ")";
       }
     }
   }
@@ -299,7 +304,7 @@ void OsmBuilder::overpassQryWrite(std::ostream* out,
   wr.writeText(" - written by pfaedle -");
   wr.closeTag();
   wr.openTag("osm-script",
-             {{"timeout", "99999"}, {"element-limit", "1073741824"}});
+             {{"timeout", "99999"}, {"element-limit", "2073741824"}});
 
   OsmFilter filter;
 

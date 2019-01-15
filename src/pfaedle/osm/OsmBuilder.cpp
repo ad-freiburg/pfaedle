@@ -189,6 +189,11 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
                     << "(" << pl.getSI()->getName() << ")"
                     << " (" << s.first->getLat() << "," << s.first->getLng()
                     << ") in normal run, trying again later in orphan mode.";
+        if (!bbox.contains(*pl.getGeom())) {
+          LOG(VDEBUG) << "Note: '" << pl.getSI()->getName()
+                      << "' does not lie within the bounds for this graph and "
+                         "may be a stray station";
+        }
         notSnapped.push_back(s.first);
       }
     }
@@ -233,9 +238,19 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
         dummyGroup->addNode(dummyNode);
         dummyGroup->addStop(s);
         (*fs)[s] = dummyNode;
-        LOG(WARN) << "Could not snap station "
-                  << "(" << pl.getSI()->getName() << ")"
-                  << " (" << s->getLat() << "," << s->getLng() << ")";
+        if (!bbox.contains(*pl.getGeom())) {
+          LOG(VDEBUG) << "Could not snap station "
+                      << "(" << pl.getSI()->getName() << ")"
+                      << " (" << s->getLat() << "," << s->getLng() << ")";
+          LOG(VDEBUG) << "Note: '" << pl.getSI()->getName()
+                      << "' does not lie within the bounds for this graph and "
+                         "may be a stray station";
+        } else {
+          // only warn if it is contained in the BBOX for this graph
+          LOG(WARN) << "Could not snap station "
+                    << "(" << pl.getSI()->getName() << ")"
+                    << " (" << s->getLat() << "," << s->getLng() << ")";
+        }
       }
     }
   }
@@ -303,8 +318,7 @@ void OsmBuilder::overpassQryWrite(std::ostream* out,
   wr.openComment();
   wr.writeText(" - written by pfaedle -");
   wr.closeTag();
-  wr.openTag("osm-script",
-             {{"timeout", "99999"}, {"element-limit", "2073741824"}});
+  wr.openTag("osm-script");
 
   OsmFilter filter;
 

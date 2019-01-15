@@ -105,7 +105,7 @@ class ShapeBuilder {
   std::string getFreeShapeId(Trip* t);
 
   ad::cppgtfs::gtfs::Shape getGtfsShape(const Shape& shp, Trip* t,
-                                         std::vector<double>* hopDists);
+                                        std::vector<double>* hopDists);
 
   void setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
                 const std::vector<double>& dists);

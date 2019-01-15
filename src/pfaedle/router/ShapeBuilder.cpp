@@ -460,6 +460,7 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
     if (!tid.empty() && t.getId() != tid) continue;
     if (tid.empty() && !t.getShape().empty() && !dropShapes) continue;
     if (t.getStopTimes().size() < 2) continue;
+
     if (mots.count(t.getRoute()->getType())) {
       DBox cur;
       for (const auto& st : t.getStopTimes()) {
@@ -540,8 +541,6 @@ Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
 
   std::map<StopPair, std::vector<size_t>> clusterIdx;
 
-  size_t j = 0;
-
   Clusters ret;
   for (auto& trip : f->getTrips()) {
     if (!trip.getShape().empty() && !_cfg.dropShapes) continue;
@@ -549,13 +548,13 @@ Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
     if (!mots.count(trip.getRoute()->getType()) ||
         !_motCfg.mots.count(trip.getRoute()->getType()))
       continue;
+
     bool found = false;
     auto spair = StopPair(trip.getStopTimes().begin()->getStop(),
                           trip.getStopTimes().rbegin()->getStop());
     const auto& c = clusterIdx[spair];
 
     for (size_t i = 0; i < c.size(); i++) {
-      j++;
       if (routingEqual(ret[c[i]][0], &trip)) {
         ret[c[i]].push_back(&trip);
         found = true;

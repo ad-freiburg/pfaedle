@@ -35,8 +35,11 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
   for (const auto& sec : p.getSecs()) {
     MotConfig curCfg;
     std::string secStr = sec.first;
+    if (secStr.empty()) continue;
+    std::set<std::string> procedKeys;
 
     if (p.hasKey(secStr, "osm_filter_keep")) {
+      procedKeys.insert("osm_filter_keep");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_keep", ' ')) {
         auto fRule = getFRule(kvs);
         curCfg.osmBuildOpts.keepFilter[fRule.kv.first].insert(
@@ -47,6 +50,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     for (uint8_t i = 0; i < 8; i++) {
       std::string name = std::string("osm_filter_lvl") + std::to_string(i);
       if (p.hasKey(secStr, name)) {
+        procedKeys.insert(name);
         for (const auto& kvs : p.getStrArr(sec.first, name, ' ')) {
           auto fRule = getFRule(kvs);
           curCfg.osmBuildOpts.levelFilters[i][fRule.kv.first].insert(
@@ -56,6 +60,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_drop")) {
+      procedKeys.insert("osm_filter_drop");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_drop", ' ')) {
         auto fRule = getFRule(kvs);
         curCfg.osmBuildOpts.dropFilter[fRule.kv.first].insert(
@@ -64,6 +69,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_max_snap_level")) {
+      procedKeys.insert("osm_max_snap_level");
       curCfg.osmBuildOpts.maxSnapLevel =
           p.getInt(sec.first, "osm_max_snap_level");
     } else {
@@ -71,6 +77,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_nohup")) {
+      procedKeys.insert("osm_filter_nohup");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_nohup", ' ')) {
         auto fRule = getFRule(kvs);
         curCfg.osmBuildOpts.noHupFilter[fRule.kv.first].insert(
@@ -79,6 +86,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_oneway")) {
+      procedKeys.insert("osm_filter_oneway");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_oneway", ' ')) {
         auto fRule = getFRule(kvs);
         curCfg.osmBuildOpts.oneWayFilter[fRule.kv.first].insert(
@@ -87,6 +95,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_oneway_reverse")) {
+      procedKeys.insert("osm_filter_oneway_reverse");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_oneway_reverse", ' ')) {
         auto fRule = getFRule(kvs);
@@ -96,6 +105,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_undirected")) {
+      procedKeys.insert("osm_filter_undirected");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_undirected", ' ')) {
         auto fRule = getFRule(kvs);
@@ -105,6 +115,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_station")) {
+      procedKeys.insert("osm_filter_station");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_station", ' ')) {
         auto fRule = getFRule(kvs);
@@ -114,6 +125,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_station_blocker")) {
+      procedKeys.insert("osm_filter_station_blocker");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_station_blocker", ' ')) {
         auto fRule = getFRule(kvs);
@@ -123,6 +135,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_node_positive_restriction")) {
+      procedKeys.insert("osm_node_positive_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_node_positive_restriction", ' ')) {
         auto fRule = getFRule(kvs);
@@ -132,6 +145,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_node_negative_restriction")) {
+      procedKeys.insert("osm_node_negative_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_node_negative_restriction", ' ')) {
         auto fRule = getFRule(kvs);
@@ -141,6 +155,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_filter_no_restriction")) {
+      procedKeys.insert("osm_filter_no_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_no_restriction", ' ')) {
         auto fRule = getFRule(kvs);
@@ -150,6 +165,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_station_name_attrs")) {
+      procedKeys.insert("osm_station_name_attrs");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_station_name_attrs", ' ')) {
         curCfg.osmBuildOpts.statAttrRules.nameRule.push_back(
@@ -158,6 +174,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_track_number_tags")) {
+      procedKeys.insert("osm_track_number_tags");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_track_number_tags", ' ')) {
         curCfg.osmBuildOpts.statAttrRules.platformRule.push_back(
@@ -165,7 +182,16 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
       }
     }
 
+    if (p.hasKey(secStr, "osm_station_id_attrs")) {
+      procedKeys.insert("osm_station_id_attrs");
+      for (const std::string& r :
+           p.getStrArr(sec.first, "osm_station_id_attrs", ' ')) {
+        curCfg.osmBuildOpts.statAttrRules.idRule.push_back(getDeepAttrRule(r));
+      }
+    }
+
     if (p.hasKey(secStr, "osm_edge_track_number_tags")) {
+      procedKeys.insert("osm_edge_track_number_tags");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_edge_track_number_tags", ' ')) {
         curCfg.osmBuildOpts.edgePlatformRules.push_back(getDeepAttrRule(r));
@@ -173,6 +199,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_station_group_attrs")) {
+      procedKeys.insert("osm_station_group_attrs");
       auto arr = p.getStrArr(secStr, "osm_station_group_attrs", ' ');
 
       for (const auto& ruleStr : arr) {
@@ -186,6 +213,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_line_relation_tags")) {
+      procedKeys.insert("osm_line_relation_tags");
       auto arr = p.getStrArr(secStr, "osm_line_relation_tags", ' ');
 
       for (const auto& ruleStr : arr) {
@@ -201,6 +229,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_max_snap_distance")) {
+      procedKeys.insert("osm_max_snap_distance");
       curCfg.osmBuildOpts.maxSnapDistances =
           p.getDoubleArr(secStr, "osm_max_snap_distance", ',');
     } else {
@@ -208,6 +237,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_max_snap_fallback_distance")) {
+      procedKeys.insert("osm_max_snap_fallback_distance");
       curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
           p.getDouble(secStr, "osm_max_snap_fallback_distance");
     } else {
@@ -218,6 +248,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_max_osm_station_distance")) {
+      procedKeys.insert("osm_max_osm_station_distance");
       curCfg.osmBuildOpts.maxOsmStationDistance =
           p.getDouble(secStr, "osm_max_osm_station_distance");
     } else {
@@ -225,6 +256,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "osm_max_node_block_distance")) {
+      procedKeys.insert("osm_max_node_block_distance");
       curCfg.osmBuildOpts.maxBlockDistance =
           p.getDouble(secStr, "osm_max_node_block_distance");
     } else {
@@ -238,6 +270,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
       std::string name =
           std::string("routing_lvl") + std::to_string(i) + "_fac";
       if (p.hasKey(secStr, name)) {
+        procedKeys.insert(name);
         double v = p.getDouble(sec.first, name);
         curCfg.routingOpts.levelPunish[i] = v;
       } else {
@@ -246,10 +279,18 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "routing_full_turn_punish")) {
+      procedKeys.insert("routing_full_turn_punish");
       curCfg.routingOpts.fullTurnPunishFac =
           p.getDouble(secStr, "routing_full_turn_punish");
     }
+
+    if (p.hasKey(secStr, "routing_no_self_hops")) {
+      procedKeys.insert("routing_no_self_hops");
+      curCfg.routingOpts.noSelfHops = p.getBool(secStr, "routing_no_self_hops");
+    }
+
     if (p.hasKey(secStr, "routing_full_turn_angle")) {
+      procedKeys.insert("routing_full_turn_angle");
       double ang = p.getDouble(secStr, "routing_full_turn_angle");
       curCfg.routingOpts.fullTurnAngle = ang;
       curCfg.osmBuildOpts.fullTurnAngle = ang;
@@ -257,39 +298,55 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
       curCfg.routingOpts.fullTurnAngle = 5;
       curCfg.osmBuildOpts.fullTurnAngle = 5;
     }
+
     if (p.hasKey(secStr, "routing_snap_full_turn_angle")) {
+      procedKeys.insert("routing_snap_full_turn_angle");
       double ang = p.getDouble(secStr, "routing_snap_full_turn_angle");
       curCfg.osmBuildOpts.maxAngleSnapReach = ang;
     } else {
       curCfg.osmBuildOpts.maxAngleSnapReach = curCfg.routingOpts.fullTurnAngle;
     }
+
     if (p.hasKey(secStr, "routing_pass_thru_station_punish")) {
+      procedKeys.insert("routing_pass_thru_station_punish");
       curCfg.routingOpts.passThruStationsPunish =
           p.getDouble(secStr, "routing_pass_thru_station_punish");
     }
+
     if (p.hasKey(secStr, "routing_one_way_meter_punish_fac")) {
+      procedKeys.insert("routing_one_way_meter_punish_fac");
       curCfg.routingOpts.oneWayPunishFac =
           p.getDouble(secStr, "routing_one_way_meter_punish_fac");
     }
+
     if (p.hasKey(secStr, "routing_one_way_edge_punish")) {
+      procedKeys.insert("routing_one_way_edge_punish");
       curCfg.routingOpts.oneWayEdgePunish =
           p.getDouble(secStr, "routing_one_way_edge_punish");
     }
+
     if (p.hasKey(secStr, "routing_line_unmatched_punish_fac")) {
+      procedKeys.insert("routing_line_unmatched_punish_fac");
       curCfg.routingOpts.lineUnmatchedPunishFact =
           p.getDouble(secStr, "routing_line_unmatched_punish_fac");
     }
+
     if (p.hasKey(secStr, "routing_platform_unmatched_punish")) {
+      procedKeys.insert("routing_platform_unmatched_punish");
       curCfg.routingOpts.platformUnmatchedPen =
           p.getDouble(secStr, "routing_platform_unmatched_punish");
     }
+
     if (p.hasKey(secStr, "routing_non_osm_station_punish")) {
+      procedKeys.insert("routing_non_osm_station_punish");
       curCfg.routingOpts.nonOsmPen =
           p.getDouble(secStr, "routing_non_osm_station_punish");
     } else {
       curCfg.routingOpts.nonOsmPen = 0;
     }
+
     if (p.hasKey(secStr, "routing_station_distance_punish_fac")) {
+      procedKeys.insert("routing_station_distance_punish_fac");
       curCfg.routingOpts.stationDistPenFactor =
           p.getDouble(secStr, "routing_station_distance_punish_fac");
     } else {
@@ -297,6 +354,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "station_normalize_chain")) {
+      procedKeys.insert("station_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "station_normalize_chain", ';');
         curCfg.osmBuildOpts.statNormzer =
@@ -311,6 +369,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "track_normalize_chain")) {
+      procedKeys.insert("track_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "track_normalize_chain", ';');
         curCfg.osmBuildOpts.trackNormzer =
@@ -325,17 +384,37 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "line_normalize_chain")) {
+      procedKeys.insert("line_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "line_normalize_chain", ';');
         curCfg.osmBuildOpts.lineNormzer =
             trgraph::Normalizer(getNormRules(arr));
       } catch (const std::exception& e) {
-        throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
-                       p.getVal(secStr, "station_normalize_chain").pos,
+        throw ParseExc(p.getVal(secStr, "line_normalize_chain").line,
+                       p.getVal(secStr, "line_normalize_chain").pos,
+                       "<valid regular expression>",
+                       std::string("<regex error: ") + e.what() + ">",
+                       p.getVal(secStr, "line_normalize_chain").file);
+      }
+    }
+
+    if (p.hasKey(secStr, "station_id_normalize_chain")) {
+      procedKeys.insert("station_id_normalize_chain");
+      try {
+        auto arr = p.getStrArr(secStr, "station_id_normalize_chain", ';');
+        curCfg.osmBuildOpts.idNormzer = trgraph::Normalizer(getNormRules(arr));
+      } catch (const std::exception& e) {
+        throw ParseExc(p.getVal(secStr, "station_id_normalize_chain").line,
+                       p.getVal(secStr, "station_id_normalize_chain").pos,
                        "<valid regular expression>",
                        std::string("<regex error: ") + e.what() + ">",
                        p.getVal(secStr, "station_normalize_chain").file);
       }
+    }
+
+    for (const auto& kv : p.getKeyVals(secStr)) {
+      if (!procedKeys.count(kv.first))
+        curCfg.unproced[kv.first] = kv.second.val;
     }
 
     bool found = false;

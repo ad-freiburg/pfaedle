@@ -12,6 +12,8 @@
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "ad/cppgtfs/gtfs/Route.h"
 #include "pfaedle/trgraph/Graph.h"
+#include "pfaedle/gtfs/Feed.h"
+#include "util/Nullable.h"
 
 using ad::cppgtfs::gtfs::Route;
 using ad::cppgtfs::gtfs::Stop;
@@ -24,6 +26,11 @@ struct NodeCand {
   double pen;
 };
 
+struct EdgeCand {
+  trgraph::Edge* e;
+  double pen;
+};
+
 struct RoutingOpts {
   RoutingOpts()
       : fullTurnPunishFac(2000),
@@ -33,7 +40,9 @@ struct RoutingOpts {
         oneWayEdgePunish(0),
         lineUnmatchedPunishFact(0.5),
         platformUnmatchedPen(0),
-        stationDistPenFactor(0) {}
+        stationDistPenFactor(0),
+        popReachEdge(true),
+        noSelfHops(true) {}
   double fullTurnPunishFac;
   double fullTurnAngle;
   double passThruStationsPunish;
@@ -44,6 +53,8 @@ struct RoutingOpts {
   double stationDistPenFactor;
   double nonOsmPen;
   double levelPunish[8];
+  bool popReachEdge;
+  bool noSelfHops;
 };
 
 inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
@@ -63,7 +74,8 @@ inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
          fabs(a.levelPunish[4] - b.levelPunish[4]) < 0.01 &&
          fabs(a.levelPunish[5] - b.levelPunish[5]) < 0.01 &&
          fabs(a.levelPunish[6] - b.levelPunish[6]) < 0.01 &&
-         fabs(a.levelPunish[7] - b.levelPunish[7]) < 0.01;
+         fabs(a.levelPunish[7] - b.levelPunish[7]) < 0.01 &&
+         a.popReachEdge == b.popReachEdge && a.noSelfHops == b.noSelfHops;
 }
 
 struct EdgeCost {
@@ -124,6 +136,9 @@ typedef std::unordered_map<const Stop*, trgraph::Node*> FeedStops;
 typedef std::vector<NodeCand> NodeCandGroup;
 typedef std::vector<NodeCandGroup> NodeCandRoute;
 
+typedef std::vector<EdgeCand> EdgeCandGroup;
+typedef std::vector<EdgeCandGroup> EdgeCandRoute;
+
 typedef std::vector<trgraph::Edge*> EdgeList;
 typedef std::vector<trgraph::Node*> NodeList;
 
@@ -136,6 +151,38 @@ struct EdgeListHop {
 typedef std::vector<EdgeListHop> EdgeListHops;
 
 typedef std::set<Route::TYPE> MOTs;
+
+inline MOTs motISect(const MOTs& a, const MOTs& b) {
+  MOTs ret;
+  for (auto mot : a)
+    if (b.count(mot)) ret.insert(mot);
+  return ret;
+}
+
+inline pfaedle::router::FeedStops writeMotStops(const pfaedle::gtfs::Feed* feed,
+                                                const MOTs mots,
+                                                const std::string& tid) {
+  pfaedle::router::FeedStops ret;
+  for (auto t : feed->getTrips()) {
+    if (!tid.empty() && t.getId() != tid) continue;
+    if (mots.count(t.getRoute()->getType())) {
+      for (auto st : t.getStopTimes()) ret[st.getStop()] = 0;
+    }
+  }
+  return ret;
+}
+
+inline std::string getMotStr(const MOTs& mots) {
+  bool first = false;
+  std::string motStr;
+  for (const auto& mot : mots) {
+    if (first) motStr += ", ";
+    motStr += "<" + ad::cppgtfs::gtfs::flat::Route::getTypeString(mot) + ">";
+    first = true;
+  }
+
+  return motStr;
+}
 }  // namespace router
 }  // namespace pfaedle
 

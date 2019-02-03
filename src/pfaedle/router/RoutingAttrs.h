@@ -22,19 +22,22 @@ struct RoutingAttrs {
 
   mutable std::map<const TransitEdgeLine*, double> _simiCache;
 
+  // carfull: lower return value = higher similarity
   double simi(const TransitEdgeLine* line) const {
     auto i = _simiCache.find(line);
     if (i != _simiCache.end()) return i->second;
 
     double cur = 1;
-    if (router::lineSimi(line->shortName, shortName) > 0.5) cur -= 0.33;
+    if (shortName.empty() || router::lineSimi(line->shortName, shortName) > 0.5)
+      cur -= 0.333333333;
 
-    if (line->toStr.empty() || router::statSimi(line->toStr, toString) > 0.5)
-      cur -= 0.33;
+    if (toString.empty() || line->toStr.empty() ||
+        router::statSimi(line->toStr, toString) > 0.5)
+      cur -= 0.333333333;
 
-    if (line->fromStr.empty() ||
+    if (fromString.empty() || line->fromStr.empty() ||
         router::statSimi(line->fromStr, fromString) > 0.5)
-      cur -= 0.33;
+      cur -= 0.333333333;
 
     _simiCache[line] = cur;
 

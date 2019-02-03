@@ -129,6 +129,12 @@ util::json::Dict NodePL::getAttrs() const {
     obj["station_group"] =
         std::to_string(reinterpret_cast<size_t>(_si->getGroup()));
 
+#ifdef PFAEDLE_STATION_IDS
+    // only print this in debug mode
+    obj["station_id"] = _si->getId();
+#endif
+
+
     std::stringstream gtfsIds;
     if (_si->getGroup()) {
       for (auto* s : _si->getGroup()->getStops()) {

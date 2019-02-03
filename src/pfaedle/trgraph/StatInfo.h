@@ -55,12 +55,23 @@ class StatInfo {
   // Set this stop as coming from osm
   void setIsFromOsm(bool is);
 
+#ifdef PFAEDLE_STATION_IDS
+  const std::string& getId() const { return _id; }
+  void setId(const std::string& id) { _id = id; }
+#endif
+
  private:
   std::string _name;
   std::vector<std::string> _altNames;
   std::string _track;
   bool _fromOsm;
   StatGroup* _group;
+
+#ifdef PFAEDLE_STATION_IDS
+  // debug feature to store station ids from both OSM
+  // and GTFS
+  std::string _id;
+#endif
 
   static std::unordered_map<const StatGroup*, size_t> _groups;
   static void unRefGroup(StatGroup* g);

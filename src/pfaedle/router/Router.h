@@ -5,23 +5,23 @@
 #ifndef PFAEDLE_ROUTER_ROUTER_H_
 #define PFAEDLE_ROUTER_ROUTER_H_
 
-#include <mutex>
+#include <limits>
 #include <map>
+#include <mutex>
+#include <set>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <set>
-#include <limits>
-#include <string>
+#include "pfaedle/Def.h"
 #include "pfaedle/osm/Restrictor.h"
 #include "pfaedle/router/Graph.h"
 #include "pfaedle/router/Misc.h"
 #include "pfaedle/router/RoutingAttrs.h"
 #include "pfaedle/trgraph/Graph.h"
+#include "util/geo/Geo.h"
 #include "util/graph/Dijkstra.h"
 #include "util/graph/EDijkstra.h"
-#include "util/geo/Geo.h"
-#include "pfaedle/Def.h"
 
 using util::graph::EDijkstra;
 using util::graph::Dijkstra;
@@ -53,14 +53,12 @@ struct CostFunc
       : _rAttrs(rAttrs),
         _rOpts(rOpts),
         _res(res),
-        _max(max),
         _tgGrp(tgGrp),
-        _inf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, _max, 0) {}
+        _inf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, max, 0) {}
 
   const RoutingAttrs& _rAttrs;
   const RoutingOpts& _rOpts;
   const osm::Restrictor& _res;
-  double _max;
   const trgraph::StatGroup* _tgGrp;
   EdgeCost _inf;
 
@@ -142,6 +140,17 @@ class Router {
 
   // Find the most likely path through the graph for a node candidate route.
   EdgeListHops route(const NodeCandRoute& route, const RoutingAttrs& rAttrs,
+                     const RoutingOpts& rOpts,
+                     const osm::Restrictor& rest) const;
+  EdgeListHops route(const NodeCandRoute& route, const RoutingAttrs& rAttrs,
+                     const RoutingOpts& rOpts, const osm::Restrictor& rest,
+                     router::Graph* cgraph) const;
+
+  // Find the most likely path through the graph for an edge candidate route.
+  EdgeListHops route(const EdgeCandRoute& route, const RoutingAttrs& rAttrs,
+                     const RoutingOpts& rOpts,
+                     const osm::Restrictor& rest) const;
+  EdgeListHops route(const EdgeCandRoute& route, const RoutingAttrs& rAttrs,
                      const RoutingOpts& rOpts, const osm::Restrictor& rest,
                      router::Graph* cgraph) const;
 
@@ -164,7 +173,7 @@ class Router {
  private:
   mutable std::vector<Cache*> _cache;
   bool _caching;
-  HopBand getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
+  HopBand getHopBand(const EdgeCandGroup& a, const EdgeCandGroup& b,
                      const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
                      const osm::Restrictor& rest) const;
 
@@ -187,7 +196,7 @@ class Router {
   void nestedCache(const EdgeList* el, const std::set<trgraph::Edge*>& froms,
                    const CostFunc& cost, const RoutingAttrs& rAttrs) const;
 
-  bool compConned(const NodeCandGroup& a, const NodeCandGroup& b) const;
+  bool compConned(const EdgeCandGroup& a, const EdgeCandGroup& b) const;
 };
 }  // namespace router
 }  // namespace pfaedle

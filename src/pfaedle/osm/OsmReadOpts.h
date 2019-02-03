@@ -87,6 +87,7 @@ inline bool operator==(const RelLineRules& a, const RelLineRules& b) {
 struct StationAttrRules {
   DeepAttrLst nameRule;
   DeepAttrLst platformRule;
+  DeepAttrLst idRule;
 };
 
 inline bool operator==(const StationAttrRules& a, const StationAttrRules& b) {
@@ -125,6 +126,7 @@ struct OsmReadOpts {
   trgraph::Normalizer statNormzer;
   trgraph::Normalizer lineNormzer;
   trgraph::Normalizer trackNormzer;
+  trgraph::Normalizer idNormzer;
 
   RelLineRules relLinerules;
   StationAttrRules statAttrRules;

@@ -22,6 +22,9 @@ StatInfo::StatInfo(const StatInfo& si)
       _fromOsm(si._fromOsm),
       _group(0) {
   setGroup(si._group);
+#ifdef PFAEDLE_STATION_IDS
+  _id = si._id;
+#endif
 }
 
 // _____________________________________________________________________________

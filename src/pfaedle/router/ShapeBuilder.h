@@ -51,7 +51,8 @@ class ShapeBuilder {
  public:
   ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed, MOTs mots,
                const config::MotConfig& motCfg, eval::Collector* ecoll,
-               const config::Config& cfg);
+               trgraph::Graph* g, router::FeedStops* stops,
+               osm::Restrictor* restr, const config::Config& cfg);
 
   void shape(pfaedle::netgraph::Graph* ng);
 
@@ -79,10 +80,10 @@ class ShapeBuilder {
   config::MotConfig _motCfg;
   eval::Collector* _ecoll;
   config::Config _cfg;
-  trgraph::Graph _g;
+  trgraph::Graph* _g;
   router::Router _crouter;
 
-  router::FeedStops _stops;
+  router::FeedStops* _stops;
 
   NodeCandGroup _emptyNCG;
 
@@ -92,10 +93,9 @@ class ShapeBuilder {
 
   TripRAttrs _rAttrs;
 
-  osm::Restrictor _restr;
+  osm::Restrictor* _restr;
 
-  void writeMotStops();
-  void buildGraph();
+  void buildGraph(router::FeedStops* fStops);
 
   Clusters clusterTrips(Feed* f, MOTs mots);
   void writeTransitGraph(const Shape& shp, TrGraphEdgs* edgs,

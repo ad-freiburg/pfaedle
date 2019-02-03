@@ -25,6 +25,7 @@
 #include "pfaedle/osm/OsmIdSet.h"
 #include "pfaedle/router/ShapeBuilder.h"
 #include "pfaedle/trgraph/Graph.h"
+#include "pfaedle/trgraph/StatGroup.h"
 #include "util/geo/output/GeoGraphJsonOutput.h"
 #include "util/geo/output/GeoJsonOutput.h"
 #include "util/json/Writer.h"
@@ -54,9 +55,7 @@ enum class RetCode {
   NO_MOT_CFG = 9
 };
 
-std::string getMotStr(const MOTs& mots);
 std::string getFileNameMotStr(const MOTs& mots);
-MOTs getContMots(const MotConfig& motCfg, const MOTs& mots);
 std::vector<std::string> getCfgPaths(const Config& cfg);
 
 // _____________________________________________________________________________
@@ -74,7 +73,7 @@ int main(int argc, char** argv) {
   cr.read(&cfg, argc, argv);
 
   std::vector<pfaedle::gtfs::Feed> gtfs(cfg.feedPaths.size());
-  // feed containing the shapeas in memory for evaluation
+  // feed containing the shapes in memory for evaluation
   ad::cppgtfs::gtfs::Feed evalFeed;
 
   std::vector<std::string> cfgPaths = getCfgPaths(cfg);
@@ -202,19 +201,45 @@ int main(int argc, char** argv) {
 
   for (const auto& motCfg : motCfgReader.getConfigs()) {
     std::string filePost;
-    auto usedMots = getContMots(motCfg, cmdCfgMots);
+    auto usedMots = pfaedle::router::motISect(motCfg.mots, cmdCfgMots);
     if (!usedMots.size()) continue;
     if (singleTrip && !usedMots.count(singleTrip->getRoute()->getType()))
       continue;
     if (motCfgReader.getConfigs().size() > 1)
       filePost = getFileNameMotStr(usedMots);
 
-    std::string motStr = getMotStr(usedMots);
+    std::string motStr = pfaedle::router::getMotStr(usedMots);
     LOG(INFO) << "Calculating shapes for mots " << motStr;
 
     try {
+      pfaedle::router::FeedStops fStops =
+          pfaedle::router::writeMotStops(&gtfs[0], usedMots, cfg.shapeTripId);
+
+      pfaedle::osm::Restrictor restr;
+      pfaedle::trgraph::Graph graph;
+      pfaedle::osm::OsmBuilder osmBuilder;
+
+      pfaedle::osm::BBoxIdx box(BOX_PADDING);
+      ShapeBuilder::getGtfsBox(&gtfs[0], cmdCfgMots, cfg.shapeTripId,
+                               cfg.dropShapes, &box);
+
+      if (fStops.size())
+        osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
+                        cfg.gridSize, &fStops, &restr);
+
+      // TODO(patrick): move this somewhere else
+      for (auto& feedStop : fStops) {
+        if (feedStop.second) {
+          feedStop.second->pl().getSI()->getGroup()->writePens(
+              motCfg.osmBuildOpts.trackNormzer,
+              motCfg.routingOpts.platformUnmatchedPen,
+              motCfg.routingOpts.stationDistPenFactor,
+              motCfg.routingOpts.nonOsmPen);
+        }
+      }
+
       ShapeBuilder shapeBuilder(&gtfs[0], &evalFeed, cmdCfgMots, motCfg, &ecoll,
-                                cfg);
+                                &graph, &fStops, &restr, cfg);
 
       if (cfg.writeGraph) {
         LOG(INFO) << "Outputting graph.json...";
@@ -277,19 +302,6 @@ int main(int argc, char** argv) {
 }
 
 // _____________________________________________________________________________
-std::string getMotStr(const MOTs& mots) {
-  bool first = false;
-  std::string motStr;
-  for (const auto& mot : mots) {
-    if (first) motStr += ", ";
-    motStr += "<" + ad::cppgtfs::gtfs::flat::Route::getTypeString(mot) + ">";
-    first = true;
-  }
-
-  return motStr;
-}
-
-// _____________________________________________________________________________
 std::string getFileNameMotStr(const MOTs& mots) {
   std::string motStr;
   for (const auto& mot : mots) {
@@ -297,18 +309,6 @@ std::string getFileNameMotStr(const MOTs& mots) {
   }
 
   return motStr;
-}
-
-// _____________________________________________________________________________
-MOTs getContMots(const MotConfig& motCfg, const MOTs& mots) {
-  MOTs ret;
-  for (const auto& mot : mots) {
-    if (motCfg.mots.count(mot)) {
-      ret.insert(mot);
-    }
-  }
-
-  return ret;
 }
 
 // _____________________________________________________________________________

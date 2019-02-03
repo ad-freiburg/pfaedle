@@ -6,6 +6,7 @@
 #define PFAEDLE_GTFS_WRITER_H_
 
 #include <string>
+#include "ad/cppgtfs/Writer.h"
 #include "Feed.h"
 
 namespace pfaedle {

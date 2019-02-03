@@ -54,43 +54,27 @@ using ad::cppgtfs::gtfs::ShapePoint;
 // _____________________________________________________________________________
 ShapeBuilder::ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed,
                            MOTs mots, const config::MotConfig& motCfg,
-                           eval::Collector* ecoll, const config::Config& cfg)
+                           eval::Collector* ecoll, pfaedle::trgraph::Graph* g,
+                           router::FeedStops* fStops, osm::Restrictor* restr,
+                           const config::Config& cfg)
     : _feed(feed),
       _evalFeed(evalFeed),
       _mots(mots),
       _motCfg(motCfg),
       _ecoll(ecoll),
       _cfg(cfg),
+      _g(g),
       _crouter(omp_get_num_procs(), cfg.useCaching),
-      _curShpCnt(0) {
+      _stops(fStops),
+      _curShpCnt(0),
+      _restr(restr) {
   _numThreads = _crouter.getCacheNumber();
-  writeMotStops();
-
-  buildGraph();
 }
-
-// _____________________________________________________________________________
-void ShapeBuilder::writeMotStops() {
-  for (auto t : _feed->getTrips()) {
-    if (!_cfg.shapeTripId.empty() && t.getId() != _cfg.shapeTripId) continue;
-    if (_mots.count(t.getRoute()->getType()) &&
-        _motCfg.mots.count(t.getRoute()->getType())) {
-      for (auto st : t.getStopTimes()) {
-        _stops[st.getStop()] = 0;
-      }
-    }
-  }
-}
-
-// _____________________________________________________________________________
-FeedStops* ShapeBuilder::getFeedStops() { return &_stops; }
 
 // _____________________________________________________________________________
 const NodeCandGroup& ShapeBuilder::getNodeCands(const Stop* s) const {
-  if (_stops.find(s) == _stops.end() || _stops.at(s) == 0) {
-    return _emptyNCG;
-  }
-  return _stops.at(s)->pl().getSI()->getGroup()->getNodeCands(s);
+  if (_stops->find(s) == _stops->end() || _stops->at(s) == 0) return _emptyNCG;
+  return _stops->at(s)->pl().getSI()->getGroup()->getNodeCands(s);
 }
 
 // _____________________________________________________________________________
@@ -138,7 +122,7 @@ EdgeListHops ShapeBuilder::route(const router::NodeCandRoute& ncr,
 
   if (_cfg.solveMethod == "global") {
     const router::EdgeListHops& ret =
-        _crouter.route(ncr, rAttrs, _motCfg.routingOpts, _restr, &g);
+        _crouter.route(ncr, rAttrs, _motCfg.routingOpts, *_restr, &g);
 
     // write combination graph
     if (!_cfg.shapeTripId.empty() && _cfg.writeCombGraph) {
@@ -150,9 +134,9 @@ EdgeListHops ShapeBuilder::route(const router::NodeCandRoute& ncr,
 
     return ret;
   } else if (_cfg.solveMethod == "greedy") {
-    return _crouter.routeGreedy(ncr, rAttrs, _motCfg.routingOpts, _restr);
+    return _crouter.routeGreedy(ncr, rAttrs, _motCfg.routingOpts, *_restr);
   } else if (_cfg.solveMethod == "greedy2") {
-    return _crouter.routeGreedy2(ncr, rAttrs, _motCfg.routingOpts, _restr);
+    return _crouter.routeGreedy2(ncr, rAttrs, _motCfg.routingOpts, *_restr);
   } else {
     LOG(ERROR) << "Unknown solution method " << _cfg.solveMethod;
     exit(1);
@@ -228,15 +212,6 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
         LOG(INFO) << "@ " << j << " / " << clusters.size() << " ("
                   << (static_cast<int>((j * 1.0) / clusters.size() * 100))
                   << "%, " << (EDijkstra::ITERS - oiters) << " iters, "
-                  /**
-                    TODO: this is actually misleading. We are counting the
-                    Dijkstra iterations, but measuring them against
-                    the total running time (including all overhead + HMM solve)
-                  << tput "
-                  << (static_cast<double>(EDijkstra::ITERS - oiters)) /
-                         TOOK(t1, TIME())
-                  << " iters/ms, "
-                  **/
                   << "matching " << (10.0 / (TOOK(t1, TIME()) / 1000))
                   << " trips/sec)";
 
@@ -259,13 +234,13 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
     const ad::cppgtfs::gtfs::Shape& shp =
         getGtfsShape(cshp, clusters[i][0], &distances);
 
-    LOG(DEBUG) << "Took " << EDijkstra::ITERS - iters << " iterations.";
+    LOG(VDEBUG) << "Took " << EDijkstra::ITERS - iters << " iterations.";
     iters = EDijkstra::ITERS;
 
     totNumTrips += clusters[i].size();
 
     for (auto t : clusters[i]) {
-      if (_cfg.evaluate) {
+      if (_cfg.evaluate && _evalFeed && _ecoll) {
         _ecoll->add(t, _evalFeed->getShapes().get(t->getShape()), shp,
                     distances);
       }
@@ -473,27 +448,6 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
 }
 
 // _____________________________________________________________________________
-void ShapeBuilder::buildGraph() {
-  osm::OsmBuilder osmBuilder;
-
-  osm::BBoxIdx box(BOX_PADDING);
-  getGtfsBox(_feed, _mots, _cfg.shapeTripId, _cfg.dropShapes, &box);
-
-  osmBuilder.read(_cfg.osmPath, _motCfg.osmBuildOpts, &_g, box, _cfg.gridSize,
-                  getFeedStops(), &_restr);
-
-  for (auto& feedStop : *getFeedStops()) {
-    if (feedStop.second) {
-      feedStop.second->pl().getSI()->getGroup()->writePens(
-          _motCfg.osmBuildOpts.trackNormzer,
-          _motCfg.routingOpts.platformUnmatchedPen,
-          _motCfg.routingOpts.stationDistPenFactor,
-          _motCfg.routingOpts.nonOsmPen);
-    }
-  }
-}
-
-// _____________________________________________________________________________
 NodeCandRoute ShapeBuilder::getNCR(Trip* trip) const {
   router::NodeCandRoute ncr(trip->getStopTimes().size());
 
@@ -613,14 +567,14 @@ bool ShapeBuilder::routingEqual(Trip* a, Trip* b) {
 }
 
 // _____________________________________________________________________________
-const pfaedle::trgraph::Graph* ShapeBuilder::getGraph() const { return &_g; }
+const pfaedle::trgraph::Graph* ShapeBuilder::getGraph() const { return _g; }
 
 // _____________________________________________________________________________
 void ShapeBuilder::writeTransitGraph(const Shape& shp, TrGraphEdgs* edgs,
                                      const Cluster& cluster) const {
   for (auto hop : shp.hops) {
     for (const auto* e : hop.edges) {
-      if (e->pl().isRev()) e = _g.getEdg(e->getTo(), e->getFrom());
+      if (e->pl().isRev()) e = _g->getEdg(e->getTo(), e->getFrom());
       (*edgs)[e].insert(cluster.begin(), cluster.end());
     }
   }

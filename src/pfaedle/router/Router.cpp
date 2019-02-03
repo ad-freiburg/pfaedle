@@ -107,11 +107,14 @@ EdgeCost CostFunc::operator()(const trgraph::Edge* from, const trgraph::Node* n,
 
 // _____________________________________________________________________________
 double CostFunc::transitLineCmp(const trgraph::EdgePL& e) const {
+  if (_rAttrs.shortName.empty() && _rAttrs.toString.empty() &&
+      _rAttrs.fromString.empty())
+    return 0;
   double best = 1;
   for (const auto* l : e.getLines()) {
     double cur = _rAttrs.simi(l);
 
-    if (cur < 0.0001) return cur;
+    if (cur < 0.0001) return 0;
     if (cur < best) best = cur;
   }
 
@@ -206,10 +209,11 @@ Router::~Router() {
 }
 
 // _____________________________________________________________________________
-bool Router::compConned(const NodeCandGroup& a, const NodeCandGroup& b) const {
+bool Router::compConned(const EdgeCandGroup& a, const EdgeCandGroup& b) const {
   for (auto n1 : a) {
     for (auto n2 : b) {
-      if (n1.nd->pl().getComp() == n2.nd->pl().getComp()) return true;
+      if (n1.e->getFrom()->pl().getComp() == n2.e->getFrom()->pl().getComp())
+        return true;
     }
   }
 
@@ -217,7 +221,7 @@ bool Router::compConned(const NodeCandGroup& a, const NodeCandGroup& b) const {
 }
 
 // _____________________________________________________________________________
-HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
+HopBand Router::getHopBand(const EdgeCandGroup& a, const EdgeCandGroup& b,
                            const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
                            const osm::Restrictor& rest) const {
   assert(a.size());
@@ -226,8 +230,8 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
   double pend = 0;
   for (size_t i = 0; i < a.size(); i++) {
     for (size_t j = 0; j < b.size(); j++) {
-      double d =
-          webMercMeterDist(*a[i].nd->pl().getGeom(), *b[j].nd->pl().getGeom());
+      double d = webMercMeterDist(*a[i].e->getFrom()->pl().getGeom(),
+                                  *b[j].e->getFrom()->pl().getGeom());
       if (d > pend) pend = d;
     }
   }
@@ -236,23 +240,18 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
 
   const trgraph::StatGroup* tgGrpTo = 0;
 
-  if (b.begin()->nd->pl().getSI())
-    tgGrpTo = b.begin()->nd->pl().getSI()->getGroup();
+  if (b.begin()->e->getFrom()->pl().getSI())
+    tgGrpTo = b.begin()->e->getFrom()->pl().getSI()->getGroup();
 
   CostFunc costF(rAttrs, rOpts, rest, tgGrpTo, pend * 50);
 
   std::set<trgraph::Edge *> from, to;
 
-  // TODO(patrick): test if the two sets share a common connected component
-
-  for (auto n : a)
-    from.insert(n.nd->getAdjListOut().begin(), n.nd->getAdjListOut().end());
-
-  for (auto n : b)
-    to.insert(n.nd->getAdjListOut().begin(), n.nd->getAdjListOut().end());
+  for (auto e : a) from.insert(e.e);
+  for (auto e : b) to.insert(e.e);
 
   LOG(VDEBUG) << "Doing pilot run between " << from.size() << "->" << to.size()
-              << " candidates";
+              << " edge candidates";
 
   EdgeList el;
   EdgeCost ret = costF.inf();
@@ -282,7 +281,8 @@ HopBand Router::getHopBand(const NodeCandGroup& a, const NodeCandGroup& b,
   }
 
   // TODO(patrick): derive the punish level here automatically
-  double maxD = std::max(ret.getValue(), pend * rOpts.levelPunish[2]) * 3;
+  double maxD = std::max(ret.getValue(), pend * rOpts.levelPunish[2]) * 3 +
+                rOpts.fullTurnPunishFac + rOpts.platformUnmatchedPen;
   double minD = ret.getValue();
 
   LOG(VDEBUG) << "Pilot run: min distance between two groups is "
@@ -379,7 +379,15 @@ EdgeListHops Router::routeGreedy2(const NodeCandRoute& route,
 }
 
 // _____________________________________________________________________________
-EdgeListHops Router::route(const NodeCandRoute& route,
+EdgeListHops Router::route(const EdgeCandRoute& route,
+                           const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
+                           const osm::Restrictor& rest) const {
+  router::Graph cg;
+  return Router::route(route, rAttrs, rOpts, rest, &cg);
+}
+
+// _____________________________________________________________________________
+EdgeListHops Router::route(const EdgeCandRoute& route,
                            const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
                            const osm::Restrictor& rest,
                            router::Graph* cgraph) const {
@@ -393,15 +401,14 @@ EdgeListHops Router::route(const NodeCandRoute& route,
   CombNodeMap nextNodes;
 
   for (size_t i = 0; i < route[0].size(); i++) {
-    for (const auto* e : route[0][i].nd->getAdjListOut()) {
-      // we can be sure that each edge is exactly assigned to only one
-      // node because the transitgraph is directed
-      nodes[e] = cgraph->addNd(route[0][i].nd);
-      cgraph->addEdg(source, nodes[e])
-          ->pl()
-          .setCost(EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                            route[0][i].pen, 0));
-    }
+    auto e = route[0][i].e;
+    // we can be sure that each edge is exactly assigned to only one
+    // node because the transitgraph is directed
+    nodes[e] = cgraph->addNd(route[0][i].e->getFrom());
+    cgraph->addEdg(source, nodes[e])
+        ->pl()
+        .setCost(EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          route[0][i].pen, 0));
   }
 
   size_t iters = EDijkstra::ITERS;
@@ -412,14 +419,11 @@ EdgeListHops Router::route(const NodeCandRoute& route,
     HopBand hopBand = getHopBand(route[i], route[i + 1], rAttrs, rOpts, rest);
 
     const trgraph::StatGroup* tgGrp = 0;
-    if (route[i + 1].begin()->nd->pl().getSI())
-      tgGrp = route[i + 1].begin()->nd->pl().getSI()->getGroup();
+    if (route[i + 1].begin()->e->getFrom()->pl().getSI())
+      tgGrp = route[i + 1].begin()->e->getFrom()->pl().getSI()->getGroup();
 
     std::set<trgraph::Edge*> froms;
-    for (const auto& fr : route[i]) {
-      froms.insert(fr.nd->getAdjListOut().begin(),
-                   fr.nd->getAdjListOut().end());
-    }
+    for (const auto& fr : route[i]) froms.insert(fr.e);
 
     for (auto eFr : froms) {
       router::Node* cNodeFr = nodes.find(eFr)->second;
@@ -433,24 +437,22 @@ EdgeListHops Router::route(const NodeCandRoute& route,
       assert(route[i + 1].size());
 
       for (const auto& to : route[i + 1]) {
-        assert(to.nd->getAdjListOut().size());
-        for (auto eTo : to.nd->getAdjListOut()) {
-          tos.insert(eTo);
-          if (!nextNodes.count(eTo)) nextNodes[eTo] = cgraph->addNd(to.nd);
-          if (i == route.size() - 2) cgraph->addEdg(nextNodes[eTo], sink);
+        auto eTo = to.e;
+        tos.insert(eTo);
+        if (!nextNodes.count(eTo))
+          nextNodes[eTo] = cgraph->addNd(to.e->getFrom());
+        if (i == route.size() - 2) cgraph->addEdg(nextNodes[eTo], sink);
 
-          auto* ce = cgraph->addEdg(cNodeFr, nextNodes[eTo]);
-          edges[eTo] = ce;
-          pens[eTo] = to.pen;
+        edges[eTo] = cgraph->addEdg(cNodeFr, nextNodes[eTo]);
+        pens[eTo] = to.pen;
 
-          edgeLists[eTo] = ce->pl().getEdges();
-          ce->pl().setStartNode(eFr->getFrom());
-          // for debugging
-          ce->pl().setStartEdge(eFr);
-          ce->pl().setEndNode(to.nd);
-          // for debugging
-          ce->pl().setEndEdge(eTo);
-        }
+        edgeLists[eTo] = edges[eTo]->pl().getEdges();
+        edges[eTo]->pl().setStartNode(eFr->getFrom());
+        // for debugging
+        edges[eTo]->pl().setStartEdge(eFr);
+        edges[eTo]->pl().setEndNode(to.e->getFrom());
+        // for debugging
+        edges[eTo]->pl().setEndEdge(eTo);
       }
 
       size_t iters = EDijkstra::ITERS;
@@ -475,7 +477,7 @@ EdgeListHops Router::route(const NodeCandRoute& route,
             EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pens[kv.first], 0) +
             costs[kv.first]);
 
-        if (kv.second->pl().getEdges()->size()) {
+        if (rOpts.popReachEdge && kv.second->pl().getEdges()->size()) {
           if (kv.second->pl().getEdges() &&
               kv.second->pl().getEdges()->size()) {
             // the reach edge is included, but we dont want it in the geometry
@@ -517,6 +519,30 @@ EdgeListHops Router::route(const NodeCandRoute& route,
 }
 
 // _____________________________________________________________________________
+EdgeListHops Router::route(const NodeCandRoute& route,
+                           const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
+                           const osm::Restrictor& rest) const {
+  router::Graph cg;
+  return Router::route(route, rAttrs, rOpts, rest, &cg);
+}
+
+// _____________________________________________________________________________
+EdgeListHops Router::route(const NodeCandRoute& route,
+                           const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
+                           const osm::Restrictor& rest,
+                           router::Graph* cgraph) const {
+  EdgeCandRoute r;
+  for (auto& nCands : route) {
+    r.emplace_back();
+    for (auto n : nCands)
+      for (auto* e : n.nd->getAdjListOut())
+        r.back().push_back(EdgeCand{e, n.pen});
+  }
+
+  return Router::route(r, rAttrs, rOpts, rest, cgraph);
+}
+
+// _____________________________________________________________________________
 void Router::hops(trgraph::Edge* from, const std::set<trgraph::Edge*>& froms,
                   const std::set<trgraph::Edge*> tos,
                   const trgraph::StatGroup* tgGrp,
@@ -533,7 +559,7 @@ void Router::hops(trgraph::Edge* from, const std::set<trgraph::Edge*>& froms,
   for (auto e : cached) {
     // shortcut: if the nodes lie in two different connected components,
     // the distance between them is trivially infinite
-    if (e == from || e->getFrom() == from->getFrom() ||
+    if ((rOpts.noSelfHops && (e == from || e->getFrom() == from->getFrom())) ||
         from->getFrom()->pl().getComp() != e->getTo()->pl().getComp() ||
         e->pl().oneWay() == 2 || from->pl().oneWay() == 2) {
       (*rCosts)[e] = cost.inf();

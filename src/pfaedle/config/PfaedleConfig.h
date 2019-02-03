@@ -18,7 +18,7 @@ using ad::cppgtfs::gtfs::Route;
 
 struct Config {
   Config()
-      : dbgOutputPath("geo"),
+      : dbgOutputPath("."),
         solveMethod("global"),
         evalPath("."),
         outputPath("gtfs-out"),

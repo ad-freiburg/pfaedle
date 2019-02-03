@@ -73,7 +73,7 @@ void ConfigReader::help(const char* bin) {
             << std::setw(35) << "  --inplace"
             << "overwrite input GTFS feed with output feed\n"
             << "\nDebug Output:\n"
-            << std::setw(35) << "  -d [ --dbg-path ] arg (=geo)"
+            << std::setw(35) << "  -d [ --dbg-path ] arg (=.)"
             << "output path for debug files\n"
             << std::setw(35) << "  --write-trgraph"
             << "write transit graph as GeoJSON to\n"

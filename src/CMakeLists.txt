@@ -1,6 +1,8 @@
 set(PFAEDLE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
-cpplint_add_subdirectory(pfaedle)
+if (COMMAND cpplint_add_subdirectory)
+	cpplint_add_subdirectory(pfaedle)
+endif()
 
 include_directories(
 	${PFAEDLE_INCLUDE_DIR}

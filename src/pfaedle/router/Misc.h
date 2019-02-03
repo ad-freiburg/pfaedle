@@ -11,8 +11,8 @@
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "ad/cppgtfs/gtfs/Route.h"
-#include "pfaedle/trgraph/Graph.h"
 #include "pfaedle/gtfs/Feed.h"
+#include "pfaedle/trgraph/Graph.h"
 #include "util/Nullable.h"
 
 using ad::cppgtfs::gtfs::Route;
@@ -166,7 +166,18 @@ inline pfaedle::router::FeedStops writeMotStops(const pfaedle::gtfs::Feed* feed,
   for (auto t : feed->getTrips()) {
     if (!tid.empty() && t.getId() != tid) continue;
     if (mots.count(t.getRoute()->getType())) {
-      for (auto st : t.getStopTimes()) ret[st.getStop()] = 0;
+      for (auto st : t.getStopTimes()) {
+        // if the station has type STATION_ENTRANCE, use the parent
+        // station for routing. Normally, this should not occur, as
+        // this is not allowed in stop_times.txt
+        if (st.getStop()->getLocationType() ==
+                ad::cppgtfs::gtfs::flat::Stop::STATION_ENTRANCE &&
+            st.getStop()->getParentStation()) {
+          ret[st.getStop()->getParentStation()] = 0;
+        } else {
+          ret[st.getStop()] = 0;
+        }
+      }
     }
   }
   return ret;

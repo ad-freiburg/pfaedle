@@ -9,7 +9,8 @@ Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://tr
 
 # pfaedle
 
-Precise map-matching for public transit schedules (GTFS data).
+Precise map-matching for public transit schedules [GTFS](https://developers.google.com/transit/gtfs/reference/) data.
+Implementation and evaluation code for our paper [Sparse Map-Matching in Public Transit Networks with Turn Restrictions](http://ad-publications.informatik.uni-freiburg.de/SIGSPATIAL_Sparse%20map%20matching%202018.pdf).
 
 ## Requirements
 
@@ -58,7 +59,7 @@ $ pfaedle -D -x freiburg-regbez-latest.osm .
 
 ## Generating shapes for a specific MOT
 
-To generate shapes only for a specific mot, use the `-m` option. Possible
+To generate shapes for a specific mot only, use the `-m` option. Possible
 values are either `tram`, `bus`, `coach`, `rail`, `subway`, `ferry`, `funicular`,
 `gondola`, `all` (default) or GTFS vehicle type codes (0, 1, 2, 3, 4, 5, 6, 7).
 
@@ -71,7 +72,7 @@ the `-X` flag, `pfaedle` will filter the input OSM file and output a new OSM
 file which contains exactly the data needed to calculate the shapes for the
 input GTFS feed and the input configuration.
 
-This can be used to avoid parsing (for example) the entire world.osm on each
+This can be used to avoid parsing (for example) the entire `planet.osm` on each
 run.
 
 ## Debugging
@@ -103,7 +104,7 @@ make eval
 ```
 
 *Notes:*
- * this will download, and filter, the entire OSM files for Spain, the
+ * this will download, and filter, the entire OSM files for Spain and the
 Stuttgart region. Make sure you have enough space left on your hard drive.
  * in evaluation mode, pfaedle needs significantly more time, because the
    calculation of the similarity measurements between shapes are expensive

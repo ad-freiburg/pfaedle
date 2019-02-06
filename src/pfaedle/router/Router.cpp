@@ -170,7 +170,7 @@ DistHeur::DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
 EdgeCost DistHeur::operator()(const trgraph::Edge* a,
                               const std::set<trgraph::Edge*>& b) const {
   UNUSED(b);
-  double cur = webMercMeterDist(*a->getTo()->pl().getGeom(), _center) *
+  double cur = webMercMeterDist(*a->getFrom()->pl().getGeom(), _center) *
                _rOpts.levelPunish[_lvl];
 
   return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);

@@ -12,6 +12,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include "util/Misc.h"
 #include "util/String.h"
 #include "util/geo/Box.h"

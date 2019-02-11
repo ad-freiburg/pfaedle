@@ -75,14 +75,14 @@ add_custom_target(
 	eval
 	COMMAND make
 	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}//eval
-	)
+)
 
 # handles install target
 install(
 	FILES pfaedle.cfg DESTINATION etc/${PROJECT_NAME} COMPONENT config PERMISSIONS WORLD_READ
-	)
+)
 
 install(
 	FILES build/pfaedle DESTINATION bin
 	PERMISSIONS WORLD_EXECUTE COMPONENT binaries
-	)
+)

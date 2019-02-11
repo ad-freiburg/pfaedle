@@ -12,6 +12,7 @@
 #include <exception>
 #include <map>
 #include <mutex>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include "ad/cppgtfs/gtfs/Feed.h"

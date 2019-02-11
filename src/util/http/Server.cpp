@@ -105,7 +105,7 @@ void HttpServer::handle() {
       Req req = getReq(connection);
       answ = _handler->handle(req, connection);
       answ.gzip = gzipSupport(req);
-    } catch (HttpErr err) {
+    } catch (const HttpErr& err) {
       answ = Answer(err.what(), err.what());
     } catch (...) {
       // catch everything to make sure the server continues running

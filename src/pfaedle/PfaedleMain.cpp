@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
 
   try {
     motCfgReader.parse(cfgPaths);
-  } catch (configparser::ParseExc ex) {
+  } catch (const configparser::ParseExc& ex) {
     LOG(ERROR) << "Could not parse MOT configurations, reason was:";
     std::cerr << ex.what() << std::endl;
     exit(static_cast<int>(RetCode::MOT_CFG_PARSE_ERR));
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         // read the shapes and store them in memory
         p.parseShapes(&evalFeed, cfg.feedPaths[0]);
       }
-    } catch (ad::cppgtfs::ParserException ex) {
+    } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
       ad::cppgtfs::Parser p;
       try {
         p.parse(&gtfs[i], cfg.feedPaths[i]);
-      } catch (ad::cppgtfs::ParserException ex) {
+      } catch (const ad::cppgtfs::ParserException& ex) {
         LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
         std::cerr << ex.what() << std::endl;
         exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
     }
     try {
       osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
-    } catch (xml::XmlFileException ex) {
+    } catch (const xml::XmlFileException& ex) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
         out.print(ng, fstr);
         fstr.close();
       }
-    } catch (xml::XmlFileException ex) {
+    } catch (const xml::XmlFileException& ex) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
@@ -291,7 +291,7 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
       pfaedle::gtfs::Writer w;
       w.write(&gtfs[0], cfg.outputPath);
-    } catch (ad::cppgtfs::WriterException ex) {
+    } catch (const ad::cppgtfs::WriterException& ex) {
       LOG(ERROR) << "Could not write final GTFS feed, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::GTFS_WRITE_ERR));

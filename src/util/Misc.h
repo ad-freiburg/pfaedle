@@ -119,7 +119,7 @@ inline std::string getHomeDir() {
 inline std::string getTmpDir() {
   // first, check if an env variable is set
   const char* tmpdir = getenv("TMPDIR");
-  if (std::strlen(tmpdir)) return std::string(tmpdir);
+  if (tmpdir && std::strlen(tmpdir)) return std::string(tmpdir);
 
   // second, check if /tmp is writable
   if (access("/tmp/", W_OK) == 0) return "/tmp";

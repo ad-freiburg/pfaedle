@@ -242,6 +242,7 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
 
     for (auto t : clusters[i]) {
       if (_cfg.evaluate && _evalFeed && _ecoll) {
+        std::lock_guard<std::mutex> guard(_shpMutex);
         _ecoll->add(t, _evalFeed->getShapes().get(t->getShape()), shp,
                     distances);
       }
@@ -249,6 +250,7 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
       if (!t->getShape().empty() && shpUsage[t->getShape()] > 0) {
         shpUsage[t->getShape()]--;
         if (shpUsage[t->getShape()] == 0) {
+          std::lock_guard<std::mutex> guard(_shpMutex);
           _feed->getShapes().remove(t->getShape());
         }
       }
@@ -289,7 +291,6 @@ void ShapeBuilder::setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
   }
 
   std::lock_guard<std::mutex> guard(_shpMutex);
-  // TODO(patrick):
   t->setShape(_feed->getShapes().add(s));
 }
 

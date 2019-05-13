@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <string>
 #include <algorithm>
 #include <cassert>
 #include <climits>
@@ -13,6 +12,8 @@
 #include <exception>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include "pfaedle/Def.h"
 #include "pfaedle/osm/OsmIdSet.h"
 
 using pfaedle::osm::OsmIdSet;
@@ -48,7 +49,6 @@ OsmIdSet::~OsmIdSet() {
 void OsmIdSet::add(osmid id) {
   if (_closed) throw std::exception();
   diskAdd(id);
-  //  _set.insert(id);
 
   if (_last > id) _sorted = false;
   _last = id;
@@ -134,7 +134,6 @@ bool OsmIdSet::has(osmid id) const {
   }
 
   bool has = diskHas(id);
-  // assert(has == (bool)_set.count(id));
   return has;
 }
 
@@ -232,7 +231,7 @@ void OsmIdSet::sort() const {
 size_t OsmIdSet::cwrite(int f, const void* buf, size_t n) const {
   ssize_t w = write(f, buf, n);
   if (w < 0) {
-    throw std::runtime_error("OSMIDSET: could not write to tmp file.\n");
+    throw std::runtime_error("Could not write to tmp file.\n");
   }
 
   return w;
@@ -242,7 +241,7 @@ size_t OsmIdSet::cwrite(int f, const void* buf, size_t n) const {
 size_t OsmIdSet::cread(int f, void* buf, size_t n) const {
   ssize_t w = read(f, buf, n);
   if (w < 0) {
-    throw std::runtime_error("OSMIDSET: could not read from tmp file.\n");
+    throw std::runtime_error("Could not read from tmp file.\n");
   }
 
   return w;
@@ -272,14 +271,15 @@ uint32_t OsmIdSet::hash(uint32_t in, int i) const {
 
 // _____________________________________________________________________________
 int OsmIdSet::openTmpFile() const {
-  const std::string& fname = getFName();
+  const std::string& fname = getTmpFName(_tmpPath, "");
   int file = open(fname.c_str(), O_RDWR | O_CREAT, 0666);
 
   // immediately unlink
   unlink(fname.c_str());
 
   if (file < 0) {
-    std::cerr << "Could not open temporary file " << fname << std::endl;
+    std::cerr << "Could not open temporary file " << fname
+              << std::endl;
     exit(1);
   }
 
@@ -287,18 +287,4 @@ int OsmIdSet::openTmpFile() const {
   posix_fadvise(file, 0, 0, POSIX_FADV_SEQUENTIAL);
 #endif
   return file;
-}
-
-// _____________________________________________________________________________
-std::string OsmIdSet::getFName() const {
-  std::string f = ".pfaedle-tmp";
-
-  while (access(f.c_str(), F_OK) != -1) {
-    std::stringstream ss;
-    ss << ".pfaedle-tmp-";
-    ss << std::rand();
-    f = ss.str().c_str();
-  }
-
-  return f;
 }

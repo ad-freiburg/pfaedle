@@ -5,13 +5,16 @@
 #ifndef PFAEDLE_GTFS_SHAPECONTAINER_H_
 #define PFAEDLE_GTFS_SHAPECONTAINER_H_
 
+#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
 #include <string>
+#include <string>
 #include "ad/cppgtfs/gtfs/Shape.h"
 #include "ad/cppgtfs/gtfs/flat/Shape.h"
+#include "pfaedle/Def.h"
 #include "util/Misc.h"
 
 namespace pfaedle {

@@ -2,28 +2,18 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
-#include <unistd.h>
-#include <string>
-
 // ____________________________________________________________________________
 template <typename T>
 ShapeContainer<T>::ShapeContainer() {
-  std::string f = ".pfaedle-tmp";
-
-  while (access(f.c_str(), F_OK) != -1) {
-    std::stringstream ss;
-    ss << ".pfaedle-tmp-";
-    ss << std::rand();
-    f = ss.str().c_str();
-  }
-
+  std::string f = pfaedle::getTmpFName("", "");
   _storage.open(f, std::fstream::in | std::fstream::out | std::fstream::trunc);
 
   // immediately unlink
   unlink(f.c_str());
 
   if (!_storage.good()) {
-    std::cerr << "Could not open temporary file " << f << std::endl;
+    std::cerr << "Could not open temporary file " << f
+              << std::endl;
     exit(1);
   }
 }

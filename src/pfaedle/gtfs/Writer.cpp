@@ -16,6 +16,7 @@
 using ad::util::CsvWriter;
 using ad::cppgtfs::Parser;
 using pfaedle::gtfs::Writer;
+using pfaedle::getTmpFName;
 
 // ____________________________________________________________________________
 bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
@@ -25,138 +26,145 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
   std::string curFile;
   std::string curFileTg;
 
-  curFile = getTmpFName("agency.txt");
+  curFile = getTmpFName(gtfsPath, "agency.txt");
   curFileTg = gtfsPath + "/agency.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeAgency(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
-  curFile = getTmpFName("stops.txt");
+  curFile = getTmpFName(gtfsPath, "stops.txt");
   curFileTg = gtfsPath + "/stops.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeStops(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
-  curFile = getTmpFName("routes.txt");
+  curFile = getTmpFName(gtfsPath, "routes.txt");
   curFileTg = gtfsPath + "/routes.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeRoutes(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
   is.open((sourceFeed->getPath() + "/calendar.txt").c_str());
   if (is.good()) {
     is.close();
-    curFile = getTmpFName("calendar.txt");
+    curFile = getTmpFName(gtfsPath, "calendar.txt");
     curFileTg = gtfsPath + "/calendar.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeCalendar(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/calendar_dates.txt").c_str());
   if (is.good()) {
     is.close();
-    curFile = getTmpFName("calendar_dates.txt");
+    curFile = getTmpFName(gtfsPath, "calendar_dates.txt");
     curFileTg = gtfsPath + "/calendar_dates.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeCalendarDates(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/transfers.txt").c_str());
   if (is.good()) {
     is.close();
-    curFile = getTmpFName("transfers.txt");
+    curFile = getTmpFName(gtfsPath, "transfers.txt");
     curFileTg = gtfsPath + "/transfers.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeTransfers(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/fare_attributes.txt").c_str());
   if (is.good()) {
     is.close();
-    curFile = getTmpFName("fare_attributes.txt");
+    curFile = getTmpFName(gtfsPath, "fare_attributes.txt");
     curFileTg = gtfsPath + "/fare_attributes.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFares(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/fare_rules.txt").c_str());
   if (is.good()) {
     is.close();
-    curFile = getTmpFName("fare_rules.txt");
+    curFile = getTmpFName(gtfsPath, "fare_rules.txt");
     curFileTg = gtfsPath + "/fare_rules.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFareRules(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.close();
-  curFile = getTmpFName("shapes.txt");
+  curFile = getTmpFName(gtfsPath, "shapes.txt");
   curFileTg = gtfsPath + "/shapes.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeShapes(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
   is.close();
-  curFile = getTmpFName("trips.txt");
+  curFile = getTmpFName(gtfsPath, "trips.txt");
   curFileTg = gtfsPath + "/trips.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   bool hasFreqs = writeTrips(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
   is.open((sourceFeed->getPath() + "/frequencies.txt").c_str());
   if (hasFreqs && is.good()) {
     is.close();
-    curFile = getTmpFName("frequencies.txt");
+    curFile = getTmpFName(gtfsPath, "frequencies.txt");
     curFileTg = gtfsPath + "/frequencies.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFrequencies(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   is.close();
-  curFile = getTmpFName("stop_times.txt");
+  curFile = getTmpFName(gtfsPath, "stop_times.txt");
   curFileTg = gtfsPath + "/stop_times.txt";
   fs.open(curFile.c_str());
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeStopTimes(sourceFeed, &fs);
   fs.close();
-  std::rename(curFile.c_str(), curFileTg.c_str());
+  if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
 
   if (!sourceFeed->getPublisherUrl().empty() &&
       !sourceFeed->getPublisherName().empty()) {
-    curFile = getTmpFName("feed_info.txt");
+    curFile = getTmpFName(gtfsPath, "feed_info.txt");
     curFileTg = gtfsPath + "/feed_info.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFeedInfo(sourceFeed, &fs);
     fs.close();
-    std::rename(curFile.c_str(), curFileTg.c_str());
+    if (std::rename(curFile.c_str(), curFileTg.c_str()))
+      cannotWrite(curFileTg);
   }
 
   return true;
@@ -488,23 +496,16 @@ bool Writer::writeStopTimes(gtfs::Feed* sourceFeed, std::ostream* os) const {
 }
 
 // ___________________________________________________________________________
+void Writer::cannotWrite(const std::string& file) {
+  std::stringstream ss;
+  ss << "Could not write to file";
+  throw ad::cppgtfs::WriterException(ss.str(), file);
+}
+
+// ___________________________________________________________________________
 void Writer::cannotWrite(const std::string& file, const std::string& file2) {
   std::stringstream ss;
   ss << "(temporary file for " << file2 << ") Could not write to file";
   throw ad::cppgtfs::WriterException(ss.str(), file);
 }
 
-// _____________________________________________________________________________
-std::string Writer::getTmpFName(const std::string& postf) {
-  std::string f = ".pfaedle-tmp-" + postf;
-
-  while (access(f.c_str(), F_OK) != -1) {
-    std::stringstream ss;
-    ss << ".pfaedle-tmp-";
-    ss << postf << "-";
-    ss << std::rand();
-    f = ss.str().c_str();
-  }
-
-  return f;
-}

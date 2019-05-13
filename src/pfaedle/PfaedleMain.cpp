@@ -30,6 +30,29 @@
 #include "util/geo/output/GeoJsonOutput.h"
 #include "util/json/Writer.h"
 #include "util/log/Log.h"
+#include "util/Misc.h"
+
+#ifndef HOME_VAR
+#define HOME_VAR "HOME"
+#endif
+#ifndef XDG_DATA_HOME_SUFFIX
+#define XDG_DATA_HOME_SUFFIX "/.local/share"
+#endif
+#ifndef XDG_CONFIG_HOME_SUFFIX
+#define XDG_CONFIG_HOME_SUFFIX "/.config"
+#endif
+#ifndef XDG_CACHE_HOME_SUFFIX
+#define XDG_CACHE_HOME_SUFFIX "/.cache"
+#endif
+#ifndef XDG_DATA_DIRS_DEFAULT
+#define XDG_DATA_DIRS_DEFAULT "/usr/local/share"
+#endif
+#ifndef XDG_CONFIG_DIRS_DEFAULT
+#define XDG_CONFIG_DIRS_DEFAULT "/etc"
+#endif
+#ifndef CFG_FILE_NAME
+#define CFG_FILE_NAME "pfaedle.cfg"
+#endif
 
 using pfaedle::router::MOTs;
 using pfaedle::osm::BBoxIdx;
@@ -316,25 +339,6 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
   if (cfg.configPaths.size()) return cfg.configPaths;
   std::vector<std::string> ret;
 
-  // parse implicit paths
-  const char* homedir = 0;
-  char* buf = 0;
-
-  if ((homedir = getenv("HOME")) == 0) {
-    homedir = "";
-    struct passwd pwd;
-    struct passwd* result;
-    size_t bufsize;
-    bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-    if (bufsize == static_cast<size_t>(-1)) bufsize = 0x4000;
-    buf = static_cast<char*>(malloc(bufsize));
-    if (buf != 0) {
-      getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
-      if (result != NULL) homedir = result->pw_dir;
-    }
-  }
-
-  if (buf) free(buf);
 
   // install prefix global configuration path, if available
   {
@@ -352,7 +356,7 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
 
   // local user configuration path, if available
   {
-    auto path = std::string(homedir) + XDG_CONFIG_HOME_SUFFIX + "/" +
+    auto path = util::getHomeDir() + XDG_CONFIG_HOME_SUFFIX + "/" +
                 "pfaedle" + "/" + CFG_FILE_NAME;
     std::ifstream is(path);
 
@@ -362,6 +366,8 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
       LOG(DEBUG) << "Found implicit config file " << path;
     }
   }
+
+  // free this here, as we use homedir in the block above
 
   // CWD
   {

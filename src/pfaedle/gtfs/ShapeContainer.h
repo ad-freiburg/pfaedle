@@ -11,7 +11,6 @@
 #include <set>
 #include <sstream>
 #include <string>
-#include <string>
 #include "ad/cppgtfs/gtfs/Shape.h"
 #include "ad/cppgtfs/gtfs/flat/Shape.h"
 #include "pfaedle/Def.h"

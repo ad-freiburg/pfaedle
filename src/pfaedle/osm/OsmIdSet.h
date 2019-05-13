@@ -34,7 +34,6 @@ static const size_t OBUFFER_S = 8 * 1024 * 1024;
 class OsmIdSet {
  public:
   OsmIdSet();
-  OsmIdSet(const std::string& tmpPath) : _tmpPath(tmpPath) {};
   ~OsmIdSet();
 
   // Add an OSM id

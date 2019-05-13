@@ -6,7 +6,9 @@
 #define PFAEDLE_DEF_H_
 
 #include <unistd.h>
+#include <string>
 #include "util/log/Log.h"
+#include "util/Misc.h"
 #include "util/geo/Geo.h"
 #include "util/geo/PolyLine.h"
 
@@ -34,6 +36,7 @@ namespace pfaedle {
 // _____________________________________________________________________________
 inline std::string getTmpFName(std::string dir, std::string postf) {
   if (postf.size()) postf = "-" + postf;
+  if (!dir.size()) dir = util::getTmpDir();
   if (dir.size() && dir.back() != '/') dir = dir + "/";
 
   std::string f = dir + ".pfaedle-tmp" + postf;
@@ -55,6 +58,6 @@ inline std::string getTmpFName(std::string dir, std::string postf) {
   return f;
 }
 
-}
+}  // namespace pfaedle
 
 #endif  // PFAEDLE_DEF_H_

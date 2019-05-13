@@ -271,15 +271,14 @@ uint32_t OsmIdSet::hash(uint32_t in, int i) const {
 
 // _____________________________________________________________________________
 int OsmIdSet::openTmpFile() const {
-  const std::string& fname = getTmpFName(_tmpPath, "");
+  const std::string& fname = getTmpFName("", "");
   int file = open(fname.c_str(), O_RDWR | O_CREAT, 0666);
 
   // immediately unlink
   unlink(fname.c_str());
 
   if (file < 0) {
-    std::cerr << "Could not open temporary file " << fname
-              << std::endl;
+    std::cerr << "Could not open temporary file " << fname << std::endl;
     exit(1);
   }
 

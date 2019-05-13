@@ -2,6 +2,8 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#include <string>
+
 // ____________________________________________________________________________
 template <typename T>
 ShapeContainer<T>::ShapeContainer() {

@@ -334,6 +334,8 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
     }
   }
 
+  if (buf) free(buf);
+
   // install prefix global configuration path, if available
   {
     auto path = std::string(INSTALL_PREFIX) +
@@ -360,8 +362,6 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
       LOG(DEBUG) << "Found implicit config file " << path;
     }
   }
-
-  if (buf) free(buf);
 
   // CWD
   {

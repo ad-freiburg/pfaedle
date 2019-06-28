@@ -32,23 +32,11 @@
 #include "util/log/Log.h"
 #include "util/Misc.h"
 
-#ifndef HOME_VAR
-#define HOME_VAR "HOME"
+#ifndef CFG_HOME_SUFFIX
+#define CFG_HOME_SUFFIX "/.config"
 #endif
-#ifndef XDG_DATA_HOME_SUFFIX
-#define XDG_DATA_HOME_SUFFIX "/.local/share"
-#endif
-#ifndef XDG_CONFIG_HOME_SUFFIX
-#define XDG_CONFIG_HOME_SUFFIX "/.config"
-#endif
-#ifndef XDG_CACHE_HOME_SUFFIX
-#define XDG_CACHE_HOME_SUFFIX "/.cache"
-#endif
-#ifndef XDG_DATA_DIRS_DEFAULT
-#define XDG_DATA_DIRS_DEFAULT "/usr/local/share"
-#endif
-#ifndef XDG_CONFIG_DIRS_DEFAULT
-#define XDG_CONFIG_DIRS_DEFAULT "/etc"
+#ifndef CFG_DIR
+#define CFG_DIR "/etc"
 #endif
 #ifndef CFG_FILE_NAME
 #define CFG_FILE_NAME "pfaedle.cfg"
@@ -343,7 +331,7 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
   // install prefix global configuration path, if available
   {
     auto path = std::string(INSTALL_PREFIX) +
-                std::string(XDG_CONFIG_DIRS_DEFAULT) + "/" + "pfaedle" + "/" +
+                std::string(CFG_DIR) + "/" + "pfaedle" + "/" +
                 CFG_FILE_NAME;
     std::ifstream is(path);
 
@@ -356,7 +344,7 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
 
   // local user configuration path, if available
   {
-    auto path = util::getHomeDir() + XDG_CONFIG_HOME_SUFFIX + "/" +
+    auto path = util::getHomeDir() + CFG_HOME_SUFFIX + "/" +
                 "pfaedle" + "/" + CFG_FILE_NAME;
     std::ifstream is(path);
 

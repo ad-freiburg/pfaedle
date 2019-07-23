@@ -57,6 +57,7 @@ struct RoutingOpts {
   bool noSelfHops;
 };
 
+// _____________________________________________________________________________
 inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
   return fabs(a.fullTurnPunishFac - b.fullTurnPunishFac) < 0.01 &&
          fabs(a.fullTurnAngle - b.fullTurnAngle) < 0.01 &&
@@ -106,22 +107,27 @@ struct EdgeCost {
   double getValue() const { return _cost; }
 };
 
+// _____________________________________________________________________________
 inline EdgeCost operator+(const EdgeCost& a, const EdgeCost& b) {
   return EdgeCost(a.getValue() + b.getValue());
 }
 
+// _____________________________________________________________________________
 inline bool operator<=(const EdgeCost& a, const EdgeCost& b) {
   return a.getValue() <= b.getValue();
 }
 
+// _____________________________________________________________________________
 inline bool operator==(const EdgeCost& a, const EdgeCost& b) {
   return a.getValue() == b.getValue();
 }
 
+// _____________________________________________________________________________
 inline bool operator>(const EdgeCost& a, const EdgeCost& b) {
   return a.getValue() > b.getValue();
 }
 
+// _____________________________________________________________________________
 template <typename F>
 inline bool angSmaller(const Point<F>& f, const Point<F>& m, const Point<F>& t,
                        double ang) {
@@ -152,6 +158,7 @@ typedef std::vector<EdgeListHop> EdgeListHops;
 
 typedef std::set<Route::TYPE> MOTs;
 
+// _____________________________________________________________________________
 inline MOTs motISect(const MOTs& a, const MOTs& b) {
   MOTs ret;
   for (auto mot : a)
@@ -159,6 +166,7 @@ inline MOTs motISect(const MOTs& a, const MOTs& b) {
   return ret;
 }
 
+// _____________________________________________________________________________
 inline pfaedle::router::FeedStops writeMotStops(const pfaedle::gtfs::Feed* feed,
                                                 const MOTs mots,
                                                 const std::string& tid) {
@@ -183,6 +191,7 @@ inline pfaedle::router::FeedStops writeMotStops(const pfaedle::gtfs::Feed* feed,
   return ret;
 }
 
+// _____________________________________________________________________________
 inline std::string getMotStr(const MOTs& mots) {
   bool first = false;
   std::string motStr;

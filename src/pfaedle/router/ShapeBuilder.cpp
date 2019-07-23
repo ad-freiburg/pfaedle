@@ -130,7 +130,7 @@ EdgeListHops ShapeBuilder::route(const router::NodeCandRoute& ncr,
       LOG(INFO) << "Outputting combgraph.json...";
       std::ofstream pstr(_cfg.dbgOutputPath + "/combgraph.json");
       GeoGraphJsonOutput o;
-      o.print(g, pstr);
+      o.printLatLng(g, pstr);
     }
 
     return ret;

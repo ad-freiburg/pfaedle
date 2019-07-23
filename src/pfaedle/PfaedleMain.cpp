@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
         util::geo::output::GeoGraphJsonOutput out;
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
-        out.print(*shapeBuilder.getGraph(), fstr);
+        out.printLatLng(*shapeBuilder.getGraph(), fstr);
         fstr.close();
       }
 
@@ -270,9 +270,7 @@ int main(int argc, char** argv) {
         auto l = shapeBuilder.shapeL(singleTrip);
 
         // reproject to WGS84 to match RFC 7946
-        for (auto& p : l) {
-          p = util::geo::webMercToLatLng<double>(p.getX(), p.getY());
-        }
+        o.printLatLng(l, {});
 
         o.flush();
         pstr.close();
@@ -288,7 +286,7 @@ int main(int argc, char** argv) {
         LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
-        out.print(ng, fstr);
+        out.printLatLng(ng, fstr);
         fstr.close();
       }
     } catch (const xml::XmlFileException& ex) {

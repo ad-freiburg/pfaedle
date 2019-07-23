@@ -110,6 +110,7 @@ double Collector::add(const Trip* t, const Shape* oldS, const Shape& newS,
     gjout.print(oldL, util::json::Dict{{"ver", "old"}});
     oldLCut.insert(oldLCut.end(), oldL.begin(), oldL.end());
   }
+
   for (auto newL : newSegs) {
     gjout.print(newL, util::json::Dict{{"ver", "new"}});
     newLCut.insert(newLCut.end(), newL.begin(), newL.end());

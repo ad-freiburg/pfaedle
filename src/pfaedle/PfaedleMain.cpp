@@ -269,7 +269,11 @@ int main(int argc, char** argv) {
 
         auto l = shapeBuilder.shapeL(singleTrip);
 
-        o.print(l, util::json::Dict{{"ver", "new"}});
+        // reproject to WGS84 to match RFC 7946
+        for (auto& p : l) {
+          p = util::geo::webMercToLatLng<double>(p.getX(), p.getY());
+        }
+
         o.flush();
         pstr.close();
 

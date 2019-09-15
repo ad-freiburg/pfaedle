@@ -3,7 +3,7 @@
 	url = https://ad-git.informatik.uni-freiburg.de/ad/cppgtfs.git
 [submodule "src/xml"]
 	path = src/xml
-	url = https://git.patrickbrosi.de/patrick/xmlparser
+	url = https://github.com/patrickbr/pfxml.git
 [submodule "src/configparser"]
 	path = src/configparser
 	url = https://git.patrickbrosi.de/patrick/configparser

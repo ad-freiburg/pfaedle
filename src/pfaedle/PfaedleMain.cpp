@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
     }
     try {
       osmBuilder.filterWrite(cfg.osmPath, cfg.writeOsm, opts, box);
-    } catch (const xml::XmlFileException& ex) {
+    } catch (const pfxml::parse_exc& ex) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
         out.printLatLng(ng, fstr);
         fstr.close();
       }
-    } catch (const xml::XmlFileException& ex) {
+    } catch (const pfxml::parse_exc& ex) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));

@@ -25,7 +25,7 @@
 #include "util/Nullable.h"
 #include "util/geo/Geo.h"
 #include "util/xml/XmlWriter.h"
-#include "xml/File.h"
+#include "xml/pfxml.h"
 
 namespace pfaedle {
 namespace osm {
@@ -102,37 +102,37 @@ class OsmBuilder {
                    const std::vector<OsmReadOpts>& opts, const BBoxIdx& box);
 
  private:
-  xml::ParserState readBBoxNds(xml::File* xml, OsmIdSet* nodes,
+  pfxml::parser_state readBBoxNds(pfxml::file* xml, OsmIdSet* nodes,
                                OsmIdSet* noHupNodes, const OsmFilter& filter,
                                const BBoxIdx& bbox) const;
 
-  void readRels(xml::File* f, RelLst* rels, RelMap* nodeRels, RelMap* wayRels,
+  void readRels(pfxml::file* f, RelLst* rels, RelMap* nodeRels, RelMap* wayRels,
                 const OsmFilter& filter, const AttrKeySet& keepAttrs,
                 Restrictions* rests) const;
 
   void readRestr(const OsmRel& rel, Restrictions* rests,
                  const OsmFilter& filter) const;
 
-  void readNodes(xml::File* f, Graph* g, const RelLst& rels,
+  void readNodes(pfxml::file* f, Graph* g, const RelLst& rels,
                  const RelMap& nodeRels, const OsmFilter& filter,
                  const OsmIdSet& bBoxNodes, NIdMap* nodes,
                  NIdMultMap* multNodes, NodeSet* orphanStations,
                  const AttrKeySet& keepAttrs, const FlatRels& flatRels,
                  const OsmReadOpts& opts) const;
 
-  void readWriteNds(xml::File* i, util::xml::XmlWriter* o,
+  void readWriteNds(pfxml::file* i, util::xml::XmlWriter* o,
                     const RelMap& nodeRels, const OsmFilter& filter,
                     const OsmIdSet& bBoxNodes, NIdMap* nodes,
                     const AttrKeySet& keepAttrs, const FlatRels& f) const;
 
-  void readWriteWays(xml::File* i, util::xml::XmlWriter* o, OsmIdList* ways,
+  void readWriteWays(pfxml::file* i, util::xml::XmlWriter* o, OsmIdList* ways,
                      const AttrKeySet& keepAttrs) const;
 
-  void readWriteRels(xml::File* i, util::xml::XmlWriter* o, OsmIdList* ways,
+  void readWriteRels(pfxml::file* i, util::xml::XmlWriter* o, OsmIdList* ways,
                      NIdMap* nodes, const OsmFilter& filter,
                      const AttrKeySet& keepAttrs);
 
-  void readEdges(xml::File* xml, Graph* g, const RelLst& rels,
+  void readEdges(pfxml::file* xml, Graph* g, const RelLst& rels,
                  const RelMap& wayRels, const OsmFilter& filter,
                  const OsmIdSet& bBoxNodes, NIdMap* nodes,
                  NIdMultMap* multNodes, const OsmIdSet& noHupNodes,
@@ -140,21 +140,21 @@ class OsmBuilder {
                  Restrictor* restor, const FlatRels& flatRels,
                  EdgTracks* etracks, const OsmReadOpts& opts);
 
-  void readEdges(xml::File* xml, const RelMap& wayRels, const OsmFilter& filter,
+  void readEdges(pfxml::file* xml, const RelMap& wayRels, const OsmFilter& filter,
                  const OsmIdSet& bBoxNodes, const AttrKeySet& keepAttrs,
                  OsmIdList* ret, NIdMap* nodes, const FlatRels& flatRels);
 
-  OsmWay nextWay(xml::File* xml, const RelMap& wayRels, const OsmFilter& filter,
+  OsmWay nextWay(pfxml::file* xml, const RelMap& wayRels, const OsmFilter& filter,
                  const OsmIdSet& bBoxNodes, const AttrKeySet& keepAttrs,
                  const FlatRels& flatRels) const;
 
   bool keepWay(const OsmWay& w, const RelMap& wayRels, const OsmFilter& filter,
                const OsmIdSet& bBoxNodes, const FlatRels& fl) const;
 
-  OsmWay nextWayWithId(xml::File* xml, osmid wid,
+  OsmWay nextWayWithId(pfxml::file* xml, osmid wid,
                        const AttrKeySet& keepAttrs) const;
 
-  OsmNode nextNode(xml::File* xml, NIdMap* nodes, NIdMultMap* multNodes,
+  OsmNode nextNode(pfxml::file* xml, NIdMap* nodes, NIdMultMap* multNodes,
                    const RelMap& nodeRels, const OsmFilter& filter,
                    const OsmIdSet& bBoxNodes, const AttrKeySet& keepAttrs,
                    const FlatRels& flatRels) const;
@@ -164,7 +164,7 @@ class OsmBuilder {
                 const OsmIdSet& bBoxNodes, const OsmFilter& filter,
                 const FlatRels& fl) const;
 
-  OsmRel nextRel(xml::File* xml, const OsmFilter& filter,
+  OsmRel nextRel(pfxml::file* xml, const OsmFilter& filter,
                  const AttrKeySet& keepAttrs) const;
 
  protected:
@@ -233,7 +233,7 @@ class OsmBuilder {
 
   void getKeptAttrKeys(const OsmReadOpts& opts, AttrKeySet sets[3]) const;
 
-  void skipUntil(xml::File* xml, const std::string& s) const;
+  void skipUntil(pfxml::file* xml, const std::string& s) const;
 
   void processRestr(osmid nid, osmid wid, const Restrictions& rawRests, Edge* e,
                     Node* n, Restrictor* restor) const;

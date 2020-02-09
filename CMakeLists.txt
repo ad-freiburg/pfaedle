@@ -68,6 +68,14 @@ else()
 	set(VERSION_GIT_FULL "${VERSION_GIT}-${VERSION_GIT_IS_DIRTY}")
 endif()
 
+# Download submodules if needed
+
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/CMakeLists.txt)
+        execute_process(
+                COMMAND git submodule update --init --recursive
+        )
+endif()
+
 add_subdirectory(src)
 
 # tests

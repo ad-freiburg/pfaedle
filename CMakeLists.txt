@@ -70,7 +70,7 @@ endif()
 
 # Download submodules if needed
 
-if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/CMakeLists.txt)
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/xml/pfxml.h)
         execute_process(
                 COMMAND git submodule update --init --recursive
         )

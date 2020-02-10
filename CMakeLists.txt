@@ -70,10 +70,10 @@ endif()
 
 # Download submodules if needed
 
-if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/CMakeLists.txt OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/xml/pfxml.h)
-        execute_process(
-                COMMAND git submodule update --init --recursive
-        )
+if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/.git OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/.git OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/xml/.git)
+    execute_process(
+        COMMAND git submodule update --init --recursive
+    )
 endif()
 
 add_subdirectory(src)

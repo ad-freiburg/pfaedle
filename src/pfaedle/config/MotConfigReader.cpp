@@ -408,7 +408,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
                        p.getVal(secStr, "station_id_normalize_chain").pos,
                        "<valid regular expression>",
                        std::string("<regex error: ") + e.what() + ">",
-                       p.getVal(secStr, "station_normalize_chain").file);
+                       p.getVal(secStr, "station_id_normalize_chain").file);
       }
     }
 

@@ -17,4 +17,12 @@ add_executable(pfaedle ${pfaedle_main})
 add_library(pfaedle_dep ${pfaedle_SRC})
 
 include_directories(pfaedle_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
-target_link_libraries(pfaedle pfaedle_dep util configparser ad_cppgtfs -lpthread)
+if (OSMIUM_FOUND)
+	include_directories(${OSMIUM_INCLUDE_DIRS})
+	target_link_libraries(pfaedle pfaedle_dep util configparser ad_cppgtfs -lpthread
+			${OSMIUM_IO_LIBRARIES})
+	message("linking with osmium")
+else ()
+	target_link_libraries(pfaedle pfaedle_dep util configparser ad_cppgtfs -lpthread)
+endif()
+

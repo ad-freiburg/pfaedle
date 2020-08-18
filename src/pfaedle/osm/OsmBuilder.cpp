@@ -2,7 +2,7 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
-#include <float.h>
+#include <cfloat>
 #include <algorithm>
 #include <exception>
 #include <iostream>
@@ -12,6 +12,13 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <osmium/io/any_input.hpp>
+#include <osmium/util/file.hpp>
+#include <osmium/geom/haversine.hpp>
+#include <osmium/visitor.hpp>
+#include <osmium/index/map/flex_mem.hpp>
+
 #include "pfaedle/Def.h"
 #include "pfaedle/osm/BBoxIdx.h"
 #include "pfaedle/osm/Osm.h"
@@ -47,18 +54,655 @@ using pfaedle::osm::EqSearch;
 using pfaedle::osm::BlockSearch;
 using ad::cppgtfs::gtfs::Stop;
 
+class NodeHandler : public osmium::handler::Handler {
+    const pfaedle::osm::OsmFilter& filter;
+    const pfaedle::osm::BBoxIdx& bbox;
+    pfaedle::osm::OsmIdSet& bboxNodes;
+    pfaedle::osm::OsmIdSet& noHupNodes;
+
+public:
+    NodeHandler(const pfaedle::osm::OsmFilter& filter,
+                      const pfaedle::osm::BBoxIdx& bbox,
+                      pfaedle::osm::OsmIdSet& bboxNodes,
+                      pfaedle::osm::OsmIdSet& noHupNodes) :
+        filter(filter),
+        bbox(bbox),
+        bboxNodes(bboxNodes),
+        noHupNodes(noHupNodes)
+    {
+
+    }
+
+    void node(const osmium::Node& node) {
+        bool ignored = false;
+        for(const auto& tag: node.tags()) {
+            if (filter.nohup(tag.key(), tag.value())) {
+                noHupNodes.add(node.id());
+                ignored = true;
+                break;
+            }
+        }
+        if(!ignored) {
+            Point<double> point(node.location().lon(), node.location().lat());
+            if (bbox.contains(point)) {
+                bboxNodes.add(node.id());
+            }
+        }
+    }
+
+};
+
+class RelationHandler: public osmium::handler::Handler {
+    const pfaedle::osm::OsmFilter& filter;
+    const pfaedle::osm::BBoxIdx& bbox;
+    const pfaedle::osm::AttrKeySet& keepAttrs;
+    pfaedle::osm::RelLst& rels;
+    pfaedle::osm::RelMap& nodeRels;
+    pfaedle::osm::RelMap& wayRels;
+    pfaedle::osm::Restrictions& restrictions;
+public:
+    RelationHandler(const pfaedle::osm::OsmFilter& filter,
+                     const pfaedle::osm::BBoxIdx& bbox,
+                    const pfaedle::osm::AttrKeySet& keepAttrs,
+                    pfaedle::osm::RelLst& rels,
+                    pfaedle::osm::RelMap& nodeRels,
+                    pfaedle::osm::RelMap& wayRels,
+                    pfaedle::osm::Restrictions& restrictions) :
+            filter(filter),
+            bbox(bbox),
+            keepAttrs(keepAttrs),
+            rels(rels),
+            nodeRels(nodeRels),
+            wayRels(wayRels),
+            restrictions(restrictions){
+
+    }
+
+    void relation(const osmium::Relation &relation) {
+        OsmRel rel;
+        rel.id = relation.id();
+        if(rel.id == 0) return;
+
+        for(const auto& tag: relation.tags()) {
+            if (keepAttrs.count(tag.key())) {
+                rel.attrs[tag.key()] = tag.value();
+            }
+        }
+
+        for(const auto& member: relation.members()) {
+            auto& obj = member.get_object();
+            if (member.type() == osmium::item_type::node) {
+                rel.nodes.push_back(obj.id());
+                rel.nodeRoles.emplace_back(member.role());
+            } else if (member.type() == osmium::item_type::way) {
+                rel.ways.push_back(obj.id());
+                rel.wayRoles.emplace_back(member.role());
+            }
+        }
+        for (auto id : rel.nodes) {
+            nodeRels[id].push_back(rels.rels.size() - 1);
+        }
+        for (auto id : rel.ways) {
+            wayRels[id].push_back(rels.rels.size() - 1);
+        }
+
+        uint64_t keepFlags = filter.keep(rel.attrs, pfaedle::osm::OsmFilter::REL);
+        uint64_t dropFlags = filter.drop(rel.attrs, pfaedle::osm::OsmFilter::REL);
+        if (rel.id && !rel.attrs.empty() && keepFlags && !dropFlags) {
+            rel.keepFlags = keepFlags;
+            rel.dropFlags = dropFlags;
+        }
+
+        rels.rels.push_back(rel.attrs);
+        if (rel.keepFlags & pfaedle::osm::REL_NO_DOWN) {
+            rels.flat.insert(rels.rels.size() - 1);
+        }
+        {
+            if (!rel.attrs.count("type")) return;
+            if (rel.attrs.find("type")->second != "restriction") return;
+
+            bool pos = filter.posRestr(rel.attrs);
+            bool neg = filter.negRestr(rel.attrs);
+
+            if (!pos && !neg) return;
+
+            uint64_t from = 0;
+            uint64_t to = 0;
+            uint64_t via = 0;
+
+            for (size_t i = 0; i < rel.ways.size(); i++) {
+                if (rel.wayRoles[i] == "from") {
+                    if (from) return;  // only one from member supported
+                    from = rel.ways[i];
+                }
+                if (rel.wayRoles[i] == "to") {
+                    if (to) return;  // only one to member supported
+                    to = rel.ways[i];
+                }
+            }
+
+            for (size_t i = 0; i < rel.nodes.size(); i++) {
+                if (rel.nodeRoles[i] == "via") {
+                    via = rel.nodes[i];
+                    break;
+                }
+            }
+
+            if (from && to && via) {
+                if (pos) {
+                    restrictions.pos[via].emplace_back(from, to);
+                } else if (neg) {
+                    restrictions.neg[via].emplace_back(from, to);
+                }
+            }
+        }
+    }
+};
+
+class WayHandler: public osmium::handler::Handler {
+    Graph &g;
+    const pfaedle::osm::RelLst &rels;
+    const pfaedle::osm::RelMap &wayRels;
+    const pfaedle::osm::OsmFilter &filter;
+    const pfaedle::osm::OsmIdSet &bBoxNodes;
+    pfaedle::osm::NIdMap &nodes;
+    pfaedle::osm::NIdMultMap &multiNodes;
+    const pfaedle::osm::OsmIdSet &noHupNodes;
+    const pfaedle::osm::AttrKeySet &keepAttrs;
+    const pfaedle::osm::Restrictions &rawRests;
+    pfaedle::osm::Restrictor &restor;
+    const pfaedle::osm::FlatRels &fl;
+    pfaedle::osm::EdgTracks &eTracks;
+    const pfaedle::osm::OsmReadOpts &opts;
+
+
+    std::map<TransitEdgeLine, TransitEdgeLine *> _lines;
+    std::map<size_t, TransitEdgeLine *> _relLines;
+public:
+    WayHandler(Graph &g,
+               const pfaedle::osm::RelLst &rels,
+               const pfaedle::osm::RelMap &wayRels,
+               const pfaedle::osm::OsmFilter &filter,
+               const pfaedle::osm::OsmIdSet &bBoxNodes,
+               pfaedle::osm::NIdMap &nodes,
+               pfaedle::osm::NIdMultMap &multiNodes,
+               const pfaedle::osm::OsmIdSet &noHupNodes,
+               const pfaedle::osm::AttrKeySet &keepAttrs,
+               const pfaedle::osm::Restrictions &rawRests,
+               pfaedle::osm::Restrictor &restor,
+               const pfaedle::osm::FlatRels &fl,
+               pfaedle::osm::EdgTracks &eTracks,
+               const pfaedle::osm::OsmReadOpts &opts) :
+            g(g),
+            rels(rels),
+            wayRels(wayRels),
+            filter(filter),
+            bBoxNodes(bBoxNodes),
+            nodes(nodes),
+            multiNodes(multiNodes),
+            noHupNodes(noHupNodes),
+            keepAttrs(keepAttrs),
+            rawRests(rawRests),
+            restor(restor),
+            fl(fl),
+            eTracks(eTracks),
+            opts(opts) {
+
+    }
+
+    void way(const osmium::Way &way) {
+        OsmWay w;
+        w.id = way.id();
+        for (const auto &node: way.nodes()) {
+            w.nodes.emplace_back(node.ref());
+        }
+        for (const auto &tag: way.tags()) {
+            if (keepAttrs.count(tag.key())) {
+                w.attrs[tag.key()] = tag.value();
+            }
+        }
+
+        bool valid = false;
+        if (w.id && w.nodes.size() > 1 &&
+            (relKeep(w.id, wayRels, fl) || filter.keep(w.attrs, pfaedle::osm::OsmFilter::WAY)) &&
+            !filter.drop(w.attrs, pfaedle::osm::OsmFilter::WAY)) {
+            for (auto nid : w.nodes) {
+                if (bBoxNodes.has(nid)) {
+                    valid = true;
+                    break;
+                }
+            }
+        }
+
+        if (valid) {
+            Node *last = nullptr;
+            std::vector<TransitEdgeLine *> lines;
+            if (wayRels.count(w.id)) {
+                lines = getLines(wayRels.find(w.id)->second, rels, opts);
+            }
+            std::string track =
+                    getAttrByFirstMatch(opts.edgePlatformRules, w.id, w.attrs, wayRels,
+                                        rels, opts.trackNormzer);
+
+            uint64_t lastnid = 0;
+            for (auto nid : w.nodes) {
+                Node *n = nullptr;
+                if (noHupNodes.has(nid)) {
+                    n = g.addNd();
+                    multiNodes[nid].insert(n);
+                } else if (!nodes.count(nid)) {
+                    if (!bBoxNodes.has(nid)) {
+                        continue;
+                    }
+                    n = g.addNd();
+                    nodes[nid] = n;
+                } else {
+                    n = nodes[nid];
+                }
+                if (last) {
+                    auto e = g.addEdg(last, n, EdgePL());
+                    if (!e)
+                        continue;
+
+                    processRestr(nid, w.id, rawRests, e, n, &restor);
+                    processRestr(lastnid, w.id, rawRests, e, last, &restor);
+
+                    e->pl().addLines(lines);
+                    e->pl().setLvl(filter.level(w.attrs));
+                    if (!track.empty()) {
+                        eTracks[e] = track;
+                    }
+
+                    if (filter.oneway(w.attrs)) e->pl().setOneWay(1);
+                    if (filter.onewayrev(w.attrs)) e->pl().setOneWay(2);
+                }
+                lastnid = nid;
+                last = n;
+            }
+        }
+    }
+
+    static bool relKeep(uint64_t id, const pfaedle::osm::RelMap &rels,
+                 const pfaedle::osm::FlatRels &fl) {
+        auto it = rels.find(id);
+
+        if (it == rels.end()) return false;
+
+        for (auto relId : it->second) {
+            // as soon as any of this entities relations is not flat, return true
+            if (!fl.count(relId)) return true;
+        }
+
+        return false;
+    }
+
+    std::vector<TransitEdgeLine *> getLines(
+            const std::vector<size_t> &edgeRels, const pfaedle::osm::RelLst &rels,
+            const pfaedle::osm::OsmReadOpts &ops) {
+        std::vector<TransitEdgeLine *> ret;
+        for (size_t relId : edgeRels) {
+            TransitEdgeLine *elp = nullptr;
+
+            if (_relLines.count(relId)) {
+                elp = _relLines[relId];
+            } else {
+                TransitEdgeLine el;
+
+                bool found = false;
+                for (const auto &r : ops.relLinerules.sNameRule) {
+                    for (const auto &relAttr : rels.rels[relId]) {
+                        if (relAttr.first == r) {
+                            el.shortName = ops.lineNormzer(pfxml::file::decode(relAttr.second));
+                            if (!el.shortName.empty()) found = true;
+                        }
+                    }
+                    if (found) break;
+                }
+
+                found = false;
+                for (const auto &r : ops.relLinerules.fromNameRule) {
+                    for (const auto &relAttr : rels.rels[relId]) {
+                        if (relAttr.first == r) {
+                            el.fromStr = ops.statNormzer(pfxml::file::decode(relAttr.second));
+                            if (!el.fromStr.empty()) found = true;
+                        }
+                    }
+                    if (found) break;
+                }
+
+                found = false;
+                for (const auto &r : ops.relLinerules.toNameRule) {
+                    for (const auto &relAttr : rels.rels[relId]) {
+                        if (relAttr.first == r) {
+                            el.toStr = ops.statNormzer(pfxml::file::decode(relAttr.second));
+                            if (!el.toStr.empty()) found = true;
+                        }
+                    }
+                    if (found) break;
+                }
+
+                if (!el.shortName.size() && !el.fromStr.size() && !el.toStr.size())
+                    continue;
+
+                if (_lines.count(el)) {
+                    elp = _lines[el];
+                    _relLines[relId] = elp;
+                } else {
+                    elp = new TransitEdgeLine(el);
+                    _lines[el] = elp;
+                    _relLines[relId] = elp;
+                }
+            }
+            ret.push_back(elp);
+        }
+
+        return ret;
+    }
+
+    static void processRestr(uint64_t nid, uint64_t wid,
+                             const pfaedle::osm::Restrictions &rawRests,
+                             Edge *e,
+                             Node *n,
+                             pfaedle::osm::Restrictor *restor) {
+        if (rawRests.pos.count(nid)) {
+            for (const auto &kv : rawRests.pos.find(nid)->second) {
+                if (kv.eFrom == wid) {
+                    e->pl().setRestricted();
+                    restor->add(e, kv.eTo, n, true);
+                } else if (kv.eTo == wid) {
+                    e->pl().setRestricted();
+                    restor->relax(wid, n, e);
+                }
+            }
+        }
+
+        if (rawRests.neg.count(nid)) {
+            for (const auto &kv : rawRests.neg.find(nid)->second) {
+                if (kv.eFrom == wid) {
+                    e->pl().setRestricted();
+                    restor->add(e, kv.eTo, n, false);
+                } else if (kv.eTo == wid) {
+                    e->pl().setRestricted();
+                    restor->relax(wid, n, e);
+                }
+            }
+        }
+    }
+
+    static std::string getAttr(const pfaedle::osm::DeepAttrRule &s, uint64_t id,
+                        const pfaedle::osm::AttrMap &attrs,
+                        const pfaedle::osm::RelMap &entRels,
+                        const pfaedle::osm::RelLst &rels) {
+        if (s.relRule.kv.first.empty()) {
+            if (attrs.find(s.attr) != attrs.end()) {
+                return attrs.find(s.attr)->second;
+            }
+        } else {
+            if (entRels.count(id)) {
+                for (const auto &relId : entRels.find(id)->second) {
+                    if (pfaedle::osm::OsmFilter::contained(rels.rels[relId], s.relRule.kv)) {
+                        if (rels.rels[relId].count(s.attr)) {
+                            return rels.rels[relId].find(s.attr)->second;
+                        }
+                    }
+                }
+            }
+        }
+        return "";
+    }
+
+    static std::string getAttrByFirstMatch(const pfaedle::osm::DeepAttrLst &rule, uint64_t id,
+                                    const pfaedle::osm::AttrMap &attrs,
+                                    const pfaedle::osm::RelMap &entRels,
+                                    const pfaedle::osm::RelLst &rels,
+                                    const Normalizer &norm) {
+        std::string ret;
+        for (const auto &s : rule) {
+            ret = norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
+            if (!ret.empty()) return ret;
+        }
+
+        return ret;
+    }
+};
+
+class NodeHandler2: public osmium::handler::Handler {
+    Graph &g;
+    const pfaedle::osm::RelLst &rels;
+    const pfaedle::osm::RelMap &nodeRels;
+    const pfaedle::osm::OsmFilter &filter;
+    const pfaedle::osm::OsmIdSet &bBoxNodes;
+    pfaedle::osm::NIdMap &nodes;
+    pfaedle::osm::NIdMultMap &multNodes;
+    pfaedle::osm::NodeSet &orphanStations;
+    const pfaedle::osm::AttrKeySet &keepAttrs;
+    const pfaedle::osm::FlatRels &fl;
+    const pfaedle::osm::OsmReadOpts &opts;
+public:
+    NodeHandler2(Graph &g,
+                 const pfaedle::osm::RelLst &rels,
+                 const pfaedle::osm::RelMap &nodeRels,
+                 const pfaedle::osm::OsmFilter &filter,
+                 const pfaedle::osm::OsmIdSet &bBoxNodes,
+                 pfaedle::osm::NIdMap &nodes,
+                 pfaedle::osm::NIdMultMap &multNodes,
+                 pfaedle::osm::NodeSet &orphanStations,
+                 const pfaedle::osm::AttrKeySet &keepAttrs,
+                 const pfaedle::osm::FlatRels &fl,
+                 const pfaedle::osm::OsmReadOpts &opts) :
+            g(g),
+            rels(rels),
+            nodeRels(nodeRels),
+            filter(filter),
+            bBoxNodes(bBoxNodes),
+            nodes(nodes),
+            multNodes(multNodes),
+            orphanStations(orphanStations),
+            keepAttrs(keepAttrs),
+            fl(fl),
+            opts(opts) {
+
+    }
+
+    void node(const osmium::Node& node) {
+        OsmNode nd;
+        for(const auto& tag: node.tags())
+        {
+            if (keepAttrs.count(tag.key()))
+                nd.attrs[tag.key()] = tag.value();
+        }
+        nd.lat = node.location().lat();
+        nd.lng = node.location().lon();
+        nd.id = node.id();
+
+        bool valid = false;
+        if (nd.id &&
+            (nodes.count(nd.id) || multNodes.count(nd.id) ||
+             relKeep(nd.id, nodeRels, fl) || filter.keep(nd.attrs, pfaedle::osm::OsmFilter::NODE)) &&
+            (nodes.count(nd.id) || bBoxNodes.has(nd.id)) &&
+            (nodes.count(nd.id) || multNodes.count(nd.id) ||
+             !filter.drop(nd.attrs, pfaedle::osm::OsmFilter::NODE))) {
+            valid = true;
+        }
+        pfaedle::osm::StAttrGroups attrGroups;
+        if(valid)
+        {
+            Node* n = nullptr;
+            auto pos = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(nd.lat, nd.lng);
+            if (nodes.count(nd.id)) {
+                n = (nodes)[nd.id];
+                n->pl().setGeom(pos);
+                if (filter.station(nd.attrs)) {
+                    auto si = getStatInfo(n, nd.id, pos, nd.attrs, &attrGroups, nodeRels,
+                                          rels, opts);
+                    if (!si.isNull()) n->pl().setSI(si);
+                } else if (filter.blocker(nd.attrs)) {
+                    n->pl().setBlocker();
+                }
+            } else if ((multNodes).count(nd.id)) {
+                for (auto* n : (multNodes)[nd.id]) {
+                    n->pl().setGeom(pos);
+                    if (filter.station(nd.attrs)) {
+                        auto si = getStatInfo(n, nd.id, pos, nd.attrs, &attrGroups, nodeRels,
+                                              rels, opts);
+                        if (!si.isNull()) n->pl().setSI(si);
+                    } else if (filter.blocker(nd.attrs)) {
+                        n->pl().setBlocker();
+                    }
+                }
+            } else {
+                // these are nodes without any connected edges
+                if (filter.station(nd.attrs)) {
+                    auto tmp = g.addNd(NodePL(pos));
+                    auto si = getStatInfo(tmp, nd.id, pos, nd.attrs, &attrGroups, nodeRels,
+                                          rels, opts);
+                    if (!si.isNull()) tmp->pl().setSI(si);
+                    if (tmp->pl().getSI()) {
+                        tmp->pl().getSI()->setIsFromOsm(false);
+                        orphanStations.insert(tmp);
+                    }
+                }
+            }
+        }
+    }
+
+
+    bool relKeep(uint64_t id, const pfaedle::osm::RelMap& rels, const pfaedle::osm::FlatRels& fl) const {
+        auto it = rels.find(id);
+
+        if (it == rels.end()) return false;
+
+        for (uint64_t relId : it->second) {
+            // as soon as any of this entities relations is not flat, return true
+            if (!fl.count(relId)) return true;
+        }
+
+        return false;
+    }
+
+    Nullable<StatInfo> getStatInfo(Node* node, uint64_t nid,
+                                               const POINT& pos, const pfaedle::osm::AttrMap& m,
+                                               pfaedle::osm::StAttrGroups* groups,
+                                               const pfaedle::osm::RelMap& nodeRels,
+                                               const pfaedle::osm::RelLst& rels,
+                                               const pfaedle::osm::OsmReadOpts& ops) const {
+        std::string platform;
+        std::vector<std::string> names;
+
+        names = getAttrMatchRanked(ops.statAttrRules.nameRule, nid, m, nodeRels, rels,
+                                   ops.statNormzer);
+        platform = getAttrByFirstMatch(ops.statAttrRules.platformRule, nid, m,
+                                       nodeRels, rels, ops.trackNormzer);
+
+        if (!names.size()) return Nullable<StatInfo>();
+
+        auto ret = StatInfo(names[0], platform, true);
+
+#ifdef PFAEDLE_STATION_IDS
+        ret.setId(getAttrByFirstMatch(ops.statAttrRules.idRule, nid, m, nodeRels,
+                                rels, ops.idNormzer));
+#endif
+
+        for (size_t i = 1; i < names.size(); i++) ret.addAltName(names[i]);
+
+        bool groupFound = false;
+
+        for (const auto& rule : ops.statGroupNAttrRules) {
+            if (groupFound) break;
+            std::string ruleVal = getAttr(rule.attr, nid, m, nodeRels, rels);
+            if (!ruleVal.empty()) {
+                // check if a matching group exists
+                for (auto* group : (*groups)[rule.attr.attr][ruleVal]) {
+                    if (groupFound) break;
+                    for (const auto* member : group->getNodes()) {
+                        if (webMercMeterDist(*member->pl().getGeom(), pos) <= rule.maxDist) {
+                            // ok, group is matching
+                            groupFound = true;
+                            if (node) group->addNode(node);
+                            ret.setGroup(group);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!groupFound) {
+            for (const auto& rule : ops.statGroupNAttrRules) {
+                std::string ruleVal = getAttr(rule.attr, nid, m, nodeRels, rels);
+                if (!ruleVal.empty()) {
+                    // add new group
+                    auto* g = new StatGroup();
+                    if (node) g->addNode(node);
+                    ret.setGroup(g);
+                    (*groups)[rule.attr.attr][ruleVal].push_back(g);
+                    break;
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    std::string getAttrByFirstMatch(const pfaedle::osm::DeepAttrLst& rule, uint64_t id,
+                        const pfaedle::osm::AttrMap& attrs,
+                        const pfaedle::osm::RelMap& entRels,
+                        const pfaedle::osm::RelLst& rels,
+                        const Normalizer& norm) const {
+        std::string ret;
+        for (const auto& s : rule) {
+            ret = norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
+            if (!ret.empty()) return ret;
+        }
+
+        return ret;
+    }
+
+    std::vector<std::string> getAttrMatchRanked(
+            const pfaedle::osm::DeepAttrLst& rule, uint64_t id, const pfaedle::osm::AttrMap& attrs,
+            const pfaedle::osm::RelMap& entRels, const pfaedle::osm::RelLst& rels, const Normalizer& norm) const {
+        std::vector<std::string> ret;
+        for (const auto& s : rule) {
+            std::string tmp =
+                    norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
+            if (!tmp.empty()) ret.push_back(tmp);
+        }
+
+        return ret;
+    }
+
+    std::string getAttr(const pfaedle::osm::DeepAttrRule& s, uint64_t id,
+            const pfaedle::osm::AttrMap& attrs, const pfaedle::osm::RelMap& entRels,
+            const pfaedle::osm::RelLst& rels) const {
+        if (s.relRule.kv.first.empty()) {
+            if (attrs.find(s.attr) != attrs.end()) {
+                return attrs.find(s.attr)->second;
+            }
+        } else {
+            if (entRels.count(id)) {
+                for (const auto& relId : entRels.find(id)->second) {
+                    if (pfaedle::osm::OsmFilter::contained(rels.rels[relId], s.relRule.kv)) {
+                        if (rels.rels[relId].count(s.attr)) {
+                            return rels.rels[relId].find(s.attr)->second;
+                        }
+                    }
+                }
+            }
+        }
+        return "";
+    }
+};
 // _____________________________________________________________________________
 bool EqSearch::operator()(const Node* cand, const StatInfo* si) const {
-  if (orphanSnap && cand->pl().getSI() &&
-      (!cand->pl().getSI()->getGroup() ||
-       cand->pl().getSI()->getGroup()->getStops().size() == 0)) {
-    return true;
-  }
-  return cand->pl().getSI() && cand->pl().getSI()->simi(si) > minSimi;
+    if (orphanSnap && cand->pl().getSI() &&
+        (!cand->pl().getSI()->getGroup() || cand->pl().getSI()->getGroup()->getStops().empty())) {
+        return true;
+    }
+    return cand->pl().getSI() && cand->pl().getSI()->simi(si) > minSimi;
 }
 
 // _____________________________________________________________________________
-OsmBuilder::OsmBuilder() {}
+OsmBuilder::OsmBuilder() = default;
 
 // _____________________________________________________________________________
 void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
@@ -85,7 +729,20 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
     OsmFilter filter(opts);
 
-    pfxml::file xml(path);
+    osmium::io::Reader reader{path, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way |osmium::osm_entity_bits::relation};
+
+    NodeHandler nodeHandler(filter, bbox, bboxNodes, noHupNodes);
+    RelationHandler relationHandler(filter, bbox, attrKeys[2],intmRels, nodeRels, wayRels, rawRests);
+    WayHandler wayHandler(*g, intmRels, wayRels, filter, bboxNodes, nodes, multNodes,
+                          noHupNodes, attrKeys[1], rawRests, *res,
+                          intmRels.flat, eTracks, opts);
+
+    osmium::apply(reader, nodeHandler, relationHandler, wayHandler);
+
+    osmium::io::Reader reader_nodes{path, osmium::osm_entity_bits::node};
+    NodeHandler2 nodeHandler2(*g, intmRels, nodeRels, filter, bboxNodes, nodes,
+                            multNodes, orphanStations, attrKeys[0], intmRels.flat, opts);
+    osmium::apply(reader_nodes, nodeHandler2);
 
     // we do four passes of the file here to be as memory creedy as possible:
     // - the first pass collects all node IDs which are
@@ -100,28 +757,6 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
     //    * collected as node ids in pass 1
     //    * match the filter criteria
     //    * have been used in a way in pass 3
-
-    LOG(VDEBUG) << "Reading bounding box nodes...";
-    skipUntil(&xml, "node");
-    pfxml::parser_state nodeBeg = xml.state();
-    pfxml::parser_state edgesBeg =
-        readBBoxNds(&xml, &bboxNodes, &noHupNodes, filter, bbox);
-
-    LOG(VDEBUG) << "Reading relations...";
-    skipUntil(&xml, "relation");
-    readRels(&xml, &intmRels, &nodeRels, &wayRels, filter, attrKeys[2],
-             &rawRests);
-
-    LOG(VDEBUG) << "Reading edges...";
-    xml.set_state(edgesBeg);
-    readEdges(&xml, g, intmRels, wayRels, filter, bboxNodes, &nodes, &multNodes,
-              noHupNodes, attrKeys[1], rawRests, res, intmRels.flat, &eTracks,
-              opts);
-
-    LOG(VDEBUG) << "Reading kept nodes...";
-    xml.set_state(nodeBeg);
-    readNodes(&xml, g, intmRels, nodeRels, filter, bboxNodes, &nodes,
-              &multNodes, &orphanStations, attrKeys[0], intmRels.flat, opts);
   }
 
   LOG(VDEBUG) << "OSM ID set lookups: " << osm::OsmIdSet::LOOKUPS
@@ -361,7 +996,7 @@ void OsmBuilder::readWriteRels(pfxml::file* i, util::xml::XmlWriter* o,
       }
     }
 
-    if (realNodes.size() || realWays.size()) {
+    if (!realNodes.empty() || !realWays.empty()) {
       o->openTag("relation", "id", std::to_string(rel.id));
 
       for (size_t j = 0; j < realNodes.size(); j++) {
@@ -425,8 +1060,7 @@ void OsmBuilder::readWriteWays(pfxml::file* i, util::xml::XmlWriter* o,
 NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) {
   NodePL ret(
       util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(s->getLat(), s->getLng()),
-      StatInfo(ops.statNormzer(s->getName()),
-               ops.trackNormzer(s->getPlatformCode()), false));
+      StatInfo(ops.statNormzer(s->getName()), ops.trackNormzer(s->getPlatformCode()), false));
 
 #ifdef PFAEDLE_STATION_IDS
   // debug feature, store station id from GTFS
@@ -464,7 +1098,8 @@ pfxml::parser_state OsmBuilder::readBBoxNds(pfxml::file* xml, OsmIdSet* nodes,
 
     if (inNodeBlock) {
       // block ended
-      if (strcmp(cur.name, "node")) return xml->state();
+      if (strcmp(cur.name, "node") != 0)
+          return xml->state();
       double y = util::atof(cur.attrs.find("lat")->second, 7);
       double x = util::atof(cur.attrs.find("lon")->second, 7);
 
@@ -509,7 +1144,7 @@ OsmWay OsmBuilder::nextWayWithId(pfxml::file* xml, osmid wid,
 
 // _____________________________________________________________________________
 void OsmBuilder::skipUntil(pfxml::file* xml, const std::string& s) const {
-  while (xml->next() && strcmp(xml->get().name, s.c_str())) {
+  while (xml->next() && strcmp(xml->get().name, s.c_str()) != 0) {
   }
 }
 
@@ -538,8 +1173,11 @@ OsmWay OsmBuilder::nextWay(pfxml::file* xml, const RelMap& wayRels,
   do {
     const pfxml::tag& cur = xml->get();
     if (xml->level() == 2 || xml->level() == 0) {
-      if (keepWay(w, wayRels, filter, bBoxNodes, fl)) return w;
-      if (strcmp(cur.name, "way")) return OsmWay();
+      if (keepWay(w, wayRels, filter, bBoxNodes, fl))
+          return w;
+
+      if (strcmp(cur.name, "way") != 0)
+          return OsmWay();
 
       w.id = util::atoul(cur.attrs.find("id")->second);
       w.nodes.clear();
@@ -551,13 +1189,16 @@ OsmWay OsmBuilder::nextWay(pfxml::file* xml, const RelMap& wayRels,
         osmid nid = util::atoul(cur.attrs.find("ref")->second);
         w.nodes.push_back(nid);
       } else if (strcmp(cur.name, "tag") == 0) {
-        if (keepAttrs.count(cur.attrs.find("k")->second))
-          w.attrs[cur.attrs.find("k")->second] = cur.attrs.find("v")->second;
+        if (keepAttrs.count(cur.attrs.find("k")->second)) {
+            w.attrs[cur.attrs.find("k")->second] = cur.attrs.find("v")->second;
+        }
       }
     }
   } while (xml->next());
 
-  if (keepWay(w, wayRels, filter, bBoxNodes, fl)) return w;
+  if (keepWay(w, wayRels, filter, bBoxNodes, fl))
+      return w;
+
   return OsmWay();
 }
 
@@ -587,7 +1228,7 @@ void OsmBuilder::readEdges(pfxml::file* xml, const RelMap& wayRels,
   while ((w = nextWay(xml, wayRels, filter, bBoxNodes, keepAttrs, flat)).id) {
     ret->push_back(w.id);
     for (auto n : w.nodes) {
-      (*nodes)[n] = 0;
+      (*nodes)[n] = nullptr;
     }
   }
 }
@@ -603,7 +1244,7 @@ void OsmBuilder::readEdges(pfxml::file* xml, Graph* g, const RelLst& rels,
                            const OsmReadOpts& opts) {
   OsmWay w;
   while ((w = nextWay(xml, wayRels, filter, bBoxNodes, keepAttrs, fl)).id) {
-    Node* last = 0;
+    Node* last = nullptr;
     std::vector<TransitEdgeLine*> lines;
     if (wayRels.count(w.id)) {
       lines = getLines(wayRels.find(w.id)->second, rels, opts);
@@ -614,7 +1255,7 @@ void OsmBuilder::readEdges(pfxml::file* xml, Graph* g, const RelLst& rels,
 
     osmid lastnid = 0;
     for (osmid nid : w.nodes) {
-      Node* n = 0;
+      Node* n = nullptr;
       if (noHupNodes.has(nid)) {
         n = g->addNd();
         (*multiNodes)[nid].insert(n);
@@ -808,7 +1449,7 @@ OsmRel OsmBuilder::nextRel(pfxml::file* xml, const OsmFilter& filter,
     if (xml->level() == 2 || xml->level() == 0) {
       uint64_t keepFlags = 0;
       uint64_t dropFlags = 0;
-      if (rel.id && rel.attrs.size() &&
+      if (rel.id && !rel.attrs.empty() &&
           (keepFlags = filter.keep(rel.attrs, OsmFilter::REL)) &&
           !(dropFlags = filter.drop(rel.attrs, OsmFilter::REL))) {
         rel.keepFlags = keepFlags;
@@ -817,7 +1458,9 @@ OsmRel OsmBuilder::nextRel(pfxml::file* xml, const OsmFilter& filter,
       }
 
       // block ended
-      if (strcmp(cur.name, "relation")) return OsmRel();
+      if (strcmp(cur.name, "relation") != 0) {
+          return OsmRel();
+      }
 
       rel.attrs.clear();
       rel.nodes.clear();
@@ -837,20 +1480,22 @@ OsmRel OsmBuilder::nextRel(pfxml::file* xml, const OsmFilter& filter,
           // the bounding box!!!!
           rel.nodes.push_back(id);
           if (cur.attrs.count("role")) {
-            rel.nodeRoles.push_back(cur.attrs.find("role")->second);
+            rel.nodeRoles.emplace_back(cur.attrs.find("role")->second);
           } else {
-            rel.nodeRoles.push_back("");
+            rel.nodeRoles.emplace_back("");
           }
         }
+
         if (strcmp(cur.attrs.find("type")->second, "way") == 0) {
           osmid id = util::atoul(cur.attrs.find("ref")->second);
           rel.ways.push_back(id);
           if (cur.attrs.count("role")) {
-            rel.wayRoles.push_back(cur.attrs.find("role")->second);
+            rel.wayRoles.emplace_back(cur.attrs.find("role")->second);
           } else {
-            rel.wayRoles.push_back("");
+            rel.wayRoles.emplace_back("");
           }
         }
+
       } else if (strcmp(cur.name, "tag") == 0) {
         if (keepAttrs.count(cur.attrs.find("k")->second))
           rel.attrs[cur.attrs.find("k")->second] = cur.attrs.find("v")->second;
@@ -861,7 +1506,7 @@ OsmRel OsmBuilder::nextRel(pfxml::file* xml, const OsmFilter& filter,
   // dont forget last relation
   uint64_t keepFlags = 0;
   uint64_t dropFlags = 0;
-  if (rel.id && rel.attrs.size() &&
+  if (rel.id && !rel.attrs.empty() &&
       (keepFlags = filter.keep(rel.attrs, OsmFilter::REL)) &&
       !(dropFlags = filter.drop(rel.attrs, OsmFilter::REL))) {
     rel.keepFlags = keepFlags;

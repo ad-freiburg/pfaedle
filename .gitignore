@@ -4,6 +4,7 @@ CMakeCache.txt
 *.a
 cmake_install.cmake
 *~
+cmake-build-*
 CMakeFiles
 *.cfg
 *.cmake

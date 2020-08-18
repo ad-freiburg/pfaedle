@@ -57,6 +57,11 @@ struct OsmNode {
 
 struct Restriction {
   osmid eFrom, eTo;
+  Restriction() = default;
+  Restriction(osmid from, osmid to):
+    eFrom(from),
+    eTo(to)
+  {}
 };
 
 typedef std::unordered_map<osmid, std::vector<Restriction>> RestrMap;

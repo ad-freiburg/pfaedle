@@ -1,18 +1,17 @@
 // Copyright 2018, University of Freiburg,
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
-
-#include <limits.h>
+#include <climits>
 #include <pwd.h>
-#include <signal.h>
-#include <stdio.h>
+#include <csignal>
+#include <cstdio>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <fstream>
 #include <map>
 #include <string>
 #include <vector>
+
 #include "ad/cppgtfs/Parser.h"
 #include "ad/cppgtfs/Writer.h"
 #include "pfaedle/config/ConfigReader.h"
@@ -72,7 +71,7 @@ std::vector<std::string> getCfgPaths(const Config& cfg);
 // _____________________________________________________________________________
 int main(int argc, char** argv) {
   // disable output buffering for standard output
-  setbuf(stdout, NULL);
+  setbuf(stdout, nullptr);
 
   // initialize randomness
   srand(time(NULL) + rand());  // NOLINT
@@ -80,8 +79,7 @@ int main(int argc, char** argv) {
   Config cfg;
   MotConfigReader motCfgReader;
 
-  ConfigReader cr;
-  cr.read(&cfg, argc, argv);
+  ConfigReader::read(&cfg, argc, argv);
 
   std::vector<pfaedle::gtfs::Feed> gtfs(cfg.feedPaths.size());
   // feed containing the shapes in memory for evaluation
@@ -102,7 +100,7 @@ int main(int argc, char** argv) {
     exit(static_cast<int>(RetCode::NO_OSM_INPUT));
   }
 
-  if (motCfgReader.getConfigs().size() == 0) {
+  if (motCfgReader.getConfigs().empty()) {
     LOG(ERROR) << "No MOT configurations specified and no implicit "
                   "configurations found, see --help.";
     exit(static_cast<int>(RetCode::NO_MOT_CFG));
@@ -125,7 +123,7 @@ int main(int argc, char** argv) {
       exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
     }
     if (!cfg.writeOverpass) LOG(INFO) << "Done.";
-  } else if (cfg.writeOsm.size() || cfg.writeOverpass) {
+  } else if (!cfg.writeOsm.empty() || cfg.writeOverpass) {
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       if (!cfg.writeOverpass)
         LOG(INFO) << "Reading " << cfg.feedPaths[i] << " ...";
@@ -147,10 +145,10 @@ int main(int argc, char** argv) {
   LOG(DEBUG) << "Read " << motCfgReader.getConfigs().size()
              << " unique MOT configs.";
   MOTs cmdCfgMots = cfg.mots;
-  pfaedle::gtfs::Trip* singleTrip = 0;
+  pfaedle::gtfs::Trip* singleTrip = nullptr;
 
-  if (cfg.shapeTripId.size()) {
-    if (!cfg.feedPaths.size()) {
+  if (!cfg.shapeTripId.empty()) {
+    if (cfg.feedPaths.empty()) {
       std::cout << "No input feed specified, see --help" << std::endl;
       exit(static_cast<int>(RetCode::NO_INPUT_FEED));
     }
@@ -161,7 +159,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (cfg.writeOsm.size()) {
+  if (!cfg.writeOsm.empty()) {
     LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
@@ -200,20 +198,23 @@ int main(int argc, char** argv) {
     }
     osmBuilder.overpassQryWrite(&std::cout, opts, box);
     exit(static_cast<int>(RetCode::SUCCESS));
-  } else if (!cfg.feedPaths.size()) {
+  } else if (cfg.feedPaths.empty()) {
     std::cout << "No input feed specified, see --help" << std::endl;
     exit(static_cast<int>(RetCode::NO_INPUT_FEED));
   }
 
-  std::vector<double> dfBins;
   auto dfBinStrings = util::split(std::string(cfg.evalDfBins), ',');
-  for (auto st : dfBinStrings) dfBins.push_back(atof(st.c_str()));
+  std::vector<double> dfBins(dfBinStrings.size());
+  for (const auto& st : dfBinStrings) {
+      dfBins.push_back(atof(st.c_str()));
+  }
   Collector ecoll(cfg.evalPath, dfBins);
 
   for (const auto& motCfg : motCfgReader.getConfigs()) {
     std::string filePost;
     auto usedMots = pfaedle::router::motISect(motCfg.mots, cmdCfgMots);
-    if (!usedMots.size()) continue;
+    if (usedMots.empty())
+        continue;
     if (singleTrip && !usedMots.count(singleTrip->getRoute()->getType()))
       continue;
     if (motCfgReader.getConfigs().size() > 1)
@@ -234,9 +235,10 @@ int main(int argc, char** argv) {
       ShapeBuilder::getGtfsBox(&gtfs[0], cmdCfgMots, cfg.shapeTripId,
                                cfg.dropShapes, &box);
 
-      if (fStops.size())
-        osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
-                        cfg.gridSize, &fStops, &restr);
+      if (!fStops.empty()) {
+          osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
+                          cfg.gridSize, &fStops, &restr);
+      }
 
       // TODO(patrick): move this somewhere else
       for (auto& feedStop : fStops) {
@@ -255,7 +257,7 @@ int main(int argc, char** argv) {
       if (cfg.writeGraph) {
         LOG(INFO) << "Outputting graph.json...";
         util::geo::output::GeoGraphJsonOutput out;
-        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir(cfg.dbgOutputPath.c_str(), 775);
         std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
         out.printLatLng(*shapeBuilder.getGraph(), fstr);
         fstr.close();
@@ -263,7 +265,7 @@ int main(int argc, char** argv) {
 
       if (singleTrip) {
         LOG(INFO) << "Outputting path.json...";
-        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir(cfg.dbgOutputPath.c_str(), 775);
         std::ofstream pstr(cfg.dbgOutputPath + "/path.json");
         util::geo::output::GeoJsonOutput o(pstr);
 
@@ -284,7 +286,7 @@ int main(int argc, char** argv) {
       if (cfg.buildTransitGraph) {
         util::geo::output::GeoGraphJsonOutput out;
         LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
-        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir(cfg.dbgOutputPath.c_str(), 775);
         std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
         out.printLatLng(ng, fstr);
         fstr.close();
@@ -296,11 +298,12 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (cfg.evaluate) ecoll.printStats(&std::cout);
+  if (cfg.evaluate)
+      ecoll.printStats(&std::cout);
 
-  if (cfg.feedPaths.size()) {
+  if (!cfg.feedPaths.empty()) {
     try {
-      mkdir(cfg.outputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      mkdir(cfg.outputPath.c_str(), 775);
       LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
       pfaedle::gtfs::Writer w;
       w.write(&gtfs[0], cfg.outputPath);
@@ -326,7 +329,9 @@ std::string getFileNameMotStr(const MOTs& mots) {
 
 // _____________________________________________________________________________
 std::vector<std::string> getCfgPaths(const Config& cfg) {
-  if (cfg.configPaths.size()) return cfg.configPaths;
+  if (!cfg.configPaths.empty()) {
+      return cfg.configPaths;
+  }
   std::vector<std::string> ret;
 
 

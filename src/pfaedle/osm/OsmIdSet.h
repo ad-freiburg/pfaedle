@@ -42,11 +42,16 @@ class OsmIdSet {
   // Check if an OSM id is contained
   bool has(osmid id) const;
 
+  size_t size() const {
+    return _element_size;
+  }
+
   // Count the number of lookups and file lookups for debugging
   static size_t LOOKUPS;
   static size_t FLOOKUPS;
 
  private:
+  mutable size_t _element_size;
   std::string _tmpPath;
   mutable bool _closed;
   mutable int _file;

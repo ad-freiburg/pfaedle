@@ -19,9 +19,12 @@ using std::string;
 using std::exception;
 using std::vector;
 
-static const char* YEAR = __DATE__ + 7;
-static const char* COPY =
-    "University of Freiburg - Chair of Algorithms and Data Structures";
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wstring-plus-int"
+static auto YEAR = __DATE__ + 7;
+#pragma clang diagnostic pop
+static auto COPY =
+        "University of Freiburg - Chair of Algorithms and Data Structures";
 static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
 
 // _____________________________________________________________________________
@@ -148,8 +151,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {0, 0, 0, 0}};
 
   char c;
-  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:p", ops, 0)) !=
-         -1) {
+  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:p", ops, nullptr)) != -1) {
     switch (c) {
       case 1:
         cfg->writeGraph = true;

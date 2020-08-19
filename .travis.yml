@@ -14,6 +14,12 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - cmake
+      - libosmium2-dev
+  homebrew:
+    packages:
+      - libosmium
+      - boost
+    update: true
 
 before_install:
   - export LD_LIBRARY_PATH=$(if [[ $CXX == "clang++" ]]; then echo -n '/usr/local/clang/lib'; fi)

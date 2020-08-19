@@ -17,7 +17,7 @@ enable_testing()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 
-find_package(Osmium 2.15 REQUIRED COMPONENTS pbf xml io)
+find_package(Osmium REQUIRED COMPONENTS pbf xml io)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

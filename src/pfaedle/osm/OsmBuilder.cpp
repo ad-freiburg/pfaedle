@@ -5,6 +5,7 @@
 #include <osmium/io/any_input.hpp>
 #include <osmium/geom/haversine.hpp>
 #include <osmium/visitor.hpp>
+#include <osmium/handler.hpp>
 
 #include <algorithm>
 #include <exception>
@@ -51,41 +52,63 @@ using pfaedle::osm::EqSearch;
 using pfaedle::osm::BlockSearch;
 using ad::cppgtfs::gtfs::Stop;
 
-class NodeHandler : public osmium::handler::Handler {
-        const pfaedle::osm::OsmFilter& _filter;
-        const pfaedle::osm::BBoxIdx& _bbox;
-        pfaedle::osm::OsmIdSet& _bboxNodes;
-        pfaedle::osm::OsmIdSet& _noHupNodes;
+class Handler: public osmium::handler::Handler
+{
+public:
+    Handler(const pfaedle::osm::AttrKeySet& attributes):
+        _attributes(attributes)
+    {}
 
-    public:
-        NodeHandler(const pfaedle::osm::OsmFilter& filter,
-                    const pfaedle::osm::BBoxIdx& bbox,
-                    pfaedle::osm::OsmIdSet& bboxNodes,
-                    pfaedle::osm::OsmIdSet& noHupNodes) :
+protected:
+    template<typename T>
+    void parseTags(T& obj, const osmium::TagList& tags)
+    {
+        for (const auto& tag : tags) {
+            if (_attributes.count(tag.key())) {
+                obj.attrs[tag.key()] = tag.value();
+            }
+        }
+    }
+
+    const pfaedle::osm::AttrKeySet& _attributes;
+
+};
+class NodeFilteringHandler : public osmium::handler::Handler
+{
+    const pfaedle::osm::OsmFilter &_filter;
+    const pfaedle::osm::BBoxIdx &_bbox;
+    pfaedle::osm::OsmIdSet &_bboxNodes;
+    pfaedle::osm::OsmIdSet &_noHupNodes;
+
+public:
+    NodeFilteringHandler(const pfaedle::osm::OsmFilter &filter,
+                         const pfaedle::osm::BBoxIdx &bbox,
+                         pfaedle::osm::OsmIdSet &bboxNodes,
+                         pfaedle::osm::OsmIdSet &noHupNodes) :
             _filter(filter),
             _bbox(bbox),
             _bboxNodes(bboxNodes),
-            _noHupNodes(noHupNodes)
-        {}
+            _noHupNodes(noHupNodes) {}
 
-        void node(const osmium::Node& node) {
-            bool ignored = false;
+    void node(const osmium::Node &node)
+    {
+        bool ignored = false;
 
-            for (const auto& tag : node.tags()) {
-                if (_filter.nohup(tag.key(), tag.value())) {
-                    _noHupNodes.add(node.id());
-                    ignored = true;
-                    break;
-                }
-            }
-
-            if (!ignored) {
-                Point<double> point{node.location().lon(), node.location().lat()};
-                if (_bbox.contains(point)) {
-                    _bboxNodes.add(node.id());
-                }
+        for (const auto &tag : node.tags()) {
+            if (_filter.nohup(tag.key(), tag.value())) {
+                _noHupNodes.add(node.id());
+                ignored = true;
+                break;
             }
         }
+
+        if (!ignored) {
+            Point<double> point{node.location().lon(), node.location().lat()};
+            if (_bbox.contains(point)) {
+                _bboxNodes.add(node.id());
+            }
+        }
+    }
 };
 
 class RelationHandler: public osmium::handler::Handler {
@@ -473,11 +496,11 @@ class WayHandler: public osmium::handler::Handler {
         }
 };
 
-class NodeHandler2: public osmium::handler::Handler {
+class NodeHandler: public osmium::handler::Handler {
         pfaedle::trgraph::Graph& _graph;
         const pfaedle::osm::RelLst& rels;
         const pfaedle::osm::RelMap& nodeRels;
-        const pfaedle::osm::OsmFilter& filter;
+        const pfaedle::osm::OsmFilter& _filter;
         const pfaedle::osm::OsmIdSet& bBoxNodes;
         pfaedle::osm::NIdMap& nodes;
         pfaedle::osm::NIdMultMap& multNodes;
@@ -487,7 +510,7 @@ class NodeHandler2: public osmium::handler::Handler {
         const pfaedle::osm::OsmReadOpts& opts;
 
     public:
-        NodeHandler2(Graph &g,
+        NodeHandler(Graph &g,
                      const pfaedle::osm::RelLst &rels,
                      const pfaedle::osm::RelMap &nodeRels,
                      const pfaedle::osm::OsmFilter &filter,
@@ -501,7 +524,7 @@ class NodeHandler2: public osmium::handler::Handler {
             _graph(g),
             rels(rels),
             nodeRels(nodeRels),
-            filter(filter),
+            _filter(filter),
             bBoxNodes(bBoxNodes),
             nodes(nodes),
             multNodes(multNodes),
@@ -525,10 +548,10 @@ class NodeHandler2: public osmium::handler::Handler {
             bool valid = false;
             if (nd.id &&
                     (nodes.count(nd.id) || multNodes.count(nd.id) ||
-                     relKeep(nd.id, nodeRels, fl) || filter.keep(nd.attrs, pfaedle::osm::OsmFilter::NODE)) &&
+                     relKeep(nd.id, nodeRels, fl) || _filter.keep(nd.attrs, pfaedle::osm::OsmFilter::NODE)) &&
                     (nodes.count(nd.id) || bBoxNodes.has(nd.id)) &&
                     (nodes.count(nd.id) || multNodes.count(nd.id) ||
-                     !filter.drop(nd.attrs, pfaedle::osm::OsmFilter::NODE))) {
+                     !_filter.drop(nd.attrs, pfaedle::osm::OsmFilter::NODE))) {
                 valid = true;
             }
 
@@ -541,29 +564,29 @@ class NodeHandler2: public osmium::handler::Handler {
                     n = nodes[nd.id];
                     n->pl().setGeom(pos);
 
-                    if (filter.station(nd.attrs)) {
+                    if (_filter.station(nd.attrs)) {
                         auto si = getStatInfo(n, nd.id, pos, nd.attrs, &attrGroups, nodeRels, rels, opts);
 
                         if (!si.isNull())
                             n->pl().setSI(si);
-                    } else if (filter.blocker(nd.attrs)) {
+                    } else if (_filter.blocker(nd.attrs)) {
                         n->pl().setBlocker();
                     }
                 } else if (multNodes.count(nd.id)) {
                     for (auto *n : multNodes[nd.id]) {
                         n->pl().setGeom(pos);
-                        if (filter.station(nd.attrs)) {
+                        if (_filter.station(nd.attrs)) {
                             auto si = getStatInfo(n, nd.id, pos, nd.attrs, &attrGroups, nodeRels, rels, opts);
 
                             if (!si.isNull())
                                 n->pl().setSI(si);
-                        } else if (filter.blocker(nd.attrs)) {
+                        } else if (_filter.blocker(nd.attrs)) {
                             n->pl().setBlocker();
                         }
                     }
                 } else {
                     // these are nodes without any connected edges
-                    if (filter.station(nd.attrs)) {
+                    if (_filter.station(nd.attrs)) {
                         auto tmp = _graph.addNd(NodePL(pos));
                         auto si = getStatInfo(tmp, nd.id, pos, nd.attrs, &attrGroups, nodeRels, rels, opts);
 
@@ -761,15 +784,15 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
         osmium::io::Reader reader_nodes{path,
                     osmium::osm_entity_bits::node};
 
-        NodeHandler nodeHandler(filter, bbox, bboxNodes, noHupNodes);
+        NodeFilteringHandler filteringHandler(filter, bbox, bboxNodes, noHupNodes);
         RelationHandler relationHandler(filter, bbox, attrKeys[2], intmRels, nodeRels, wayRels, rawRests);
         WayHandler wayHandler(*g, intmRels, wayRels, filter, bboxNodes, nodes, multNodes, noHupNodes,
                               attrKeys[1], rawRests, *res, intmRels.flat, eTracks, opts);
 
-        osmium::apply(reader, nodeHandler, relationHandler, wayHandler);
-        NodeHandler2 nodeHandler2(*g, intmRels, nodeRels, filter, bboxNodes, nodes, multNodes, orphanStations,
+        osmium::apply(reader, filteringHandler, relationHandler, wayHandler);
+        NodeHandler nodeHandler(*g, intmRels, nodeRels, filter, bboxNodes, nodes, multNodes, orphanStations,
                                   attrKeys[0], intmRels.flat, opts);
-        osmium::apply(reader_nodes, nodeHandler2);
+        osmium::apply(reader_nodes, nodeHandler);
 
         // we do four passes of the file here to be as memory creedy as possible:
         // - the first pass collects all node IDs which are
@@ -1148,7 +1171,7 @@ OsmWay OsmBuilder::nextWayWithId(pfxml::file* xml, osmid wid,
     do {
         const pfxml::tag& cur = xml->get();
         if (xml->level() == 2 || xml->level() == 0) {
-            if (w.id || strcmp(cur.name, "way")) return w;
+            if (w.id || strcmp(cur.name, "way") != 0) return w;
 
             osmid id = util::atoul(cur.attrs.find("id")->second);
             if (id == wid) w.id = id;

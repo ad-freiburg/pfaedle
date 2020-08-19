@@ -1,12 +1,12 @@
 // Copyright 2018, University of Freiburg,
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
-#include <climits>
 #include <pwd.h>
-#include <csignal>
-#include <cstdio>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <climits>
+#include <csignal>
+#include <cstdio>
 #include <fstream>
 #include <map>
 #include <string>
@@ -163,14 +163,12 @@ int main(int argc, char** argv) {
     LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
-      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box);
+      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true, &box);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
     for (const auto& o : motCfgReader.getConfigs()) {
-      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
-                             cmdCfgMots.end()) != o.mots.end()) {
+      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(), cmdCfgMots.end()) != o.mots.end()) {
         opts.push_back(o.osmBuildOpts);
       }
     }
@@ -185,14 +183,12 @@ int main(int argc, char** argv) {
   } else if (cfg.writeOverpass) {
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
-      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box);
+      ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true, &box);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
     for (const auto& o : motCfgReader.getConfigs()) {
-      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
-                             cmdCfgMots.end()) != o.mots.end()) {
+      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(), cmdCfgMots.end()) != o.mots.end()) {
         opts.push_back(o.osmBuildOpts);
       }
     }
@@ -251,8 +247,7 @@ int main(int argc, char** argv) {
         }
       }
 
-      ShapeBuilder shapeBuilder(&gtfs[0], &evalFeed, cmdCfgMots, motCfg, &ecoll,
-                                &graph, &fStops, &restr, cfg);
+      ShapeBuilder shapeBuilder(&gtfs[0], &evalFeed, cmdCfgMots, motCfg, &ecoll, &graph, &fStops, &restr, cfg);
 
       if (cfg.writeGraph) {
         LOG(INFO) << "Outputting graph.json...";

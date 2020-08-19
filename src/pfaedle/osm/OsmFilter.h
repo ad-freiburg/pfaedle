@@ -16,7 +16,7 @@ namespace osm {
 class OsmFilter {
  public:
   enum Type : uint64_t { NODE = 16, WAY = 8, REL = 4, ALL = 0 };
-  OsmFilter() {}
+  OsmFilter() = default;
   OsmFilter(const MultAttrMap& keep, const MultAttrMap& drop);
   explicit OsmFilter(const OsmReadOpts& o);
   uint64_t keep(const AttrMap& attrs, Type t) const;

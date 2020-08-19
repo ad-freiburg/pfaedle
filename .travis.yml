@@ -1,8 +1,11 @@
 language: cpp
-
+sudo: true
 os:
     - linux
     - osx
+
+dist: bionic
+osx_image: xcode12
 
 compiler:
     - gcc
@@ -14,9 +17,15 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - cmake
+      - libosmium2-dev
+  homebrew:
+    packages:
+      - libosmium
+      - boost
 
 before_install:
   - export LD_LIBRARY_PATH=$(if [[ $CXX == "clang++" ]]; then echo -n '/usr/local/clang/lib'; fi)
+  - git clone https://github.com/mapbox/protozero.git && cd protozero && cmake . -DINSTALL_GDALCPP=ON -DINSTALL_UTFCPP=ON && sudo make -j4 install && cd ..
 
 before_script:
   - mkdir build

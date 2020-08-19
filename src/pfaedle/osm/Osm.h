@@ -21,7 +21,9 @@ typedef std::pair<std::string, std::string> Attr;
 typedef std::vector<osmid> OsmIdList;
 
 struct OsmRel {
-  OsmRel() : id(0) {}
+  OsmRel() : id(0),
+             keepFlags(0),
+             dropFlags(0) {}
   osmid id;
   AttrMap attrs;
   std::vector<osmid> nodes;
@@ -35,7 +37,9 @@ struct OsmRel {
 };
 
 struct OsmWay {
-  OsmWay() : id(0) {}
+  OsmWay() : id(0),
+             keepFlags(0),
+             dropFlags(0) {}
   osmid id;
   AttrMap attrs;
   std::vector<osmid> nodes;
@@ -45,7 +49,11 @@ struct OsmWay {
 };
 
 struct OsmNode {
-  OsmNode() : id(0) {}
+  OsmNode() : id(0),
+              lat(0.f),
+              lng(0.f),
+              keepFlags(0),
+              dropFlags(0) {}
   osmid id;
   double lat;
   double lng;
@@ -57,6 +65,11 @@ struct OsmNode {
 
 struct Restriction {
   osmid eFrom, eTo;
+  Restriction() = default;
+  Restriction(osmid from, osmid to):
+    eFrom(from),
+    eTo(to)
+  {}
 };
 
 typedef std::unordered_map<osmid, std::vector<Restriction>> RestrMap;

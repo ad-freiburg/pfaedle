@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
+#include <random>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/eval/Collector.h"
@@ -191,7 +192,9 @@ void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
   }
 
   // to avoid unfair load balance on threads
-  std::random_shuffle(clusters.begin(), clusters.end());
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(clusters.begin(), clusters.end(), g);
 
   size_t iters = EDijkstra::ITERS;
   size_t totiters = EDijkstra::ITERS;

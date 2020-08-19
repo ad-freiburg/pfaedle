@@ -23,7 +23,8 @@ size_t OsmIdSet::FLOOKUPS = 0;
 
 // _____________________________________________________________________________
 OsmIdSet::OsmIdSet()
-    : _closed(false),
+    : _element_size(0),
+      _closed(false),
       _sorted(true),
       _last(0),
       _smallest(-1),
@@ -50,6 +51,7 @@ void OsmIdSet::add(osmid id) {
   if (_closed) throw std::exception();
   diskAdd(id);
 
+  _element_size++;
   if (_last > id) _sorted = false;
   _last = id;
   if (id < _smallest) _smallest = id;

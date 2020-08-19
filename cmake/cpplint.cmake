@@ -119,7 +119,9 @@ function(cpplint_add_subdirectory DIR)
     add_custom_target(${TARGET_NAME}
         COMMAND ${CPPLINT} "--extensions=${EXTENSIONS}"
                            "--root=${CPPLINT_PROJECT_ROOT}"
-						   "--quiet"
+                           "--quiet"
+                           "--linelength=120"
+                           "--filter=-build/header_guard, -runtime/references, -whitespace/indent"
                            ${LIST_OF_FILES}
         DEPENDS ${LIST_OF_FILES}
         COMMENT "cpplint: Checking source code style"

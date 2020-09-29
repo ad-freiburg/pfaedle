@@ -108,7 +108,7 @@ EdgeCost CostFunc::operator()(const trgraph::Edge* from, const trgraph::Node* n,
 // _____________________________________________________________________________
 double CostFunc::transitLineCmp(const trgraph::EdgePL& e) const {
   if (_rAttrs.shortName.empty() && _rAttrs.toString.empty() &&
-      _rAttrs.fromString.empty())
+      _rAttrs.fromString.empty() && !e.getLines().empty())
     return 0;
   double best = 1;
   for (const auto* l : e.getLines()) {

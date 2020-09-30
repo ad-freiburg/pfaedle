@@ -1357,7 +1357,7 @@ std::set<Node*> OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg,
         ll.push_back(*n->pl().getGeom());
         ll.push_back(*e->getTo()->pl().getGeom());
         *nf->pl().getGeom() = ll;
-        eg->add(l, nf);
+        eg->add(ll, nf);
 
         // replace edge in restrictor
         restor->replaceEdge(e, ne, nf);

@@ -331,6 +331,12 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
           p.getDouble(secStr, "routing_line_unmatched_punish_fac");
     }
 
+    if (p.hasKey(secStr, "routing_no_lines_punish_fac")) {
+      procedKeys.insert("routing_no_lines_punish_fac");
+      curCfg.routingOpts.noLinesPunishFact =
+          p.getDouble(secStr, "routing_no_lines_punish_fac");
+    }
+
     if (p.hasKey(secStr, "routing_platform_unmatched_punish")) {
       procedKeys.insert("routing_platform_unmatched_punish");
       curCfg.routingOpts.platformUnmatchedPen =

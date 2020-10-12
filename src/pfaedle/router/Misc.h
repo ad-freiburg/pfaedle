@@ -39,6 +39,7 @@ struct RoutingOpts {
         oneWayPunishFac(1),
         oneWayEdgePunish(0),
         lineUnmatchedPunishFact(0.5),
+        noLinesPunishFact(0),
         platformUnmatchedPen(0),
         stationDistPenFactor(0),
         popReachEdge(true),
@@ -49,6 +50,7 @@ struct RoutingOpts {
   double oneWayPunishFac;
   double oneWayEdgePunish;
   double lineUnmatchedPunishFact;
+  double noLinesPunishFact;
   double platformUnmatchedPen;
   double stationDistPenFactor;
   double nonOsmPen;
@@ -65,6 +67,7 @@ inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
          fabs(a.oneWayPunishFac - b.oneWayPunishFac) < 0.01 &&
          fabs(a.oneWayEdgePunish - b.oneWayEdgePunish) < 0.01 &&
          fabs(a.lineUnmatchedPunishFact - b.lineUnmatchedPunishFact) < 0.01 &&
+         fabs(a.noLinesPunishFact - b.noLinesPunishFact) < 0.01 &&
          fabs(a.platformUnmatchedPen - b.platformUnmatchedPen) < 0.01 &&
          fabs(a.stationDistPenFactor - b.stationDistPenFactor) < 0.01 &&
          fabs(a.nonOsmPen - b.nonOsmPen) < 0.01 &&
@@ -86,7 +89,7 @@ struct EdgeCost {
            double mDistLvl4, double mDistLvl5, double mDistLvl6,
            double mDistLvl7, uint32_t fullTurns, int32_t passThru,
            double oneWayMeters, size_t oneWayEdges, double lineUnmatchedMeters,
-           double reachPen, const RoutingOpts* o) {
+           double noLinesMeters, double reachPen, const RoutingOpts* o) {
     if (!o) {
       _cost = mDist + reachPen;
     } else {
@@ -97,6 +100,7 @@ struct EdgeCost {
               oneWayMeters * o->oneWayPunishFac +
               oneWayEdges * o->oneWayEdgePunish +
               lineUnmatchedMeters * o->lineUnmatchedPunishFact +
+              noLinesMeters * o->noLinesPunishFact +
               fullTurns * o->fullTurnPunishFac +
               passThru * o->passThruStationsPunish + reachPen;
     }

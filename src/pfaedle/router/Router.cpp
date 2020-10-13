@@ -60,7 +60,7 @@ EdgeCost NCostFunc::operator()(const trgraph::Node* from,
                   e->pl().lvl() == 5 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 6 ? e->pl().getLength() : 0,
                   e->pl().lvl() == 7 ? e->pl().getLength() : 0, 0, stationSkip,
-                  e->pl().getLength() * oneway, oneway, 0, 0, &_rOpts);
+                  e->pl().getLength() * oneway, oneway, 0, 0, 0, &_rOpts);
 }
 
 // _____________________________________________________________________________
@@ -92,6 +92,8 @@ EdgeCost CostFunc::operator()(const trgraph::Edge* from, const trgraph::Node* n,
   }
 
   double transitLinePen = transitLineCmp(from->pl());
+  bool noLines = (_rAttrs.shortName.empty() && _rAttrs.toString.empty() &&
+                  _rAttrs.fromString.empty() && from->pl().getLines().empty());
 
   return EdgeCost(from->pl().lvl() == 0 ? from->pl().getLength() : 0,
                   from->pl().lvl() == 1 ? from->pl().getLength() : 0,
@@ -102,7 +104,8 @@ EdgeCost CostFunc::operator()(const trgraph::Edge* from, const trgraph::Node* n,
                   from->pl().lvl() == 6 ? from->pl().getLength() : 0,
                   from->pl().lvl() == 7 ? from->pl().getLength() : 0, fullTurns,
                   stationSkip, from->pl().getLength() * oneway, oneway,
-                  from->pl().getLength() * transitLinePen, 0, &_rOpts);
+                  from->pl().getLength() * transitLinePen,
+                  noLines ? from->pl().getLength() : 0, 0, &_rOpts);
 }
 
 // _____________________________________________________________________________
@@ -173,7 +176,7 @@ EdgeCost DistHeur::operator()(const trgraph::Edge* a,
   double cur = webMercMeterDist(*a->getFrom()->pl().getGeom(), _center) *
                _rOpts.levelPunish[_lvl];
 
-  return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 // _____________________________________________________________________________
@@ -182,7 +185,7 @@ EdgeCost NDistHeur::operator()(const trgraph::Node* a,
   UNUSED(b);
   double cur = webMercMeterDist(*a->pl().getGeom(), _center);
 
-  return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  return EdgeCost(cur - _maxCentD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 // _____________________________________________________________________________
@@ -407,7 +410,7 @@ EdgeListHops Router::route(const EdgeCandRoute& route,
     nodes[e] = cgraph->addNd(route[0][i].e->getFrom());
     cgraph->addEdg(source, nodes[e])
         ->pl()
-        .setCost(EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        .setCost(EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                           route[0][i].pen, 0));
   }
 
@@ -474,7 +477,7 @@ EdgeListHops Router::route(const EdgeCandRoute& route,
                   << TOOK(t1, TIME()) << "ms (tput: " << itPerSec << " its/ms)";
       for (auto& kv : edges) {
         kv.second->pl().setCost(
-            EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pens[kv.first], 0) +
+            EdgeCost(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, pens[kv.first], 0) +
             costs[kv.first]);
 
         if (rOpts.popReachEdge && kv.second->pl().getEdges()->size()) {

@@ -68,7 +68,7 @@ double StatGroup::getPen(const Stop* s, trgraph::Node* n,
   double distPen = util::geo::webMercMeterDist(p, *n->pl().getGeom());
   distPen *= distPenFac;
 
-  std::string platform = platformNorm(s->getPlatformCode());
+  std::string platform = platformNorm.norm(s->getPlatformCode());
 
   if (!platform.empty() && !n->pl().getSI()->getTrack().empty() &&
       n->pl().getSI()->getTrack() == platform) {

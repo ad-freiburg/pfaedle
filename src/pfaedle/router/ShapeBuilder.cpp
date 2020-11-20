@@ -29,28 +29,28 @@
 #include "util/graph/EDijkstra.h"
 #include "util/log/Log.h"
 
-using util::geo::extendBox;
 using util::geo::DBox;
 using util::geo::DPoint;
+using util::geo::extendBox;
 using util::geo::minbox;
 
-using util::geo::webMercMeterDist;
-using util::geo::webMercToLatLng;
-using util::geo::latLngToWebMerc;
-using util::geo::output::GeoGraphJsonOutput;
-using pfaedle::router::ShapeBuilder;
+using ad::cppgtfs::gtfs::ShapePoint;
+using ad::cppgtfs::gtfs::Stop;
+using pfaedle::gtfs::Feed;
+using pfaedle::gtfs::StopTime;
+using pfaedle::gtfs::Trip;
+using pfaedle::osm::BBoxIdx;
+using pfaedle::router::Clusters;
+using pfaedle::router::EdgeListHops;
 using pfaedle::router::FeedStops;
 using pfaedle::router::NodeCandGroup;
 using pfaedle::router::NodeCandRoute;
 using pfaedle::router::RoutingAttrs;
-using pfaedle::router::EdgeListHops;
-using pfaedle::router::Clusters;
-using pfaedle::osm::BBoxIdx;
-using ad::cppgtfs::gtfs::Stop;
-using pfaedle::gtfs::Trip;
-using pfaedle::gtfs::Feed;
-using pfaedle::gtfs::StopTime;
-using ad::cppgtfs::gtfs::ShapePoint;
+using pfaedle::router::ShapeBuilder;
+using util::geo::latLngToWebMerc;
+using util::geo::webMercMeterDist;
+using util::geo::webMercToLatLng;
+using util::geo::output::GeoGraphJsonOutput;
 
 // _____________________________________________________________________________
 ShapeBuilder::ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed,
@@ -404,16 +404,17 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) {
 
     const auto& lnormzer = _motCfg.osmBuildOpts.lineNormzer;
 
-    ret.shortName = lnormzer(trip->getRoute()->getShortName());
-
-    if (ret.shortName.empty()) ret.shortName = lnormzer(trip->getShortname());
+    ret.shortName = lnormzer.norm(trip->getRoute()->getShortName());
 
     if (ret.shortName.empty())
-      ret.shortName = lnormzer(trip->getRoute()->getLongName());
+      ret.shortName = lnormzer.norm(trip->getShortname());
 
-    ret.fromString = _motCfg.osmBuildOpts.statNormzer(
+    if (ret.shortName.empty())
+      ret.shortName = lnormzer.norm(trip->getRoute()->getLongName());
+
+    ret.fromString = _motCfg.osmBuildOpts.statNormzer.norm(
         trip->getStopTimes().begin()->getStop()->getName());
-    ret.toString = _motCfg.osmBuildOpts.statNormzer(
+    ret.toString = _motCfg.osmBuildOpts.statNormzer.norm(
         (--trip->getStopTimes().end())->getStop()->getName());
 
     return _rAttrs
@@ -532,12 +533,12 @@ Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
 bool ShapeBuilder::routingEqual(const Stop* a, const Stop* b) {
   if (a == b) return true;  // trivial
 
-  auto namea = _motCfg.osmBuildOpts.statNormzer(a->getName());
-  auto nameb = _motCfg.osmBuildOpts.statNormzer(b->getName());
+  auto namea = _motCfg.osmBuildOpts.statNormzer.norm(a->getName());
+  auto nameb = _motCfg.osmBuildOpts.statNormzer.norm(b->getName());
   if (namea != nameb) return false;
 
-  auto tracka = _motCfg.osmBuildOpts.trackNormzer(a->getPlatformCode());
-  auto trackb = _motCfg.osmBuildOpts.trackNormzer(b->getPlatformCode());
+  auto tracka = _motCfg.osmBuildOpts.trackNormzer.norm(a->getPlatformCode());
+  auto trackb = _motCfg.osmBuildOpts.trackNormzer.norm(b->getPlatformCode());
   if (tracka != trackb) return false;
 
   POINT ap =

@@ -3,7 +3,9 @@
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
+#include <mutex>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -15,12 +17,39 @@
 using pfaedle::trgraph::Normalizer;
 
 // _____________________________________________________________________________
-Normalizer::Normalizer(const ReplRules& rules) : _rulesOrig(rules) {
+Normalizer::Normalizer(const ReplRules& rules)
+    : _rulesOrig(rules) {
   buildRules(rules);
 }
 
 // _____________________________________________________________________________
+Normalizer::Normalizer(const Normalizer& other)
+    : _rules(other._rules),
+      _rulesOrig(other._rulesOrig),
+      _cache(other._cache) {}
+
+// _____________________________________________________________________________
+Normalizer& Normalizer::operator=(Normalizer other) {
+  std::swap(this->_rules, other._rules);
+  std::swap(this->_rulesOrig, other._rulesOrig);
+  std::swap(this->_cache, other._cache);
+
+  return *this;
+}
+
+// _____________________________________________________________________________
 std::string Normalizer::operator()(std::string sn) const {
+  return normTS(sn);
+}
+
+// _____________________________________________________________________________
+std::string Normalizer::normTS(const std::string& sn) const {
+  std::lock_guard<std::mutex> lock(_mutex);
+  return norm(sn);
+}
+
+// _____________________________________________________________________________
+std::string Normalizer::norm(const std::string& sn) const {
   auto i = _cache.find(sn);
   if (i != _cache.end()) return i->second;
 

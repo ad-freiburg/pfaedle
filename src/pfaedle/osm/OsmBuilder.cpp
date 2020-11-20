@@ -24,28 +24,28 @@
 #include "util/log/Log.h"
 #include "xml/pfxml.h"
 
-using util::geo::webMercMeterDist;
-using util::geo::Box;
-using util::Nullable;
-using pfaedle::trgraph::Normalizer;
+using ad::cppgtfs::gtfs::Stop;
+using pfaedle::osm::BlockSearch;
+using pfaedle::osm::EdgeGrid;
+using pfaedle::osm::EqSearch;
+using pfaedle::osm::NodeGrid;
+using pfaedle::osm::OsmBuilder;
+using pfaedle::osm::OsmNode;
+using pfaedle::osm::OsmRel;
+using pfaedle::osm::OsmWay;
+using pfaedle::trgraph::Component;
+using pfaedle::trgraph::Edge;
+using pfaedle::trgraph::EdgePL;
 using pfaedle::trgraph::Graph;
 using pfaedle::trgraph::Node;
 using pfaedle::trgraph::NodePL;
-using pfaedle::trgraph::Edge;
-using pfaedle::trgraph::EdgePL;
-using pfaedle::trgraph::TransitEdgeLine;
-using pfaedle::trgraph::StatInfo;
+using pfaedle::trgraph::Normalizer;
 using pfaedle::trgraph::StatGroup;
-using pfaedle::trgraph::Component;
-using pfaedle::osm::OsmBuilder;
-using pfaedle::osm::OsmWay;
-using pfaedle::osm::OsmRel;
-using pfaedle::osm::OsmNode;
-using pfaedle::osm::EdgeGrid;
-using pfaedle::osm::NodeGrid;
-using pfaedle::osm::EqSearch;
-using pfaedle::osm::BlockSearch;
-using ad::cppgtfs::gtfs::Stop;
+using pfaedle::trgraph::StatInfo;
+using pfaedle::trgraph::TransitEdgeLine;
+using util::Nullable;
+using util::geo::Box;
+using util::geo::webMercMeterDist;
 
 // _____________________________________________________________________________
 bool EqSearch::operator()(const Node* cand, const StatInfo* si) const {
@@ -342,7 +342,7 @@ void OsmBuilder::readWriteRels(pfxml::file* i, util::xml::XmlWriter* o,
   OsmRel rel;
   while ((rel = nextRel(i, filter, keepAttrs)).id) {
     OsmIdList realNodes, realWays;
-    std::vector<const char *> realNodeRoles, realWayRoles;
+    std::vector<const char*> realNodeRoles, realWayRoles;
 
     for (size_t j = 0; j < rel.ways.size(); j++) {
       osmid wid = rel.ways[j];
@@ -425,8 +425,8 @@ void OsmBuilder::readWriteWays(pfxml::file* i, util::xml::XmlWriter* o,
 NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) {
   NodePL ret(
       util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(s->getLat(), s->getLng()),
-      StatInfo(ops.statNormzer(s->getName()),
-               ops.trackNormzer(s->getPlatformCode()), false));
+      StatInfo(ops.statNormzer.norm(s->getName()),
+               ops.trackNormzer.norm(s->getPlatformCode()), false));
 
 #ifdef PFAEDLE_STATION_IDS
   // debug feature, store station id from GTFS
@@ -434,7 +434,8 @@ NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) {
 #endif
 
   if (s->getParentStation()) {
-    ret.getSI()->addAltName(ops.statNormzer(s->getParentStation()->getName()));
+    ret.getSI()->addAltName(
+        ops.statNormzer.norm(s->getParentStation()->getName()));
   }
 
   return ret;
@@ -442,9 +443,9 @@ NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) {
 
 // _____________________________________________________________________________
 pfxml::parser_state OsmBuilder::readBBoxNds(pfxml::file* xml, OsmIdSet* nodes,
-                                         OsmIdSet* nohupNodes,
-                                         const OsmFilter& filter,
-                                         const BBoxIdx& bbox) const {
+                                            OsmIdSet* nohupNodes,
+                                            const OsmFilter& filter,
+                                            const BBoxIdx& bbox) const {
   bool inNodeBlock = false;
   uint64_t curId = 0;
 
@@ -739,7 +740,8 @@ void OsmBuilder::readWriteNds(pfxml::file* i, util::xml::XmlWriter* o,
                         {"lat", std::to_string(nd.lat)},
                         {"lon", std::to_string(nd.lng)}});
     for (const auto& kv : nd.attrs) {
-      o->openTag("tag", {{"k", kv.first}, {"v", pfxml::file::decode(kv.second)}});
+      o->openTag("tag",
+                 {{"k", kv.first}, {"v", pfxml::file::decode(kv.second)}});
       o->closeTag();
     }
     o->closeTag();
@@ -937,10 +939,11 @@ std::string OsmBuilder::getAttrByFirstMatch(const DeepAttrLst& rule, osmid id,
                                             const AttrMap& attrs,
                                             const RelMap& entRels,
                                             const RelLst& rels,
-                                            const Normalizer& norm) const {
+                                            const Normalizer& normzer) const {
   std::string ret;
   for (const auto& s : rule) {
-    ret = norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
+    ret =
+        normzer.norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
     if (!ret.empty()) return ret;
   }
 
@@ -950,11 +953,12 @@ std::string OsmBuilder::getAttrByFirstMatch(const DeepAttrLst& rule, osmid id,
 // _____________________________________________________________________________
 std::vector<std::string> OsmBuilder::getAttrMatchRanked(
     const DeepAttrLst& rule, osmid id, const AttrMap& attrs,
-    const RelMap& entRels, const RelLst& rels, const Normalizer& norm) const {
+    const RelMap& entRels, const RelLst& rels,
+    const Normalizer& normzer) const {
   std::vector<std::string> ret;
   for (const auto& s : rule) {
     std::string tmp =
-        norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
+        normzer.norm(pfxml::file::decode(getAttr(s, id, attrs, entRels, rels)));
     if (!tmp.empty()) ret.push_back(tmp);
   }
 
@@ -1183,9 +1187,8 @@ Node* OsmBuilder::depthSearch(const Edge* e, const StatInfo* si, const POINT& p,
 
       int fullTurn = 0;
 
-      if (cur.fromEdge &&
-          cur.node->getInDeg() + cur.node->getOutDeg() >
-              2) {  // only intersection angles
+      if (cur.fromEdge && cur.node->getInDeg() + cur.node->getOutDeg() >
+                              2) {  // only intersection angles
         const POINT& toP = *cand->pl().getGeom();
         const POINT& fromP =
             *cur.fromEdge->getOtherNd(cur.node)->pl().getGeom();
@@ -1425,7 +1428,8 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.sNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.shortName = ops.lineNormzer(pfxml::file::decode(relAttr.second));
+            el.shortName =
+                ops.lineNormzer.norm(pfxml::file::decode(relAttr.second));
             if (!el.shortName.empty()) found = true;
           }
         }
@@ -1436,7 +1440,8 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.fromNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.fromStr = ops.statNormzer(pfxml::file::decode(relAttr.second));
+            el.fromStr =
+                ops.statNormzer.norm(pfxml::file::decode(relAttr.second));
             if (!el.fromStr.empty()) found = true;
           }
         }
@@ -1447,7 +1452,8 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.toNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.toStr = ops.statNormzer(pfxml::file::decode(relAttr.second));
+            el.toStr =
+                ops.statNormzer.norm(pfxml::file::decode(relAttr.second));
             if (!el.toStr.empty()) found = true;
           }
         }
@@ -1895,9 +1901,10 @@ void OsmBuilder::snapStats(const OsmReadOpts& opts, Graph* g,
   }
 
   if (notSnapped.size())
-    LOG(VDEBUG) << notSnapped.size() << " stations could not be snapped in "
-                                        "normal run, trying again in orphan "
-                                        "mode.";
+    LOG(VDEBUG) << notSnapped.size()
+                << " stations could not be snapped in "
+                   "normal run, trying again in orphan "
+                   "mode.";
 
   // try again, but aggressively snap to orphan OSM stations which have
   // not been assigned to any GTFS stop yet

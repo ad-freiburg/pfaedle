@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 namespace pfaedle {
 namespace trgraph {
@@ -28,7 +29,19 @@ class Normalizer {
   Normalizer() {}
   explicit Normalizer(const ReplRules& rules);
 
-  // Normalize sn based on the rules of this normalizer
+  // copy constructor
+  Normalizer(const Normalizer& other);
+
+  // assignment op
+  Normalizer& operator=(Normalizer other);
+
+  // Normalize sn, not thread safe
+  std::string norm(const std::string& sn) const;
+  // Normalize sn, thread safe
+  std::string normTS(const std::string& sn) const;
+
+  // Normalize sn based on the rules of this normalizer, uses the thread safe
+  // version of norm() internally
   std::string operator()(std::string sn) const;
   bool operator==(const Normalizer& b) const;
 
@@ -36,6 +49,7 @@ class Normalizer {
   ReplRulesComp _rules;
   ReplRules _rulesOrig;
   mutable std::unordered_map<std::string, std::string> _cache;
+  mutable std::mutex _mutex;
 
   void buildRules(const ReplRules& rules);
 };

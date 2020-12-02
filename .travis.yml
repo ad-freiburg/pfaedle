@@ -11,6 +11,8 @@ addons:
     - ubuntu-toolchain-r-test
     packages:
     - cmake
+services:
+- docker
 before_install:
 - export LD_LIBRARY_PATH=$(if [[ $CXX == "clang++" ]]; then echo -n '/usr/local/clang/lib';
   fi)
@@ -21,7 +23,7 @@ before_script:
 script:
 - make -j4
 - ctest --verbose
-- docker build -t ad-freiburg/pfaedle .
+- docker build -t adfreiburg/pfaedle .
 deploy:
   on:
     branch: master

@@ -26,6 +26,13 @@ before_script:
 script:
   - make -j4
   - ctest --verbose
+  - docker build -t ad-freiburg/pfaedle .
+
+deploy:
+  on:
+    branch: master
+  provider: script
+  script: bash push-docker-image.sh
 
 notifications:
   email:

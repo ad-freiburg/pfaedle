@@ -77,7 +77,7 @@ run.
 
 ## via Docker
 
-You can use the [`ad-freiburg/pfaedle` Docker image](https://hub.docker.com/repository/docker/ad-freiburg/pfaedle) by mounting the OSM & GTFS data into the container:
+You can use the [`adfreiburg/pfaedle` Docker image](https://hub.docker.com/repository/docker/adfreiburg/pfaedle) by mounting the OSM & GTFS data into the container:
 
 ```shell
 docker run -i --rm \

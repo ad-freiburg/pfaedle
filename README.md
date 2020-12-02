@@ -75,6 +75,20 @@ input GTFS feed and the input configuration.
 This can be used to avoid parsing (for example) the entire `planet.osm` on each
 run.
 
+## via Docker
+
+You can use the [`ad-freiburg/pfaedle` Docker image](https://hub.docker.com/repository/docker/ad-freiburg/pfaedle) by mounting the OSM & GTFS data into the container:
+
+```shell
+docker run -i --rm \
+	# mount OSM data
+	--volume /path/to/osm/data:/osm \
+	# mount GTFS data
+	--volume /path/to/gtfs/data:/gtfs \
+	# tell pfaedle where to find the data
+	pfaedle -x /osm/osm-data.xml -i /gtfs
+```
+
 ## Debugging
 
 The following flags may be useful for debugging:

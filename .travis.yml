@@ -27,6 +27,8 @@ script:
 deploy:
   on:
     branch: master
+    condition: "$CC = gcc"
+    os: linux
   provider: script
   script: bash push-docker-image.sh
 notifications:

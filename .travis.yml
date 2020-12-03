@@ -23,7 +23,7 @@ before_script:
 script:
 - make -j4
 - ctest --verbose
-- docker build -t adfreiburg/pfaedle .
+- if [[ ( "$TRAVIS_OS_NAME" == "linux" ) ]]; then cd .. && docker build -t adfreiburg/pfaedle .; fi
 deploy:
   on:
     branch: master

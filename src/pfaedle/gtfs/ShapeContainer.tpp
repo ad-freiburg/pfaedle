@@ -3,10 +3,11 @@
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
 #include <string>
+#include <iostream>
 
 // ____________________________________________________________________________
 template <typename T>
-ShapeContainer<T>::ShapeContainer() {
+ShapeContainer<T>::ShapeContainer() : _lastBuff(0) {
   std::string f = pfaedle::getTmpFName("", "");
   _storage.open(f, std::fstream::in | std::fstream::out | std::fstream::trunc);
 
@@ -23,6 +24,8 @@ ShapeContainer<T>::ShapeContainer() {
 // ____________________________________________________________________________
 template <typename T>
 ShapeContainer<T>::~ShapeContainer() {
+  _storage << _writeBuffer.rdbuf();
+  _storage.flush();
   _storage.close();
 }
 
@@ -70,18 +73,22 @@ size_t ShapeContainer<T>::size() const {
 template <typename T>
 std::string ShapeContainer<T>::add(const ad::cppgtfs::gtfs::Shape& s) {
   if (has(s.getId())) return s.getId();
+  size_t size = s.getPoints().size();
   _ids.insert(s.getId());
 
-  _writeBuffer << s.getId() << '\t' << s.getPoints().size();
-  _writeBuffer << std::setprecision(11);
-  for (auto p : s.getPoints()) {
-    _writeBuffer << " " << p.lat << " " << p.lng << " " << p.travelDist;
-  }
-  // entries are newline separated
-  _writeBuffer << '\n';
+  _writeBuffer << s.getId();
+  _writeBuffer.put(' ');
+  _writeBuffer.write(reinterpret_cast<const char*>(&size), sizeof(size));
 
-  if (_writeBuffer.tellp() > 1000 * 5000) {
-    _storage << _writeBuffer.rdbuf();
+  for (const auto& p : s.getPoints()) {
+    _writeBuffer.write(reinterpret_cast<const char*>(&p.lat), sizeof(p.lat));
+    _writeBuffer.write(reinterpret_cast<const char*>(&p.lng), sizeof(p.lng));
+    _writeBuffer.write(reinterpret_cast<const char*>(&p.travelDist), sizeof(p.travelDist));
+  }
+
+  if (_writeBuffer.tellp() - _lastBuff > 1000 * 5000) {
+     _lastBuff = _writeBuffer.tellp();
+     _storage << _writeBuffer.rdbuf();
     _writeBuffer.clear();
   }
 
@@ -92,6 +99,7 @@ std::string ShapeContainer<T>::add(const ad::cppgtfs::gtfs::Shape& s) {
 template <typename T>
 void ShapeContainer<T>::open() {
   _storage << _writeBuffer.rdbuf();
+  _storage.flush();
   _writeBuffer.clear();
 
   _ptr = 0;
@@ -107,14 +115,17 @@ bool ShapeContainer<T>::nextStoragePt(
   while (_storage.good() && !_storage.fail()) {
     if (!_ptr) {
       _storage >> _curId;
-      _storage >> _max;
+      _storage.ignore();
+
+      _storage.read(reinterpret_cast<char*>(&_max), sizeof(_max));
     }
 
     if (!_storage.good() || _storage.fail()) return false;
 
-    _storage >> ret->lat;
-    _storage >> ret->lng;
-    _storage >> ret->travelDist;
+    _storage.read(reinterpret_cast<char*>(&ret->lat), sizeof(ret->lat));
+    _storage.read(reinterpret_cast<char*>(&ret->lng), sizeof(ret->lng));
+    _storage.read(reinterpret_cast<char*>(&ret->travelDist), sizeof(ret->travelDist));
+
     ret->seq = _ptr + 1;
     ret->id = _curId;
 

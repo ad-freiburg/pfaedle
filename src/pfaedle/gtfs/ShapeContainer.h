@@ -61,6 +61,7 @@ class ShapeContainer {
   size_t _max;
   std::string _curId;
   std::stringstream _writeBuffer;
+  std::fpos<std::mbstate_t> _lastBuff;
 };
 
 #include "ShapeContainer.tpp"

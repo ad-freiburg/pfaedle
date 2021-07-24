@@ -2,8 +2,8 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
-#include <string>
 #include <iostream>
+#include <string>
 
 // ____________________________________________________________________________
 template <typename T>
@@ -15,8 +15,7 @@ ShapeContainer<T>::ShapeContainer() : _lastBuff(0) {
   unlink(f.c_str());
 
   if (!_storage.good()) {
-    std::cerr << "Could not open temporary file " << f
-              << std::endl;
+    std::cerr << "Could not open temporary file " << f << std::endl;
     exit(1);
   }
 }
@@ -83,12 +82,13 @@ std::string ShapeContainer<T>::add(const ad::cppgtfs::gtfs::Shape& s) {
   for (const auto& p : s.getPoints()) {
     _writeBuffer.write(reinterpret_cast<const char*>(&p.lat), sizeof(p.lat));
     _writeBuffer.write(reinterpret_cast<const char*>(&p.lng), sizeof(p.lng));
-    _writeBuffer.write(reinterpret_cast<const char*>(&p.travelDist), sizeof(p.travelDist));
+    _writeBuffer.write(reinterpret_cast<const char*>(&p.travelDist),
+                       sizeof(p.travelDist));
   }
 
   if (_writeBuffer.tellp() - _lastBuff > 1000 * 5000) {
-     _lastBuff = _writeBuffer.tellp();
-     _storage << _writeBuffer.rdbuf();
+    _lastBuff = _writeBuffer.tellp();
+    _storage << _writeBuffer.rdbuf();
     _writeBuffer.clear();
   }
 
@@ -124,7 +124,8 @@ bool ShapeContainer<T>::nextStoragePt(
 
     _storage.read(reinterpret_cast<char*>(&ret->lat), sizeof(ret->lat));
     _storage.read(reinterpret_cast<char*>(&ret->lng), sizeof(ret->lng));
-    _storage.read(reinterpret_cast<char*>(&ret->travelDist), sizeof(ret->travelDist));
+    _storage.read(reinterpret_cast<char*>(&ret->travelDist),
+                  sizeof(ret->travelDist));
 
     ret->seq = _ptr + 1;
     ret->id = _curId;

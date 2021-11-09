@@ -1,6 +1,6 @@
 [submodule "src/cppgtfs"]
 	path = src/cppgtfs
-	url = https://ad-git.informatik.uni-freiburg.de/ad/cppgtfs.git
+	url = https://github.com/ad-freiburg/cppgtfs.git
 [submodule "src/xml"]
 	path = src/xml
 	url = https://github.com/patrickbr/pfxml.git

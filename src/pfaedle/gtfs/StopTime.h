@@ -27,14 +27,11 @@ class StopTime {
            ad::cppgtfs::gtfs::flat::StopTime::PU_DO_TYPE put,
            ad::cppgtfs::gtfs::flat::StopTime::PU_DO_TYPE dot, float distTrav,
            bool isTp)
-      : _s(s), _sequence(seq), _dist(distTrav) {
-    UNUSED(at);
-    UNUSED(dt);
+      : _s(s), _sequence(seq), _dist(distTrav), _at(at), _dt(dt), _isTp(isTp) {
     UNUSED(hs);
     UNUSED(put);
     UNUSED(dot);
     UNUSED(distTrav);
-    UNUSED(isTp);
   }
 
   const typename StopT::Ref getStop() const { return _s; }
@@ -42,20 +39,23 @@ class StopTime {
   void setShapeDistanceTravelled(double d) { _dist = d; }
 
   ad::cppgtfs::gtfs::Time getArrivalTime() const {
-    return ad::cppgtfs::gtfs::Time(0, 0, 0);
+    return _at;
   }
   ad::cppgtfs::gtfs::Time getDepartureTime() const {
-    return ad::cppgtfs::gtfs::Time(0, 0, 0);
+    return _dt;
   }
 
   float getShapeDistanceTravelled() const { return _dist; }
 
   uint16_t getSeq() const { return _sequence; }
+  bool isTp() const { return _isTp; }
 
  private:
   typename StopT::Ref _s;
   uint32_t _sequence;
   float _dist;
+  ad::cppgtfs::gtfs::Time _at, _dt;
+  bool _isTp;
 };
 
 template <typename StopTimeT>

@@ -27,6 +27,7 @@ class OsmFilter {
   uint64_t onewayrev(const AttrMap& attrs) const;
   uint64_t station(const AttrMap& attrs) const;
   uint64_t blocker(const AttrMap& attrs) const;
+  uint64_t turnCycle(const AttrMap& attrs) const;
   uint64_t negRestr(const AttrMap& attrs) const;
   uint64_t posRestr(const AttrMap& attrs) const;
   std::vector<std::string> getAttrKeys() const;
@@ -46,7 +47,7 @@ class OsmFilter {
 
  private:
   MultAttrMap _keep, _drop, _nohup, _oneway, _onewayrev, _twoway, _station,
-      _blocker, _posRestr, _negRestr, _noRestr;
+      _blocker, _posRestr, _negRestr, _noRestr, _turnCycle;
   const MultAttrMap* _levels;
 };
 }  // namespace osm

@@ -51,6 +51,11 @@ typedef Polygon<int> IPolygon;
 
 const static double EPSILON = 0.00001;
 const static double RAD = 0.017453292519943295;  // PI/180
+const static double IRAD = 180.0 / M_PI;         // 180 / PI
+const static double AVERAGING_STEP = 20;
+
+const static double M_PER_DEG = 111319.4;
+
 
 // _____________________________________________________________________________
 template <typename T>
@@ -200,6 +205,14 @@ template <typename T>
 inline Polygon<T> move(Polygon<T> geo, double x, double y) {
   for (size_t i = 0; i < geo.getOuter().size(); i++)
     geo.getOuter()[i] = move(geo.getOuter()[i], x, y);
+  return geo;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> move(Box<T> geo, double x, double y) {
+  geo.setLowerLeft(move(geo.getLowerLeft(), x, y));
+  geo.setUpperRight(move(geo.getUpperRight(), x, y));
   return geo;
 }
 
@@ -356,8 +369,9 @@ inline bool contains(const Polygon<T>& polyC, const Polygon<T>& poly) {
   }
 
   // also check the last hop
-  if (!contains(LineSegment<T>(polyC.getOuter().back(), polyC.getOuter().front()),
-                poly))
+  if (!contains(
+          LineSegment<T>(polyC.getOuter().back(), polyC.getOuter().front()),
+          poly))
     return false;
 
   return true;
@@ -628,6 +642,34 @@ inline bool intersects(const Box<T>& b, const Point<T>& p) {
 }
 
 // _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline bool intersects(const std::vector<GeometryA<T>>& multigeom,
+                       const GeometryB<T>& b) {
+  for (const auto& geom : multigeom)
+    if (intersects(geom, b)) return true;
+  return false;
+}
+
+// _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline bool intersects(const GeometryB<T>& b,
+                       const std::vector<GeometryA<T>>& multigeom) {
+  return intersects(multigeom, b);
+}
+
+// _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline bool intersects(const std::vector<GeometryA<T>>& multigeomA,
+                       const std::vector<GeometryA<T>>& multigeomB) {
+  for (const auto& geom : multigeomA)
+    if (intersects(geom, multigeomB)) return true;
+  return false;
+}
+
+// _____________________________________________________________________________
 template <typename T>
 inline Point<T> intersection(T p1x, T p1y, T q1x, T q1y, T p2x, T p2y, T q2x,
                              T q2y) {
@@ -778,6 +820,36 @@ inline double dist(const Line<T>& la, const Line<T>& lb) {
 }
 
 // _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline double dist(const std::vector<GeometryA<T>>& multigeom,
+                   const GeometryB<T>& b) {
+  double d = std::numeric_limits<double>::infinity();
+  for (const auto& geom : multigeom)
+    if (dist(geom, b) < d) d = dist(geom, b);
+  return d;
+}
+
+// _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline double dist(const GeometryB<T>& b,
+                   const std::vector<GeometryA<T>>& multigeom) {
+  return dist(multigeom, b);
+}
+
+// _____________________________________________________________________________
+template <template <typename> class GeometryA,
+          template <typename> class GeometryB, typename T>
+inline double dist(const std::vector<GeometryA<T>>& multigeomA,
+                   const std::vector<GeometryB<T>>& multigeomB) {
+  double d = std::numeric_limits<double>::infinity();
+  for (const auto& geom : multigeomB)
+    if (dist(geom, multigeomA) < d) d = dist(geom, multigeomA);
+  return d;
+}
+
+// _____________________________________________________________________________
 inline double innerProd(double x1, double y1, double x2, double y2, double x3,
                         double y3) {
   double dx21 = x2 - x1;
@@ -788,7 +860,7 @@ inline double innerProd(double x1, double y1, double x2, double y2, double x3,
   double m13 = sqrt(dx31 * dx31 + dy31 * dy31);
   double theta = acos(std::min((dx21 * dx31 + dy21 * dy31) / (m12 * m13), 1.0));
 
-  return theta * (180 / M_PI);
+  return theta * IRAD;
 }
 
 // _____________________________________________________________________________
@@ -1242,6 +1314,56 @@ inline Box<T> getBoundingBox(const std::vector<Geometry<T>>& multigeo) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline Box<T> getBoundingRect(const Box<T>& b) {
+  auto box = Box<T>();
+  auto centroid = util::geo::centroid(b);
+  box = extendBox(b, box);
+  box = extendBox(rotate(convexHull(b), 180, centroid), box);
+  return box;
+}
+
+// _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline Box<T> getBoundingRect(const Geometry<T> geom) {
+  return getBoundingRect<T>(getBoundingBox<T>(geom));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double getEnclosingRadius(const Point<T>& p, const Point<T>& pp) {
+  return dist(p, pp);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double getEnclosingRadius(const Point<T>& p, const Line<T>& l) {
+  double ret = 0;
+  for (const auto& pp : l)
+    if (getEnclosingRadius(p, pp) > ret) ret = getEnclosingRadius(p, pp);
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double getEnclosingRadius(const Point<T>& p, const Polygon<T>& pg) {
+  double ret = 0;
+  for (const auto& pp : pg.getOuter())
+    if (getEnclosingRadius(p, pp) > ret) ret = getEnclosingRadius(p, pp);
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline double getEnclosingRadius(const Point<T>& p,
+                                 const std::vector<Geometry<T>>& multigeom) {
+  double ret = 0;
+  for (const auto& pp : multigeom)
+    if (getEnclosingRadius(p, pp) > ret) ret = getEnclosingRadius(p, pp);
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline Polygon<T> convexHull(const Point<T>& p) {
   return Polygon<T>({p});
 }
@@ -1308,7 +1430,7 @@ inline Polygon<T> convexHull(const MultiPoint<T>& l) {
   convexHullImpl(l, 0, 1, &hull);
   hull.push_back(hull.front());
   convexHullImpl(l, hull.size() - 2, hull.size() - 1, &hull);
-	hull.pop_back();
+  hull.pop_back();
 
   return Polygon<T>(hull);
 }
@@ -1353,6 +1475,181 @@ template <template <typename> class Geometry, typename T>
 inline Box<T> extendBox(const std::vector<Geometry<T>>& multigeom, Box<T> b) {
   for (const auto& g : multigeom) b = extendBox(g, b);
   return b;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Point<T> pointAt(const Line<T> l, double at) {
+  return pointAtDist(l, at * len(l));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Point<T> pointAt(const Line<T> l, double at, size_t* lastI, double* totPos) {
+  return pointAtDist(l, at * len(l), lastI, totPos);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Point<T> pointAtDist(const Line<T> l, double atDist) {
+  return pointAtDist(l, atDist, 0, 0);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Point<T> pointAtDist(const Line<T> l, double atDist, size_t* lastI,
+                     double* totPos) {
+  if (l.size() == 1) {
+    if (lastI) *lastI = 0;
+    if (totPos) *totPos = 0;
+    return l[1];
+  }
+
+  if (atDist > geo::len(l)) atDist = geo::len(l);
+  if (atDist < 0) atDist = 0;
+
+  double dist = 0;
+
+  const Point<T>* last = &l[0];
+
+  for (size_t i = 1; i < l.size(); i++) {
+    const Point<T>& cur = l[i];
+    double d = geo::dist(*last, cur);
+    dist += d;
+
+    if (dist > atDist) {
+      double p = (d - (dist - atDist));
+      if (lastI) *lastI = i - 1;
+      if (totPos) *totPos = atDist / util::geo::len(l);
+      return interpolate(*last, cur, p / dist);
+    }
+
+    last = &l[i];
+  }
+
+  if (lastI) *lastI = l.size() - 1;
+  if (totPos) *totPos = 1;
+  return l.back();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Point<T> interpolate(const Point<T>& a, const Point<T>& b, double d) {
+  double n1 = b.getX() - a.getX();
+  double n2 = b.getY() - a.getY();
+  return Point<T>(a.getX() + (n1 * d), a.getY() + (n2 * d));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Line<T> orthoLineAtDist(const Line<T>& l, double d, double length) {
+  Point<T> avgP = pointAtDist(l, d);
+
+  double angle = angBetween(pointAtDist(l, d - 5), pointAtDist(l, d + 5));
+
+  double angleX1 = avgP.getX() + cos(angle + M_PI / 2) * length / 2;
+  double angleY1 = avgP.getY() + sin(angle + M_PI / 2) * length / 2;
+
+  double angleX2 = avgP.getX() + cos(angle + M_PI / 2) * -length / 2;
+  double angleY2 = avgP.getY() + sin(angle + M_PI / 2) * -length / 2;
+
+  return Line<T>{Point<T>(angleX1, angleY1), Point<T>(angleX2, angleY2)};
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Line<T> segment(const Line<T>& line, double a, double b) {
+  if (a > b) {
+    double c = a;
+    a = b;
+    b = c;
+  }
+  size_t startI, endI;
+  auto start = pointAt(line, a, &startI, 0);
+  auto end = pointAt(line, b, &endI, 0);
+
+  return segment(line, start, startI, end, endI);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Line<T> segment(const Line<T>& line, const Point<T>& start, size_t startI,
+                const Point<T>& end, size_t endI) {
+  Line<T> ret;
+  ret.push_back(start);
+
+  if (startI + 1 <= endI) {
+    ret.insert(ret.end(), line.begin() + startI + 1, line.begin() + endI + 1);
+  }
+  ret.push_back(end);
+
+  // find a more performant way to clear the result of above
+  ret = util::geo::simplify(ret, 0);
+
+  assert(ret.size());
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Line<T> average(const std::vector<const Line<T>*>& lines) {
+  return average(lines, std::vector<double>());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+Line<T> average(const std::vector<const Line<T>*>& lines,
+                const std::vector<double>& weights) {
+  bool weighted = lines.size() == weights.size();
+  double stepSize;
+
+  double longestLength =
+      std::numeric_limits<double>::min();  // avoid recalc of length on each
+                                           // comparision
+  for (auto p : lines) {
+    if (len(*p) > longestLength) {
+      longestLength = len(*p);
+    }
+  }
+
+  Line<T> ret;
+  double total = 0;
+
+  for (size_t i = 0; i < lines.size(); ++i) {
+    if (weighted) {
+      total += weights[i];
+    } else {
+      total += 1;
+    }
+  }
+
+  stepSize = AVERAGING_STEP / longestLength;
+  bool end = false;
+  for (double a = 0; !end; a += stepSize) {
+    if (a > 1) {
+      a = 1;
+      end = true;
+    }
+    double x = 0, y = 0;
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+      auto pl = lines[i];
+      Point<T> p = pointAt(*pl, a);
+      if (weighted) {
+        x += p.getX() * weights[i];
+        y += p.getY() * weights[i];
+      } else {
+        x += p.getX();
+        y += p.getY();
+      }
+    }
+    ret.push_back(Point<T>(x / total, y / total));
+  }
+
+  simplify(ret, 0);
+
+  return ret;
 }
 
 // _____________________________________________________________________________
@@ -1510,28 +1807,30 @@ inline Line<T> densify(const Line<T>& l, double d) {
 // _____________________________________________________________________________
 template <typename T>
 inline double frechetDistC(size_t i, size_t j, const Line<T>& p,
-                           const Line<T>& q,
-                           std::vector<std::vector<double>>& ca) {
+                           const Line<T>& q, std::vector<float>& ca) {
   // based on Eiter / Mannila
   // http://www.kr.tuwien.ac.at/staff/eiter/et-archive/cdtr9464.pdf
 
-  if (ca[i][j] > -1)
-    return ca[i][j];
+  if (ca[i * q.size() + j] > -1)
+    return ca[i * q.size() + j];
   else if (i == 0 && j == 0)
-    ca[i][j] = dist(p[0], q[0]);
+    ca[i * q.size() + j] = dist(p[0], q[0]);
   else if (i > 0 && j == 0)
-    ca[i][j] = std::max(frechetDistC(i - 1, 0, p, q, ca), dist(p[i], q[0]));
+    ca[i * q.size() + j] =
+        std::max(frechetDistC(i - 1, 0, p, q, ca), dist(p[i], q[0]));
   else if (i == 0 && j > 0)
-    ca[i][j] = std::max(frechetDistC(0, j - 1, p, q, ca), dist(p[0], q[j]));
+    ca[i * q.size() + j] =
+        std::max(frechetDistC(0, j - 1, p, q, ca), dist(p[0], q[j]));
   else if (i > 0 && j > 0)
-    ca[i][j] = std::max(std::min(std::min(frechetDistC(i - 1, j, p, q, ca),
-                                          frechetDistC(i - 1, j - 1, p, q, ca)),
-                                 frechetDistC(i, j - 1, p, q, ca)),
-                        dist(p[i], q[j]));
+    ca[i * q.size() + j] =
+        std::max(std::min(std::min(frechetDistC(i - 1, j, p, q, ca),
+                                   frechetDistC(i - 1, j - 1, p, q, ca)),
+                          frechetDistC(i, j - 1, p, q, ca)),
+                 dist(p[i], q[j]));
   else
-    ca[i][j] = std::numeric_limits<double>::infinity();
+    ca[i * q.size() + j] = std::numeric_limits<float>::infinity();
 
-  return ca[i][j];
+  return ca[i * q.size() + j];
 }
 
 // _____________________________________________________________________________
@@ -1543,8 +1842,7 @@ inline double frechetDist(const Line<T>& a, const Line<T>& b, double d) {
   auto p = densify(a, d);
   auto q = densify(b, d);
 
-  std::vector<std::vector<double>> ca(p.size(),
-                                      std::vector<double>(q.size(), -1.0));
+  std::vector<float> ca(p.size() * q.size(), -1.0);
   double fd = frechetDistC(p.size() - 1, q.size() - 1, p, q, ca);
 
   return fd;
@@ -1556,24 +1854,28 @@ inline double accFrechetDistC(const Line<T>& a, const Line<T>& b, double d) {
   auto p = densify(a, d);
   auto q = densify(b, d);
 
-  std::vector<std::vector<double>> ca(p.size(),
-                                      std::vector<double>(q.size(), 0));
+  assert(p.size());
+  assert(q.size());
+
+  std::vector<float> ca(p.size() * q.size(), 0);
 
   for (size_t i = 0; i < p.size(); i++)
-    ca[i][0] = std::numeric_limits<double>::infinity();
+    ca[i * q.size() + 0] = std::numeric_limits<float>::infinity();
   for (size_t j = 0; j < q.size(); j++)
-    ca[0][j] = std::numeric_limits<double>::infinity();
-  ca[0][0] = 0;
+    ca[j] = std::numeric_limits<float>::infinity();
+  ca[0] = 0;
 
   for (size_t i = 1; i < p.size(); i++) {
     for (size_t j = 1; j < q.size(); j++) {
-      double d = util::geo::dist(p[i], q[j]) * util::geo::dist(p[i], p[i - 1]);
-      ca[i][j] =
-          d + std::min(ca[i - 1][j], std::min(ca[i][j - 1], ca[i - 1][j - 1]));
+      float d = util::geo::dist(p[i], q[j]) * util::geo::dist(p[i], p[i - 1]);
+      ca[i * q.size() + j] =
+          d + std::min(ca[(i - 1) * q.size() + j],
+                       std::min(ca[i * q.size() + (j - 1)],
+                                ca[(i - 1) * q.size() + (j - 1)]));
     }
   }
 
-  return ca[p.size() - 1][q.size() - 1];
+  return ca[p.size() * q.size() - 1];
 }
 
 // _____________________________________________________________________________
@@ -1588,11 +1890,48 @@ inline Point<T> latLngToWebMerc(double lat, double lng) {
 
 // _____________________________________________________________________________
 template <typename T>
+//TODO: rename to lngLat
+inline Point<T> latLngToWebMerc(Point<T> lngLat) {
+  return latLngToWebMerc<T>(lngLat.getY(), lngLat.getX());
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline Point<T> webMercToLatLng(double x, double y) {
-  double lat =
-      (1.5707963267948966 - (2.0 * atan(exp(-y / 6378137.0)))) * (180.0 / M_PI);
-  double lon = x / 111319.4907932735677;
+  const double lat =
+      (1.5707963267948966 - (2.0 * atan(exp(-y / 6378137.0)))) * IRAD;
+  const double lon = x / 111319.4907932735677;
   return Point<T>(lon, lat);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double haversine(T lat1, T lon1, T lat2, T lon2) {
+  lat1 *= RAD;
+  lat2 *= RAD;
+
+  const double dLat = lat2 - lat1;
+  const double dLon = (lon2 - lon1) * RAD;
+
+  const double sDLat = sin(dLat / 2);
+  const double sDLon = sin(dLon / 2);
+
+  const double a = (sDLat * sDLat) + (sDLon * sDLon) * cos(lat1) * cos(lat2);
+  return 6378137.0 * 2.0 * asin(sqrt(a));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double haversine(const Point<T>& a, const Point<T>& b) {
+  return haversine(a.getY(), a.getX(), b.getY(), b.getX());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double webMercMeterDist(const Point<T>& a, const Point<T>& b) {
+  const auto llA = webMercToLatLng<T>(a.getX(), a.getY());
+  const auto llB = webMercToLatLng<T>(b.getX(), b.getY());
+  return haversine(llA.getY(), llA.getX(), llB.getY(), llB.getX());
 }
 
 // _____________________________________________________________________________
@@ -1601,8 +1940,13 @@ inline double webMercMeterDist(const G1& a, const G2& b) {
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
 
-  double latA = 2 * atan(exp(a.getY() / 6378137.0)) - 1.5707965;
-  double latB = 2 * atan(exp(b.getY() / 6378137.0)) - 1.5707965;
+  // this is just an approximation
+
+  auto pa = centroid(a);
+  auto pb = centroid(b);
+
+  double latA = 2 * atan(exp(pa.getY() / 6378137.0)) - 1.5707965;
+  double latB = 2 * atan(exp(pb.getY() / 6378137.0)) - 1.5707965;
 
   return util::geo::dist(a, b) * cos((latA + latB) / 2.0);
 }
@@ -1624,7 +1968,17 @@ inline double webMercDistFactor(const G& a) {
   double lat = 2 * atan(exp(a.getY() / 6378137.0)) - 1.5707965;
   return cos(lat);
 }
+
+// _____________________________________________________________________________
+template <typename G>
+inline double latLngDistFactor(const G& a) {
+  // euclidean distance on web mercator is in meters on equator,
+  // and proportional to cos(lat) in both y directions
+
+  return cos(a.getY() * RAD);
 }
-}
+
+}  // namespace geo
+}  // namespace util
 
 #endif  // UTIL_GEO_GEO_H_

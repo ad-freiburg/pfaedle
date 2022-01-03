@@ -5,8 +5,10 @@
 #ifndef PFAEDLE_ROUTER_ROUTINGATTRS_H_
 #define PFAEDLE_ROUTER_ROUTINGATTRS_H_
 
-#include <map>
+#include <unordered_map>
+#include <vector>
 #include <string>
+#include "pfaedle/statsimi-classifier/StatsimiClassifier.h"
 #include "pfaedle/trgraph/EdgePL.h"
 
 using pfaedle::trgraph::TransitEdgeLine;
@@ -14,40 +16,74 @@ using pfaedle::trgraph::TransitEdgeLine;
 namespace pfaedle {
 namespace router {
 
+struct LineSimilarity {
+  bool nameSimilar : 1;
+  bool fromSimilar : 1;
+  bool toSimilar : 1;
+};
+
+inline bool operator<(const LineSimilarity& a, const LineSimilarity& b) {
+  return (a.nameSimilar + a.fromSimilar + a.toSimilar) <
+         (b.nameSimilar + b.fromSimilar + b.toSimilar);
+}
+
 struct RoutingAttrs {
-  RoutingAttrs() : fromString(""), toString(""), shortName(""), _simiCache() {}
-  std::string fromString;
-  std::string toString;
+  RoutingAttrs()
+      : lineFrom(""), lineTo(), shortName(""), classifier(0), _simiCache() {}
+  std::string lineFrom;
+  std::vector<std::string> lineTo;
   std::string shortName;
 
-  mutable std::map<const TransitEdgeLine*, double> _simiCache;
+  const pfaedle::statsimiclassifier::StatsimiClassifier* classifier;
 
-  // carfull: lower return value = higher similarity
-  double simi(const TransitEdgeLine* line) const {
+  mutable std::unordered_map<const TransitEdgeLine*, LineSimilarity> _simiCache;
+
+  LineSimilarity simi(const TransitEdgeLine* line) const {
+    // shortcut, if we don't have a line information, classify as similar
+    if (line->shortName.empty() && line->toStr.empty() && line->fromStr.empty())
+      return {true, true, true};
+
     auto i = _simiCache.find(line);
     if (i != _simiCache.end()) return i->second;
 
-    double cur = 1;
+    LineSimilarity ret{false, false, false};
+
     if (shortName.empty() || router::lineSimi(line->shortName, shortName) > 0.5)
-      cur -= 0.333333333;
+      ret.nameSimilar = true;
 
-    if (toString.empty() || line->toStr.empty() ||
-        router::statSimi(line->toStr, toString) > 0.5)
-      cur -= 0.333333333;
+    if (lineTo.size() == 0) {
+      ret.toSimilar = true;
+    } else {
+      for (const auto& lTo : lineTo) {
+        if (lTo.empty() || classifier->similar(line->toStr, lTo)) {
+          ret.toSimilar = true;
+          break;
+        }
+      }
+    }
 
-    if (fromString.empty() || line->fromStr.empty() ||
-        router::statSimi(line->fromStr, fromString) > 0.5)
-      cur -= 0.333333333;
+    if (lineFrom.empty() || classifier->similar(line->fromStr, lineFrom))
+      ret.fromSimilar = true;
 
-    _simiCache[line] = cur;
+    _simiCache[line] = ret;
 
-    return cur;
+    return ret;
+  }
+
+  void merge(const RoutingAttrs& other) {
+    assert(other.lineFrom == lineFrom);
+    assert(other.shortName == shortName);
+
+    for (const auto& l : other.lineTo) {
+      auto i = std::lower_bound(lineTo.begin(), lineTo.end(), l);
+      if (i != lineTo.end() && (*i) == l) continue;  // already present
+      lineTo.insert(i, l);
+    }
   }
 };
 
 inline bool operator==(const RoutingAttrs& a, const RoutingAttrs& b) {
-  return a.shortName == b.shortName && a.toString == b.toString &&
-         a.fromString == b.fromString;
+  return a.shortName == b.shortName && a.lineFrom == b.lineFrom;
 }
 
 inline bool operator!=(const RoutingAttrs& a, const RoutingAttrs& b) {
@@ -55,10 +91,8 @@ inline bool operator!=(const RoutingAttrs& a, const RoutingAttrs& b) {
 }
 
 inline bool operator<(const RoutingAttrs& a, const RoutingAttrs& b) {
-  return a.fromString < b.fromString ||
-         (a.fromString == b.fromString && a.toString < b.toString) ||
-         (a.fromString == b.fromString && a.toString == b.toString &&
-          a.shortName < b.shortName);
+  return a.lineFrom < b.lineFrom ||
+         (a.lineFrom == b.lineFrom && a.shortName < b.shortName);
 }
 
 }  // namespace router

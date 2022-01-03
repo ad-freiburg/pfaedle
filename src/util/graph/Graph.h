@@ -30,15 +30,16 @@ class Graph {
   virtual Node<N, E>* mergeNds(Node<N, E>* a, Node<N, E>* b) = 0;
 
   const std::set<Node<N, E>*>& getNds() const;
-  std::set<Node<N, E>*>* getNds();
+
+  static Node<N, E>* sharedNode(const Edge<N, E>* a, const Edge<N, E>* b);
 
   typename std::set<Node<N, E>*>::iterator delNd(Node<N, E>* n);
   typename std::set<Node<N, E>*>::iterator delNd(
       typename std::set<Node<N, E>*>::iterator i);
   void delEdg(Node<N, E>* from, Node<N, E>* to);
 
- private:
-  std::set<Node<N, E>*> _nodes;
+ protected:
+   std::set<Node<N, E>*> _nodes;
 };
 
 #include "util/graph/Graph.tpp"

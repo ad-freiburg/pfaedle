@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <mutex>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -35,17 +34,6 @@ Normalizer& Normalizer::operator=(Normalizer other) {
   std::swap(this->_cache, other._cache);
 
   return *this;
-}
-
-// _____________________________________________________________________________
-std::string Normalizer::operator()(std::string sn) const {
-  return normTS(sn);
-}
-
-// _____________________________________________________________________________
-std::string Normalizer::normTS(const std::string& sn) const {
-  std::lock_guard<std::mutex> lock(_mutex);
-  return norm(sn);
 }
 
 // _____________________________________________________________________________

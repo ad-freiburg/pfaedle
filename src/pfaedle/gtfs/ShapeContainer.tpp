@@ -45,15 +45,15 @@ bool ShapeContainer<T>::remove(const std::string& id) {
 // ____________________________________________________________________________
 template <typename T>
 T* ShapeContainer<T>::get(const std::string& id) {
-  if (!has(id)) return 0;
-  return reinterpret_cast<T*>(1);
+  UNUSED(id);
+  return reinterpret_cast<T*>(0);
 }
 
 // ____________________________________________________________________________
 template <typename T>
 const T* ShapeContainer<T>::get(const std::string& id) const {
-  if (!has(id)) return 0;
-  return reinterpret_cast<T*>(1);
+  UNUSED(id);
+  return reinterpret_cast<T*>(0);
 }
 
 // ____________________________________________________________________________

@@ -23,7 +23,7 @@ using ad::cppgtfs::gtfs::Route;
 class MotConfigReader {
  public:
   MotConfigReader();
-  void parse(const std::vector<std::string>& paths);
+  void parse(const std::vector<std::string>& paths, const std::string& literal);
 
   const std::vector<MotConfig>& getConfigs() const;
 

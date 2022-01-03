@@ -25,7 +25,7 @@ static const size_t BUFFER_S = 8 * 64 * 1024;
 static const size_t SORT_BUFFER_S = 8 * 64 * 1024;
 static const size_t OBUFFER_S = 8 * 1024 * 1024;
 
-#define BLOOMF_BITS 400000000
+#define BLOOMF_BITS 214748357
 
 /*
  * A disk-based set for OSM ids. Read-access for checking the presence is
@@ -38,6 +38,9 @@ class OsmIdSet {
 
   // Add an OSM id
   void add(osmid id);
+
+  // Add an OSM id that is NOT contained
+  void nadd(osmid id);
 
   // Check if an OSM id is contained
   bool has(osmid id) const;
@@ -57,6 +60,8 @@ class OsmIdSet {
   osmid _smallest;
   osmid _biggest;
 
+  bool _hasInv;
+
   size_t _obufpos;
   mutable size_t _curBlock;
   mutable ssize_t _curBlockSize;
@@ -64,13 +69,14 @@ class OsmIdSet {
   // bloom filter
   std::bitset<BLOOMF_BITS>* _bitset;
 
+  std::bitset<BLOOMF_BITS>* _bitsetNotIn;
+
   mutable std::vector<osmid> _blockEnds;
 
   mutable size_t _fsize;
 
   uint32_t knuth(uint32_t in) const;
   uint32_t jenkins(uint32_t in) const;
-  uint32_t hash(uint32_t in, int i) const;
   void diskAdd(osmid id);
   void close() const;
   void sort() const;

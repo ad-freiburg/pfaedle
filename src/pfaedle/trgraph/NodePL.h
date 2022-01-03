@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/trgraph/StatInfo.h"
@@ -20,7 +21,7 @@ namespace pfaedle {
 namespace trgraph {
 
 struct Component {
-  uint8_t minEdgeLvl : 3;
+  float maxSpeed;
 };
 
 /*
@@ -29,10 +30,8 @@ struct Component {
 class NodePL {
  public:
   NodePL();
-  NodePL(const NodePL& pl);   // NOLINT
   NodePL(const POINT& geom);  // NOLINT
   NodePL(const POINT& geom, const StatInfo& si);
-  ~NodePL();
 
   // Return the geometry of this node.
   const POINT* getGeom() const;
@@ -52,10 +51,13 @@ class NodePL {
   void setNoStat();
 
   // Get the component of this node
-  const Component* getComp() const;
+  const Component& getComp() const;
+
+  // Get the component of this node
+  uint32_t getCompId() const;
 
   // Set the component of this node
-  void setComp(const Component* c);
+  void setComp(uint32_t c);
 
   // Make this node a blocker
   void setBlocker();
@@ -63,21 +65,27 @@ class NodePL {
   // Check if this node is a blocker
   bool isBlocker() const;
 
+  // Make this node a turning cycle
+  void setTurnCycle();
+
+  // Check if this node is a blocker
+  bool isTurnCycle() const;
+
   // Mark this node as visited (usefull for counting search space in Dijkstra)
   // (only works for DEBUG build type)
   void setVisited() const;
 
+  static std::vector<Component> comps;
+
  private:
   POINT _geom;
-  StatInfo* _si;
-  const Component* _component;
+  uint32_t _si;
+  uint32_t _component;
 
 #ifdef PFAEDLE_DBG
   mutable bool _vis;
 #endif
-
-  static StatInfo _blockerSI;
-  static std::unordered_map<const Component*, size_t> _comps;
+  static std::vector<StatInfo> _statInfos;
 };
 }  // namespace trgraph
 }  // namespace pfaedle

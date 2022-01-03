@@ -11,6 +11,7 @@
 #include "pfaedle/_config.h"
 #include "pfaedle/config/ConfigReader.h"
 #include "util/String.h"
+#include "util/geo/Geo.h"
 #include "util/log/Log.h"
 
 using pfaedle::config::ConfigReader;
@@ -19,7 +20,7 @@ using std::string;
 using std::exception;
 using std::vector;
 
-static const char* YEAR = __DATE__ + 7;
+static const char* YEAR = &__DATE__[7];
 static const char* COPY =
     "University of Freiburg - Chair of Algorithms and Data Structures";
 static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
@@ -28,7 +29,7 @@ static const char* AUTHORS = "Patrick Brosi <brosi@informatik.uni-freiburg.de>";
 void ConfigReader::help(const char* bin) {
   std::cout << std::setfill(' ') << std::left << "pfaedle GTFS map matcher "
             << VERSION_FULL << "\n(built " << __DATE__ << " " << __TIME__
-            << " with geometry precision <" << PFAEDLE_PRECISION_STR << ">)\n\n"
+            << " with geometry precision <" << PFDL_PREC_STR << ">)\n\n"
             << "(C) " << YEAR << " " << COPY << "\n"
             << "Authors: " << AUTHORS << "\n\n"
             << "Usage: " << bin
@@ -43,6 +44,8 @@ void ConfigReader::help(const char* bin) {
             << "drop shapes already present in the feed and\n"
             << std::setw(35) << " "
             << "  recalculate them\n"
+            << std::setw(35) << "  --write-colors"
+            << "write matched route line colors, where missing\n"
             << "\nInput:\n"
             << std::setw(35) << "  -c [ --config ] arg"
             << "pfaedle config file\n"
@@ -83,26 +86,6 @@ void ConfigReader::help(const char* bin) {
             << "write routing graph as GeoJSON to\n"
             << std::setw(35) << " "
             << "  <dbg-path>/graph.json\n"
-            << std::setw(35) << "  --write-cgraph"
-            << "if -T is set, write combination graph as\n"
-            << std::setw(35) << " "
-            << "  GeoJSON to "
-               "<dbg-path>/combgraph.json\n"
-            << std::setw(35) << "  --method arg (=global)"
-            << "matching method to use, either 'global'\n"
-            << std::setw(35) << " "
-            << "  (based on HMM), 'greedy' or "
-               "'greedy2'\n"
-            << std::setw(35) << "  --eval"
-            << "evaluate existing shapes against matched\n"
-            << std::setw(35) << " "
-            << "  shapes and print results\n"
-            << std::setw(35) << "  --eval-path arg (=.)"
-            << "path for eval file output\n"
-            << std::setw(35) << "  --eval-df-bins arg (= )"
-            << "bins to use for d_f histogram, comma sep.\n"
-            << std::setw(35) << " "
-            << "  (e.g. 10,20,30,40)\n"
             << "\nMisc:\n"
             << std::setw(35) << "  -T [ --trip-id ] arg"
             << "Do routing only for trip <arg>, write result \n"
@@ -111,11 +94,19 @@ void ConfigReader::help(const char* bin) {
             << std::setw(35) << "  --overpass"
             << "Output overpass query for matching OSM data\n"
             << std::setw(35) << "  --grid-size arg (=2000)"
-            << "Grid cell size\n"
-            << std::setw(35) << "  --use-route-cache"
-            << "(experimental) cache intermediate routing\n"
-            << std::setw(35) << " "
-            << "  results\n";
+            << "Approx. grid cell size in meters\n"
+            << std::setw(35) << "  --no-fast-hops"
+            << "Disable fast hops technique\n"
+            << std::setw(35) << "  --no-a-star"
+            << "Disable A* heuristic \n"
+            << std::setw(35) << "  --no-trie"
+            << "Disable trip tries \n"
+            << std::setw(35) << "  --no-hop-cache"
+            << "Disable hop cache \n"
+            << std::setw(35) << "  --stats"
+            << "write stats to stats.json\n"
+            << std::setw(35) << "  -P"
+            << "additional parameter string (in cfg file format)\n";
 }
 
 // _____________________________________________________________________________
@@ -134,46 +125,37 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"osm-out", required_argument, 0, 'X'},
                          {"trip-id", required_argument, 0, 'T'},
                          {"write-graph", no_argument, 0, 1},
-                         {"write-cgraph", no_argument, 0, 2},
                          {"write-trgraph", no_argument, 0, 4},
-                         {"method", required_argument, 0, 5},
-                         {"eval", no_argument, 0, 3},
-                         {"eval-path", required_argument, 0, 6},
-                         {"eval-df-bins", required_argument, 0, 7},
                          {"dbg-path", required_argument, 0, 'd'},
                          {"version", no_argument, 0, 'v'},
                          {"help", no_argument, 0, 'h'},
                          {"inplace", no_argument, 0, 9},
-                         {"use-route-cache", no_argument, 0, 8},
+                         {"no-fast-hops", no_argument, 0, 10},
+                         {"no-a-star", no_argument, 0, 11},
+                         {"no-trie", no_argument, 0, 12},
+                         {"write-colors", no_argument, 0, 13},
+                         {"stats", no_argument, 0, 14},
+                         {"no-hop-cache", no_argument, 0, 15},
                          {0, 0, 0, 0}};
 
   char c;
-  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:p", ops, 0)) !=
+  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:", ops, 0)) !=
          -1) {
     switch (c) {
       case 1:
         cfg->writeGraph = true;
         break;
-      case 2:
-        cfg->writeCombGraph = true;
-        break;
-      case 3:
-        cfg->evaluate = true;
-        break;
       case 4:
         cfg->buildTransitGraph = true;
         break;
-      case 5:
-        cfg->solveMethod = optarg;
+      case 10:
+        cfg->noFastHops = true;
         break;
-      case 6:
-        cfg->evalPath = optarg;
+      case 11:
+        cfg->noAStar = true;
         break;
-      case 7:
-        cfg->evalDfBins = optarg;
-        break;
-      case 8:
-        cfg->useCaching = true;
+      case 12:
+        cfg->noTrie = true;
         break;
       case 'o':
         cfg->outputPath = optarg;
@@ -194,13 +176,16 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         motStr = optarg;
         break;
       case 'g':
-        cfg->gridSize = atof(optarg);
+        cfg->gridSize = atof(optarg) / util::geo::M_PER_DEG;
         break;
       case 'X':
         cfg->writeOsm = optarg;
         break;
       case 'T':
         cfg->shapeTripId = optarg;
+        break;
+      case 'P':
+        cfg->motCfgParam += std::string("\n") + optarg;
         break;
       case 'd':
         cfg->dbgOutputPath = optarg;
@@ -211,10 +196,19 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
       case 9:
         cfg->inPlace = true;
         break;
+      case 13:
+        cfg->writeColors = true;
+        break;
+      case 14:
+        cfg->writeStats = true;
+        break;
+      case 15:
+        cfg->noHopCache = true;
+        break;
       case 'v':
         std::cout << "pfaedle " << VERSION_FULL << " (built " << __DATE__ << " "
                   << __TIME__ << " with geometry precision <"
-                  << PFAEDLE_PRECISION_STR << ">)\n"
+                  << PFDL_PREC_STR << ">)\n"
                   << "(C) " << YEAR << " " << COPY << "\n"
                   << "Authors: " << AUTHORS << "\nGNU General Public "
                                                "License v3.0\n";

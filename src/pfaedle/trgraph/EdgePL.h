@@ -16,8 +16,6 @@
 
 using util::geograph::GeoEdgePL;
 
-
-
 namespace pfaedle {
 namespace trgraph {
 
@@ -28,14 +26,17 @@ struct TransitEdgeLine {
   std::string fromStr;
   std::string toStr;
   std::string shortName;
+  uint32_t color;
 };
 
 inline bool operator==(const TransitEdgeLine& a, const TransitEdgeLine& b) {
+  // ignoring color here!
   return a.fromStr == b.fromStr && a.toStr == b.toStr &&
          a.shortName == b.shortName;
 }
 
 inline bool operator<(const TransitEdgeLine& a, const TransitEdgeLine& b) {
+  // ignoring color here!
   return a.fromStr < b.fromStr ||
          (a.fromStr == b.fromStr && a.toStr < b.toStr) ||
          (a.fromStr == b.fromStr && a.toStr == b.toStr &&
@@ -65,13 +66,19 @@ class EdgePL {
   // Return the length in meters stored for this edge payload
   double getLength() const;
 
-  // Set the length in meters for this edge payload
-  void setLength(double d);
-
   // Set this edge as a one way node, either in the default direction of
   // the edge (no arg), or the direction specified in dir
   void setOneWay();
   void setOneWay(uint8_t dir);
+
+  void setLvl(uint8_t lvl) { assert(lvl < 9); _lvl = lvl; }
+  uint8_t lvl() const { return _lvl; }
+
+  // Return the cost for this edge payload
+  uint32_t getCost() const;
+
+  // Set the cost for this edge payload
+  void setCost(uint32_t d);
 
   // Mark this payload' edge as having some restrictions
   void setRestricted();
@@ -84,12 +91,6 @@ class EdgePL {
 
   // True if this edge is restricted
   bool isRestricted() const;
-
-  // Set the level of this edge.
-  void setLvl(uint8_t lvl);
-
-  // Return the level of this edge.
-  uint8_t lvl() const;
 
   // Return the one-way code stored for this edge.
   uint8_t oneWay() const;
@@ -115,11 +116,11 @@ class EdgePL {
   EdgePL revCopy() const;
 
  private:
-  float _length;
   uint8_t _oneWay : 2;
   bool _hasRestr : 1;
   bool _rev : 1;
-  uint8_t _lvl : 3;
+  uint8_t _lvl: 4;
+  uint32_t _cost;  // costs in 1/10th seconds
 
   LINE* _l;
 

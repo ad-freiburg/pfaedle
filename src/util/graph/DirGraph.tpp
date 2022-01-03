@@ -4,10 +4,6 @@
 
 // _____________________________________________________________________________
 template <typename N, typename E>
-DirGraph<N, E>::DirGraph() {}
-
-// _____________________________________________________________________________
-template <typename N, typename E>
 Node<N, E>* DirGraph<N, E>::addNd(const N& pl) {
   return addNd(new DirNode<N, E>(pl));
 }
@@ -21,7 +17,7 @@ Node<N, E>* DirGraph<N, E>::addNd() {
 // _____________________________________________________________________________
 template <typename N, typename E>
 Node<N, E>* DirGraph<N, E>::addNd(DirNode<N, E>* n) {
-  auto ins = Graph<N, E>::getNds()->insert(n);
+  auto ins = Graph<N, E>::_nodes.insert(n);
   return *ins.first;
 }
 

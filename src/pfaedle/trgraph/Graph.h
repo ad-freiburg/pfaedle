@@ -24,8 +24,8 @@ namespace trgraph {
 typedef util::graph::Edge<NodePL, EdgePL> Edge;
 typedef util::graph::Node<NodePL, EdgePL> Node;
 typedef util::graph::DirGraph<NodePL, EdgePL> Graph;
-typedef Grid<Node*, Point, PFAEDLE_PRECISION> NodeGrid;
-typedef Grid<Edge*, Line, PFAEDLE_PRECISION> EdgeGrid;
+typedef Grid<Node*, Point, PFDL_PREC> NodeGrid;
+typedef Grid<Edge*, Line, PFDL_PREC> EdgeGrid;
 
 }  // namespace trgraph
 }  // namespace pfaedle

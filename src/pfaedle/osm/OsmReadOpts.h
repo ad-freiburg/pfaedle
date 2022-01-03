@@ -5,14 +5,14 @@
 #ifndef PFAEDLE_OSM_OSMREADOPTS_H_
 #define PFAEDLE_OSM_OSMREADOPTS_H_
 
+#include <map>
 #include <queue>
-#include <unordered_set>
+#include <set>
 #include <string>
 #include <unordered_map>
-#include <map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-#include <set>
 #include "pfaedle/osm/Osm.h"
 #include "pfaedle/trgraph/Graph.h"
 #include "pfaedle/trgraph/Normalizer.h"
@@ -77,11 +77,12 @@ struct RelLineRules {
   AttrLst sNameRule;
   AttrLst fromNameRule;
   AttrLst toNameRule;
+  AttrLst colorRule;
 };
 
 inline bool operator==(const RelLineRules& a, const RelLineRules& b) {
   return a.sNameRule == b.sNameRule && a.fromNameRule == b.fromNameRule &&
-         a.toNameRule == b.toNameRule;
+         a.toNameRule == b.toNameRule && a.colorRule == b.colorRule;
 }
 
 struct StationAttrRules {
@@ -93,21 +94,6 @@ struct StationAttrRules {
 inline bool operator==(const StationAttrRules& a, const StationAttrRules& b) {
   return a.nameRule == b.nameRule && a.platformRule == b.platformRule;
 }
-
-struct StatGroupNAttrRule {
-  DeepAttrRule attr;
-  double maxDist;
-};
-
-inline bool operator==(const StatGroupNAttrRule& a,
-                       const StatGroupNAttrRule& b) {
-  return a.attr == b.attr && a.maxDist == b.maxDist;
-}
-
-typedef std::unordered_map<
-    std::string,
-    std::unordered_map<std::string, std::vector<trgraph::StatGroup*>>>
-    StAttrGroups;
 
 struct OsmReadOpts {
   OsmReadOpts() {}
@@ -121,7 +107,7 @@ struct OsmReadOpts {
   MultAttrMap twoWayFilter;
   MultAttrMap stationFilter;
   MultAttrMap stationBlockerFilter;
-  std::vector<StatGroupNAttrRule> statGroupNAttrRules;
+  MultAttrMap turnCycleFilter;
 
   trgraph::Normalizer statNormzer;
   trgraph::Normalizer lineNormzer;
@@ -136,14 +122,23 @@ struct OsmReadOpts {
   uint8_t maxSnapLevel;
 
   double maxAngleSnapReach;
-  std::vector<double> maxSnapDistances;
-  double maxSnapFallbackHeurDistance;
+  double maxSnapDistance;
+  double maxStationCandDistance;
   double maxBlockDistance;
 
-  double maxOsmStationDistance;
+  double maxSpeed;
+  double maxSpeedCorFac;
 
-  // TODO(patrick): this is not implemented yet
-  double levelSnapPunishFac[7] = {0, 0, 0, 0, 0, 0, 0};
+  std::vector<double> maxOsmStationDistances;
+
+  // given in km/h, but store in m/s
+  double levelDefSpeed[8] = {85 * 0.2777, 70 * 0.2777, 55 * 0.2777, 40 * 0.2777,
+                             30 * 0.2777, 20 * 0.2777, 10 * 0.2777, 5 * 0.2777};
+
+  double oneWaySpeedPen;
+  double oneWayEntryCost;
+
+  double noLinesPunishFact;
 
   double fullTurnAngle;
 
@@ -154,9 +149,10 @@ struct OsmReadOpts {
 };
 
 inline bool operator==(const OsmReadOpts& a, const OsmReadOpts& b) {
-  if (a.maxSnapDistances.size() != b.maxSnapDistances.size()) return false;
-  for (size_t i = 0; i < a.maxSnapDistances.size(); i++) {
-    if (fabs(a.maxSnapDistances[i] - b.maxSnapDistances[i]) >= 0.1)
+  if (a.maxOsmStationDistances.size() != b.maxOsmStationDistances.size())
+    return false;
+  for (size_t i = 0; i < a.maxOsmStationDistances.size(); i++) {
+    if (fabs(a.maxOsmStationDistances[i] - b.maxOsmStationDistances[i]) >= 0.1)
       return false;
   }
 
@@ -173,24 +169,29 @@ inline bool operator==(const OsmReadOpts& a, const OsmReadOpts& b) {
          a.twoWayFilter == b.twoWayFilter &&
          a.stationFilter == b.stationFilter &&
          a.stationBlockerFilter == b.stationBlockerFilter &&
-         a.statGroupNAttrRules == b.statGroupNAttrRules &&
+         a.turnCycleFilter == b.turnCycleFilter &&
          a.statNormzer == b.statNormzer && a.lineNormzer == b.lineNormzer &&
          a.trackNormzer == b.trackNormzer && a.relLinerules == b.relLinerules &&
          a.statAttrRules == b.statAttrRules &&
          a.maxSnapLevel == b.maxSnapLevel &&
          fabs(a.maxAngleSnapReach - b.maxAngleSnapReach) < 0.1 &&
-         fabs(a.maxOsmStationDistance - b.maxOsmStationDistance) < 0.1 &&
-         fabs(a.maxSnapFallbackHeurDistance - b.maxSnapFallbackHeurDistance) <
-             0.1 &&
+         fabs(a.maxSnapDistance - b.maxSnapDistance) < 0.1 &&
+         fabs(a.maxStationCandDistance - b.maxStationCandDistance) < 0.1 &&
          fabs(a.maxBlockDistance - b.maxBlockDistance) < 0.1 &&
-         fabs(a.levelSnapPunishFac[0] - b.levelSnapPunishFac[0]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[1] - b.levelSnapPunishFac[1]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[2] - b.levelSnapPunishFac[2]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[3] - b.levelSnapPunishFac[3]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[4] - b.levelSnapPunishFac[4]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[5] - b.levelSnapPunishFac[5]) < 0.1 &&
-         fabs(a.levelSnapPunishFac[6] - b.levelSnapPunishFac[6]) < 0.1 &&
+         fabs(a.levelDefSpeed[0] - b.levelDefSpeed[0]) < 0.1 &&
+         fabs(a.levelDefSpeed[1] - b.levelDefSpeed[1]) < 0.1 &&
+         fabs(a.levelDefSpeed[2] - b.levelDefSpeed[2]) < 0.1 &&
+         fabs(a.levelDefSpeed[3] - b.levelDefSpeed[3]) < 0.1 &&
+         fabs(a.levelDefSpeed[4] - b.levelDefSpeed[4]) < 0.1 &&
+         fabs(a.levelDefSpeed[5] - b.levelDefSpeed[5]) < 0.1 &&
+         fabs(a.levelDefSpeed[6] - b.levelDefSpeed[6]) < 0.1 &&
+         fabs(a.levelDefSpeed[7] - b.levelDefSpeed[7]) < 0.1 &&
+         fabs(a.oneWaySpeedPen - b.oneWaySpeedPen) < 0.1 &&
+         fabs(a.oneWayEntryCost - b.oneWayEntryCost) < 0.1 &&
+         fabs(a.noLinesPunishFact - b.noLinesPunishFact) < 0.1 &&
          fabs(a.fullTurnAngle - b.fullTurnAngle) < 0.1 &&
+         fabs(a.maxSpeedCorFac - b.maxSpeedCorFac) < 0.1 &&
+         fabs(a.maxSpeed - b.maxSpeed) < 0.1 &&
          a.restrPosRestr == b.restrPosRestr &&
          a.restrNegRestr == b.restrNegRestr &&
          a.noRestrFilter == b.noRestrFilter;

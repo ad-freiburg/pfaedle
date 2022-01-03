@@ -26,7 +26,7 @@ namespace netgraph {
 class EdgePL {
  public:
   EdgePL() {}
-  EdgePL(const LINE& l, const std::set<const Trip*>& trips)
+  EdgePL(const LINE& l, const std::vector<const Trip*>& trips)
       : _l(l), _trips(trips) {
     for (const auto t : _trips) {
       _routeShortNames.insert(t->getRoute()->getShortName());
@@ -46,7 +46,7 @@ class EdgePL {
 
  private:
   LINE _l;
-  std::set<const Trip*> _trips;
+  std::vector<const Trip*> _trips;
   std::set<std::string> _routeShortNames;
   std::set<std::string> _tripShortNames;
 };

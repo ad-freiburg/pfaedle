@@ -5,10 +5,11 @@
 #ifndef PFAEDLE_CONFIG_PFAEDLECONFIG_H_
 #define PFAEDLE_CONFIG_PFAEDLECONFIG_H_
 
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <set>
+#include "util/geo/Geo.h"
 #include "ad/cppgtfs/gtfs/Route.h"
 
 namespace pfaedle {
@@ -20,38 +21,44 @@ struct Config {
   Config()
       : dbgOutputPath("."),
         solveMethod("global"),
-        evalPath("."),
         outputPath("gtfs-out"),
         dropShapes(false),
         useHMM(false),
         writeGraph(false),
-        writeCombGraph(false),
-        evaluate(false),
         buildTransitGraph(false),
         useCaching(false),
         writeOverpass(false),
         inPlace(false),
-        gridSize(2000) {}
+        writeColors(false),
+        noFastHops(false),
+        noAStar(false),
+        noTrie(false),
+        noHopCache(false),
+        writeStats(false),
+        gridSize(2000 / util::geo::M_PER_DEG) {}
   std::string dbgOutputPath;
   std::string solveMethod;
-  std::string evalPath;
   std::string shapeTripId;
   std::string outputPath;
   std::string writeOsm;
   std::string osmPath;
-  std::string evalDfBins;
+  std::string motCfgParam;
   std::vector<std::string> feedPaths;
   std::vector<std::string> configPaths;
   std::set<Route::TYPE> mots;
   bool dropShapes;
   bool useHMM;
   bool writeGraph;
-  bool writeCombGraph;
-  bool evaluate;
   bool buildTransitGraph;
   bool useCaching;
   bool writeOverpass;
   bool inPlace;
+  bool writeColors;
+  bool noFastHops;
+  bool noAStar;
+  bool noTrie;
+  bool noHopCache;
+  bool writeStats;
   double gridSize;
 
   std::string toString() {
@@ -64,10 +71,16 @@ struct Config {
        << "drop-shapes: " << dropShapes << "\n"
        << "use-hmm: " << useHMM << "\n"
        << "write-graph: " << writeGraph << "\n"
-       << "write-cgraph: " << writeCombGraph << "\n"
        << "grid-size: " << gridSize << "\n"
        << "use-cache: " << useCaching << "\n"
        << "write-overpass: " << writeOverpass << "\n"
+       << "inplace: " << inPlace << "\n"
+       << "write-colors: " << writeColors << "\n"
+       << "no-fast-hops: " << noFastHops << "\n"
+       << "no-a-star: " << noAStar << "\n"
+       << "no-trie: " << noTrie << "\n"
+       << "no-hop-cache: " << noHopCache << "\n"
+       << "write-stats: " << writeStats << "\n"
        << "feed-paths: ";
 
     for (const auto& p : feedPaths) {

@@ -2,27 +2,23 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
-#ifdef _OPENMP
-#include <omp.h>
-#else
-#define omp_get_thread_num() 0
-#define omp_get_num_procs() 1
-#endif
-
-#include <exception>
+#include <atomic>
+#include <cstdlib>
+#include <limits>
 #include <map>
 #include <mutex>
+#include <random>
 #include <stdexcept>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
-#include "pfaedle/eval/Collector.h"
 #include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/gtfs/StopTime.h"
 #include "pfaedle/osm/OsmBuilder.h"
 #include "pfaedle/router/ShapeBuilder.h"
-#include "pfaedle/trgraph/StatGroup.h"
+#include "pfaedle/statsimi-classifier/StatsimiClassifier.h"
 #include "util/geo/Geo.h"
 #include "util/geo/output/GeoGraphJsonOutput.h"
 #include "util/geo/output/GeoJsonOutput.h"
@@ -33,255 +29,515 @@ using util::geo::DBox;
 using util::geo::DPoint;
 using util::geo::extendBox;
 using util::geo::minbox;
+using util::geo::PolyLine;
 
+using ad::cppgtfs::gtfs::NO_COLOR;
 using ad::cppgtfs::gtfs::ShapePoint;
 using ad::cppgtfs::gtfs::Stop;
 using pfaedle::gtfs::Feed;
 using pfaedle::gtfs::StopTime;
 using pfaedle::gtfs::Trip;
 using pfaedle::osm::BBoxIdx;
-using pfaedle::router::Clusters;
+using pfaedle::router::EdgeCandGroup;
+using pfaedle::router::EdgeCandMap;
 using pfaedle::router::EdgeListHops;
 using pfaedle::router::FeedStops;
-using pfaedle::router::NodeCandGroup;
-using pfaedle::router::NodeCandRoute;
 using pfaedle::router::RoutingAttrs;
 using pfaedle::router::ShapeBuilder;
+using pfaedle::router::Stats;
+using pfaedle::router::TripForests;
+using pfaedle::router::TripTrie;
+using pfaedle::statsimiclassifier::JaccardClassifier;
+using pfaedle::trgraph::EdgeGrid;
+using pfaedle::trgraph::NodeGrid;
 using util::geo::latLngToWebMerc;
-using util::geo::webMercMeterDist;
-using util::geo::webMercToLatLng;
+using util::geo::M_PER_DEG;
 using util::geo::output::GeoGraphJsonOutput;
 
 // _____________________________________________________________________________
-ShapeBuilder::ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed,
-                           MOTs mots, const config::MotConfig& motCfg,
-                           eval::Collector* ecoll, pfaedle::trgraph::Graph* g,
-                           router::FeedStops* fStops, osm::Restrictor* restr,
-                           const config::Config& cfg)
+ShapeBuilder::ShapeBuilder(
+    Feed* feed, MOTs mots, const config::MotConfig& motCfg,
+    pfaedle::trgraph::Graph* g, router::FeedStops* fStops,
+    osm::Restrictor* restr,
+    const pfaedle::statsimiclassifier::StatsimiClassifier* classifier,
+    router::Router* router, const config::Config& cfg)
     : _feed(feed),
-      _evalFeed(evalFeed),
       _mots(mots),
       _motCfg(motCfg),
-      _ecoll(ecoll),
       _cfg(cfg),
       _g(g),
-      _crouter(omp_get_num_procs(), cfg.useCaching),
       _stops(fStops),
       _curShpCnt(0),
-      _restr(restr) {
-  _numThreads = _crouter.getCacheNumber();
+      _restr(restr),
+      _classifier(classifier),
+      _router(router) {
+  pfaedle::osm::BBoxIdx box(BOX_PADDING);
+  ShapeBuilder::getGtfsBox(feed, mots, cfg.shapeTripId, cfg.dropShapes, &box,
+                           _motCfg.osmBuildOpts.maxSpeed);
+
+  _eGrid = EdgeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
+  _nGrid = NodeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
+
+  LOG(DEBUG) << "Grid size of " << _nGrid.getXWidth() << "x"
+             << _nGrid.getYHeight();
+
+  buildIndex();
 }
 
 // _____________________________________________________________________________
-const NodeCandGroup& ShapeBuilder::getNodeCands(const Stop* s) const {
-  if (_stops->find(s) == _stops->end() || _stops->at(s) == 0) return _emptyNCG;
-  return _stops->at(s)->pl().getSI()->getGroup()->getNodeCands(s);
+void ShapeBuilder::buildIndex() {
+  for (auto* n : _g->getNds()) {
+    for (auto* e : n->getAdjListOut()) {
+      if (e->pl().lvl() > _motCfg.osmBuildOpts.maxSnapLevel) continue;
+      // don't snap to one way edges
+      if (e->pl().oneWay() == 2) continue;
+
+      _eGrid.add(*e->pl().getGeom(), e);
+    }
+  }
+
+  for (auto* n : _g->getNds()) {
+    // only station nodes
+    if (n->pl().getSI()) {
+      _nGrid.add(*n->pl().getGeom(), n);
+    }
+  }
 }
 
 // _____________________________________________________________________________
-LINE ShapeBuilder::shapeL(const router::NodeCandRoute& ncr,
-                          const router::RoutingAttrs& rAttrs) {
-  try {
-    const router::EdgeListHops& res = route(ncr, rAttrs);
+void ShapeBuilder::buildCandCache(const TripForests& forests) {
+  std::set<const Stop*> stops;
+  size_t count = 0;
 
-    LINE l;
-    for (const auto& hop : res) {
-      const trgraph::Node* last = hop.start;
-      if (hop.edges.size() == 0) {
-        l.push_back(*hop.start->pl().getGeom());
-        l.push_back(*hop.end->pl().getGeom());
-      }
-      for (auto i = hop.edges.rbegin(); i != hop.edges.rend(); i++) {
-        const auto* e = *i;
-        if ((e->getFrom() == last) ^ e->pl().isRev()) {
-          l.insert(l.end(), e->pl().getGeom()->begin(),
-                   e->pl().getGeom()->end());
-        } else {
-          l.insert(l.end(), e->pl().getGeom()->rbegin(),
-                   e->pl().getGeom()->rend());
+  for (const auto& forest : forests) {
+    for (const auto& trie : forest.second) {
+      for (const auto& trips : trie.getNdTrips()) {
+        for (const auto& st : trips.second[0]->getStopTimes()) {
+          stops.insert(st.getStop());
         }
-        last = e->getOtherNd(last);
       }
     }
+  }
 
-    return l;
+  size_t numThreads = std::thread::hardware_concurrency();
+  std::vector<std::thread> thrds(numThreads);
+  std::vector<GrpCache> caches(numThreads);
+  std::vector<std::vector<const Stop*>> threadStops(numThreads);
+
+  size_t i = 0;
+  for (auto stop : stops) {
+    threadStops[i].push_back(stop);
+    if (++i == numThreads) i = 0;
+  }
+
+  i = 0;
+  for (auto& t : thrds) {
+    t = std::thread(&ShapeBuilder::edgCandWorker, this, &threadStops[i],
+                    &caches[i]);
+    i++;
+  }
+
+  for (auto& thr : thrds) thr.join();
+
+  // merge
+  for (size_t i = 0; i < numThreads; i++) {
+    for (const auto& c : caches[i]) {
+      _grpCache[c.first] = c.second;
+      count += c.second.size();
+    }
+  }
+
+  if (_grpCache.size())
+    LOG(DEBUG) << "Average candidate set size: "
+               << ((count * 1.0) / _grpCache.size());
+}
+
+// _____________________________________________________________________________
+EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
+  auto cached = _grpCache.find(s);
+  if (cached != _grpCache.end()) return cached->second;
+
+  EdgeCandGroup ret;
+
+  const auto& snormzer = _motCfg.osmBuildOpts.statNormzer;
+  auto normedName = snormzer.norm(s->getName());
+
+  // the first cand is a placeholder for the stop position itself, it is chosen
+  // when no candidate yielded a feasible route
+  auto pos = POINT(s->getLng(), s->getLat());
+  ret.push_back({0, 0, 0, pos, 0, {}});
+
+  // unsigned seed =
+  // std::chrono::system_clock::now().time_since_epoch().count();
+  // std::default_random_engine gen(seed);
+  // std::normal_distribution<double> dist(0.0, 25.0);
+
+  // add some gaussian noise
+  // pos.setX(pos.getX() + dist(gen));
+  // pos.setY(pos.getY() + dist(gen));
+
+  double maxMDist = _motCfg.osmBuildOpts.maxStationCandDistance;
+
+  double distor = util::geo::latLngDistFactor(pos);
+
+  std::set<trgraph::Node*> frNIdx;
+  _nGrid.get(util::geo::pad(util::geo::getBoundingBox(pos),
+                            (maxMDist / M_PER_DEG) / distor),
+             &frNIdx);
+
+  if (_motCfg.routingOpts.useStations) {
+    for (auto nd : frNIdx) {
+      assert(nd->pl().getSI());
+
+      double mDist = util::geo::haversine(pos, *nd->pl().getGeom());
+      if (mDist > maxMDist) continue;
+
+      double nameMatchPunish = 0;
+      double trackMatchPunish = 0;
+
+      if (!_classifier->similar(normedName, pos, nd->pl().getSI()->getName(),
+                                *nd->pl().getGeom())) {
+        // stations do not match, punish
+        nameMatchPunish = _motCfg.routingOpts.stationUnmatchedPen;
+      }
+
+      std::string platform = s->getPlatformCode();
+
+      if (!platform.empty() && !nd->pl().getSI()->getTrack().empty() &&
+          nd->pl().getSI()->getTrack() == platform) {
+        trackMatchPunish = _motCfg.routingOpts.platformUnmatchedPen;
+      }
+
+      for (auto* e : nd->getAdjListOut()) {
+        // don't snap to one way edges
+        if (e->pl().oneWay() == 2) continue;
+        ret.push_back({e,
+                       mDist * _motCfg.routingOpts.stationDistPenFactor +
+                           nameMatchPunish + trackMatchPunish,
+                       0,
+                       {},
+                       0,
+                       {}});
+      }
+    }
+  }
+
+  maxMDist = _motCfg.osmBuildOpts.maxSnapDistance;
+
+  std::set<trgraph::Edge*> frEIdx;
+  _eGrid.get(util::geo::pad(util::geo::getBoundingBox(pos),
+                            (maxMDist / M_PER_DEG) / distor),
+             &frEIdx);
+
+  std::set<trgraph::Edge*> selected;
+  std::map<const trgraph::Edge*, double> scores;
+  std::map<const trgraph::Edge*, double> progrs;
+
+  for (auto edg : frEIdx) {
+    if (selected.count(edg)) continue;
+
+    auto reach = deg2reachable(edg, selected);
+
+    double mDist = dist(pos, *edg->pl().getGeom()) * distor * M_PER_DEG;
+
+    if (mDist > maxMDist) continue;
+
+    if (!reach || mDist < scores[reach]) {
+      if (reach) {
+        selected.erase(selected.find(reach));
+        scores.erase(scores.find(reach));
+      }
+      util::geo::PolyLine<double> pl(*edg->pl().getGeom());
+      auto lp = pl.projectOn(pos);
+      double progr = lp.totalPos;
+      if (edg->pl().isRev()) progr = 1 - progr;
+      selected.insert(edg);
+      scores[edg] = mDist;
+      progrs[edg] = progr;
+    }
+  }
+
+  for (auto e : selected) {
+    ret.push_back({e,
+                   scores[e] * _motCfg.routingOpts.stationDistPenFactor +
+                       _motCfg.routingOpts.nonStationPen,
+                   progrs[e],
+                   {},
+                   0,
+                   {}});
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+pfaedle::trgraph::Edge* ShapeBuilder::deg2reachable(
+    trgraph::Edge* e, std::set<trgraph::Edge*> edgs) const {
+  trgraph::Edge* cur = e;
+
+  // forward
+  while (cur->getTo()->getDeg() == 2) {
+    // dont allow backtracking on reverse edge
+    auto next = e->getTo()->getAdjListOut().front()->getTo() == e->getFrom()
+                    ? e->getTo()->getAdjListOut().back()
+                    : e->getTo()->getAdjListOut().front();
+    if (next == e || next == cur) break;  // avoid circles
+    if (next->pl().oneWay() == 2) break;  // dont follow one way edges
+    if (edgs.count(next)) return next;
+    cur = next;
+  }
+
+  // backward
+  while (cur->getFrom()->getDeg() == 2) {
+    // dont allow backtracking on reverse edge
+    auto next = e->getFrom()->getAdjListIn().front()->getFrom() == e->getTo()
+                    ? e->getFrom()->getAdjListIn().back()
+                    : e->getFrom()->getAdjListIn().front();
+    if (next == e || next == cur) break;  // avoid circles
+    if (next->pl().oneWay() == 2) break;  // dont follow one way edges
+    if (edgs.count(cur)) return next;
+    cur = next;
+  }
+
+  return 0;
+}
+
+// _____________________________________________________________________________
+std::pair<std::vector<LINE>, Stats> ShapeBuilder::shapeL(Trip* trip) {
+  Stats stats;
+  try {
+    T_START(t);
+    EDijkstra::ITERS = 0;
+    auto hops = shapeify(trip);
+    stats.solveTime = T_STOP(t);
+    stats.numTries = 1;
+    stats.numTrieLeafs = 1;
+    stats.totNumTrips = 1;
+    stats.dijkstraIters = EDijkstra::ITERS;
+    std::map<uint32_t, double> colors;
+    LOG(INFO) << "Matched 1 trip in " << stats.solveTime << " ms.";
+    // print to line
+    return {getGeom(hops, getRAttrs(trip), &colors), stats};
   } catch (const std::runtime_error& e) {
     LOG(ERROR) << e.what();
-    return LINE();
+    return {std::vector<LINE>(), stats};
   }
 }
 
 // _____________________________________________________________________________
-LINE ShapeBuilder::shapeL(Trip* trip) {
-  return shapeL(getNCR(trip), getRAttrs(trip));
+std::map<size_t, pfaedle::router::EdgeListHops> ShapeBuilder::route(
+    const TripTrie* trie, const EdgeCandMap& ecm, HopCache* hopCache) const {
+  return _router->route(trie, ecm, _motCfg.routingOpts, *_restr, hopCache,
+                        _cfg.noFastHops);
 }
 
 // _____________________________________________________________________________
-EdgeListHops ShapeBuilder::route(const router::NodeCandRoute& ncr,
-                                 const router::RoutingAttrs& rAttrs) const {
-  router::Graph g;
+std::map<size_t, EdgeListHops> ShapeBuilder::shapeify(
+    const TripTrie* trie, HopCache* hopCache) const {
+  LOG(VDEBUG) << "Map-matching trie " << trie;
 
-  if (_cfg.solveMethod == "global") {
-    const router::EdgeListHops& ret =
-        _crouter.route(ncr, rAttrs, _motCfg.routingOpts, *_restr, &g);
+  // TODO(patrick): assumes the trie is not empty, check this!
+  assert(trie->getNdTrips().size());
+  assert(trie->getNdTrips().begin()->second.size());
+  RoutingAttrs rAttrs = getRAttrs(trie->getNdTrips().begin()->second[0]);
 
-    // write combination graph
-    if (!_cfg.shapeTripId.empty() && _cfg.writeCombGraph) {
-      LOG(INFO) << "Outputting combgraph.json...";
-      std::ofstream pstr(_cfg.dbgOutputPath + "/combgraph.json");
-      GeoGraphJsonOutput o;
-      o.printLatLng(g, pstr);
-    }
+  std::map<size_t, EdgeListHops> ret;
 
-    return ret;
-  } else if (_cfg.solveMethod == "greedy") {
-    return _crouter.routeGreedy(ncr, rAttrs, _motCfg.routingOpts, *_restr);
-  } else if (_cfg.solveMethod == "greedy2") {
-    return _crouter.routeGreedy2(ncr, rAttrs, _motCfg.routingOpts, *_restr);
-  } else {
-    LOG(ERROR) << "Unknown solution method " << _cfg.solveMethod;
-    exit(1);
+  const auto& routes = route(trie, getECM(trie), hopCache);
+
+  for (const auto& route : routes) {
+    ret[route.first] = route.second;
   }
 
-  return EdgeListHops();
-}
-
-// _____________________________________________________________________________
-pfaedle::router::Shape ShapeBuilder::shape(Trip* trip) const {
-  LOG(VDEBUG) << "Map-matching shape for trip #" << trip->getId() << " of mot "
-              << trip->getRoute()->getType() << "(sn=" << trip->getShortname()
-              << ", rsn=" << trip->getRoute()->getShortName()
-              << ", rln=" << trip->getRoute()->getLongName() << ")";
-  Shape ret;
-  ret.hops = route(getNCR(trip), getRAttrs(trip));
-  ret.avgHopDist = avgHopDist(trip);
-
-  LOG(VDEBUG) << "Finished map-matching for #" << trip->getId();
+  LOG(VDEBUG) << "Finished map-matching for trie " << trie;
 
   return ret;
 }
 
 // _____________________________________________________________________________
-pfaedle::router::Shape ShapeBuilder::shape(Trip* trip) {
+EdgeListHops ShapeBuilder::shapeify(Trip* trip) {
   LOG(VDEBUG) << "Map-matching shape for trip #" << trip->getId() << " of mot "
               << trip->getRoute()->getType() << "(sn=" << trip->getShortname()
               << ", rsn=" << trip->getRoute()->getShortName()
               << ", rln=" << trip->getRoute()->getLongName() << ")";
+  TripTrie trie;
+  trie.addTrip(trip, getRAttrs(trip),
+               _motCfg.routingOpts.transPenMethod == "timenorm", false);
+  const auto& routes = route(&trie, getECM(&trie), 0);
 
-  Shape ret;
-  ret.hops = route(getNCR(trip), getRAttrs(trip));
-  ret.avgHopDist = avgHopDist(trip);
-
-  LOG(VDEBUG) << "Finished map-matching for #" << trip->getId();
-
-  return ret;
+  return routes.begin()->second;
 }
 
 // _____________________________________________________________________________
-void ShapeBuilder::shape(pfaedle::netgraph::Graph* ng) {
-  TrGraphEdgs gtfsGraph;
+Stats ShapeBuilder::shapeify(pfaedle::netgraph::Graph* outNg) {
+  Stats stats;
+  EDijkstra::ITERS = 0;
 
+  T_START(cluster);
   LOG(DEBUG) << "Clustering trips...";
-  Clusters clusters = clusterTrips(_feed, _mots);
-  LOG(DEBUG) << "Clustered trips into " << clusters.size() << " clusters.";
+  const TripForests& forests = clusterTrips(_feed, _mots);
+  for (const auto& forest : forests) {
+    for (const auto& trie : forest.second) {
+      stats.numTries++;
+      stats.numTrieLeafs += trie.getNdTrips().size();
+    }
+  }
+  LOG(DEBUG) << "Clustered trips into " << stats.numTries
+             << " tries with a total of " << stats.numTrieLeafs << " leafs in "
+             << T_STOP(cluster) << "ms";
 
-  std::map<std::string, size_t> shpUsage;
+  LOG(DEBUG) << "Building candidate cache...";
+  buildCandCache(forests);
+  LOG(DEBUG) << "Done.";
+
+  std::map<std::string, size_t> shpUse;
+  RouteRefColors refColors;
+
   for (auto t : _feed->getTrips()) {
-    if (!t.getShape().empty()) shpUsage[t.getShape()]++;
-  }
+    if (!t.getShape().empty()) shpUse[t.getShape()]++;
 
-  // to avoid unfair load balance on threads
-  std::random_shuffle(clusters.begin(), clusters.end());
+    // write the colors of trips we won't touch, but whose route we might
+    if (t.getStopTimes().size() < 2) continue;
+    if (!_mots.count(t.getRoute()->getType()) ||
+        !_motCfg.mots.count(t.getRoute()->getType()))
+      continue;
 
-  size_t iters = EDijkstra::ITERS;
-  size_t totiters = EDijkstra::ITERS;
-  size_t oiters = EDijkstra::ITERS;
-  size_t j = 0;
-
-  auto t1 = TIME();
-  auto t2 = TIME();
-  double totAvgDist = 0;
-  size_t totNumTrips = 0;
-
-#pragma omp parallel for num_threads(_numThreads)
-  for (size_t i = 0; i < clusters.size(); i++) {
-    j++;
-
-    if (j % 10 == 0) {
-#pragma omp critical
-      {
-        LOG(INFO) << "@ " << j << " / " << clusters.size() << " ("
-                  << (static_cast<int>((j * 1.0) / clusters.size() * 100))
-                  << "%, " << (EDijkstra::ITERS - oiters) << " iters, "
-                  << "matching " << (10.0 / (TOOK(t1, TIME()) / 1000))
-                  << " trips/sec)";
-
-        oiters = EDijkstra::ITERS;
-        t1 = TIME();
-      }
-    }
-
-    // explicitly call const version of shape here for thread safety
-    const Shape& cshp =
-        const_cast<const ShapeBuilder&>(*this).shape(clusters[i][0]);
-    totAvgDist += cshp.avgHopDist;
-
-    if (_cfg.buildTransitGraph) {
-#pragma omp critical
-      { writeTransitGraph(cshp, &gtfsGraph, clusters[i]); }
-    }
-
-    std::vector<double> distances;
-    const ad::cppgtfs::gtfs::Shape& shp =
-        getGtfsShape(cshp, clusters[i][0], &distances);
-
-    LOG(VDEBUG) << "Took " << EDijkstra::ITERS - iters << " iterations.";
-    iters = EDijkstra::ITERS;
-
-    totNumTrips += clusters[i].size();
-
-    for (auto t : clusters[i]) {
-      if (_cfg.evaluate && _evalFeed && _ecoll) {
-        std::lock_guard<std::mutex> guard(_shpMutex);
-        _ecoll->add(t, _evalFeed->getShapes().get(t->getShape()), shp,
-                    distances);
-      }
-
-      if (!t->getShape().empty() && shpUsage[t->getShape()] > 0) {
-        shpUsage[t->getShape()]--;
-        if (shpUsage[t->getShape()] == 0) {
-          std::lock_guard<std::mutex> guard(_shpMutex);
-          _feed->getShapes().remove(t->getShape());
-        }
-      }
-      setShape(t, shp, distances);
+    if (!t.getShape().empty() && !_cfg.dropShapes) {
+      refColors[t.getRoute()][t.getRoute()->getColor()].push_back(&t);
     }
   }
 
-  LOG(INFO) << "Matched " << totNumTrips << " trips in " << clusters.size()
-            << " clusters.";
-  LOG(DEBUG) << "Took " << (EDijkstra::ITERS - totiters)
-             << " iterations in total.";
-  LOG(DEBUG) << "Took " << TOOK(t2, TIME()) << " ms in total.";
-  LOG(DEBUG) << "Total avg. tput "
-             << (static_cast<double>(EDijkstra::ITERS - totiters)) /
-                    TOOK(t2, TIME())
-             << " iters/sec";
-  LOG(DEBUG) << "Total avg. trip tput "
-             << (clusters.size() / (TOOK(t2, TIME()) / 1000)) << " trips/sec";
-  LOG(DEBUG) << "Avg hop distance was "
-             << (totAvgDist / static_cast<double>(clusters.size()))
-             << " meters";
+  // we implicitely cluster by routing attrs here. This ensures that now two
+  // threads will access the same routing attrs later on, which safes us an
+  // expensive locking mechanism later on for the hop cache
+  std::vector<const TripForest*> tries;
+  for (const auto& forest : forests) {
+    tries.push_back(&(forest.second));
+    for (const auto& trie : forest.second) {
+      for (const auto& trips : trie.getNdTrips()) {
+        stats.totNumTrips += trips.second.size();
+      }
+    }
+  }
+
+  auto tStart = TIME();
+  std::atomic<size_t> at(0);
+
+  size_t numThreads = std::thread::hardware_concurrency();
+  std::vector<std::thread> thrds(numThreads);
+  std::vector<RouteRefColors> colors(numThreads);
+  std::vector<TrGraphEdgs> gtfsGraphs(numThreads);
+
+  size_t i = 0;
+  for (auto& t : thrds) {
+    t = std::thread(&ShapeBuilder::shapeWorker, this, &tries, &at, &shpUse,
+                    &colors[i], &gtfsGraphs[i]);
+    i++;
+  }
+
+  for (auto& thr : thrds) thr.join();
+
+  stats.solveTime = TOOK(tStart, TIME());
+
+  LOG(INFO) << "Matched " << stats.totNumTrips << " trips in "
+            << stats.solveTime << " ms.";
+
+  // merge colors
+  for (auto& cols : colors) {
+    for (auto& route : cols) {
+      for (auto& col : route.second) {
+        refColors[route.first][col.first].insert(
+            refColors[route.first][col.first].end(), col.second.begin(),
+            col.second.end());
+      }
+    }
+  }
+
+  // update them in the routes, split routes if necessary
+  updateRouteColors(refColors);
 
   if (_cfg.buildTransitGraph) {
-    LOG(INFO) << "Building transit network graph...";
-    buildTrGraph(&gtfsGraph, ng);
+    LOG(DEBUG) << "Building transit network graph...";
+
+    // merge gtfsgraph from threads
+    TrGraphEdgs gtfsGraph;
+
+    for (auto& g : gtfsGraphs) {
+      for (auto& ePair : g) {
+        gtfsGraph[ePair.first].insert(gtfsGraph[ePair.first].begin(),
+                                      ePair.second.begin(), ePair.second.end());
+      }
+    }
+    buildNetGraph(&gtfsGraph, outNg);
+  }
+
+  stats.dijkstraIters = EDijkstra::ITERS;
+
+  return stats;
+}
+
+// _____________________________________________________________________________
+void ShapeBuilder::updateRouteColors(const RouteRefColors& refColors) {
+  for (auto& route : refColors) {
+    if (route.second.size() == 1) {
+      // only one color found for this route, great!
+      // update inplace...
+      route.first->setColor(route.second.begin()->first);
+      if (route.first->getColor() != NO_COLOR)
+        route.first->setTextColor(getTextColor(route.first->getColor()));
+    } else {
+      // are there fare rules using this route?
+      std::vector<
+          std::pair<ad::cppgtfs::gtfs::Fare<ad::cppgtfs::gtfs::Route>*,
+                    ad::cppgtfs::gtfs::FareRule<ad::cppgtfs::gtfs::Route>>>
+          rules;
+
+      for (auto& f : _feed->getFares()) {
+        for (auto r : f.second->getFareRules()) {
+          if (r.getRoute() == route.first) {
+            rules.push_back({f.second, r});
+          }
+        }
+      }
+
+      // add new routes...
+      for (auto& c : route.second) {
+        // keep the original one intact
+        if (c.first == route.first->getColor()) continue;
+
+        auto routeCp = *route.first;
+
+        // find free id
+        std::string newId = route.first->getId() + "::1";
+        size_t i = 1;
+        while (_feed->getRoutes().get(newId)) {
+          i++;
+          newId = route.first->getId() + "::" + std::to_string(i);
+        }
+
+        routeCp.setId(newId);
+        routeCp.setColor(c.first);
+        routeCp.setTextColor(getTextColor(routeCp.getColor()));
+
+        auto newRoute = _feed->getRoutes().add(routeCp);
+
+        // update trips to use that route
+        for (auto& t : c.second) t->setRoute(newRoute);
+
+        // add new fare rules
+        for (auto a : rules) {
+          auto rule = a.second;
+          rule.setRoute(newRoute);
+          a.first->addFareRule(rule);
+        }
+      }
+    }
   }
 }
 
 // _____________________________________________________________________________
 void ShapeBuilder::setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
-                            const std::vector<double>& distances) {
+                            const std::vector<float>& distances) {
   assert(distances.size() == t->getStopTimes().size());
   // set distances
   size_t i = 0;
@@ -291,91 +547,44 @@ void ShapeBuilder::setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
   }
 
   std::lock_guard<std::mutex> guard(_shpMutex);
-  t->setShape(_feed->getShapes().add(s));
+  auto gtfsShp = _feed->getShapes().add(s);
+  t->setShape(gtfsShp);
 }
 
 // _____________________________________________________________________________
 ad::cppgtfs::gtfs::Shape ShapeBuilder::getGtfsShape(
-    const Shape& shp, Trip* t, std::vector<double>* hopDists) {
+    const EdgeListHops& hops, Trip* t, const RoutingAttrs& rAttrs,
+    std::vector<float>* hopDists, uint32_t* bestColor) {
   ad::cppgtfs::gtfs::Shape ret(getFreeShapeId(t));
 
-  assert(shp.hops.size() == t->getStopTimes().size() - 1);
+  assert(hops.size() == t->getStopTimes().size() - 1);
+
+  std::map<uint32_t, double> colors;
+
+  const std::vector<LINE>& gl = getGeom(hops, rAttrs, &colors);
+  const std::vector<float>& measures = getMeasure(gl);
 
   size_t seq = 0;
-  double dist = -1;
-  double lastDist = -1;
   hopDists->push_back(0);
-  POINT last(0, 0);
-  for (const auto& hop : shp.hops) {
-    const trgraph::Node* l = hop.start;
-    if (hop.edges.size() == 0) {
-      POINT ll = webMercToLatLng<PFAEDLE_PRECISION>(
-          hop.start->pl().getGeom()->getX(), hop.start->pl().getGeom()->getY());
-
-      if (dist > -0.5)
-        dist += webMercMeterDist(last, *hop.start->pl().getGeom());
-      else
-        dist = 0;
-
-      last = *hop.start->pl().getGeom();
-
-      if (dist - lastDist > 0.01) {
-        ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
-        seq++;
-        lastDist = dist;
-      }
-
-      dist += webMercMeterDist(last, *hop.end->pl().getGeom());
-      last = *hop.end->pl().getGeom();
-
-      if (dist - lastDist > 0.01) {
-        ll = webMercToLatLng<PFAEDLE_PRECISION>(
-            hop.end->pl().getGeom()->getX(), hop.end->pl().getGeom()->getY());
-        ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
-        seq++;
-        lastDist = dist;
-      }
+  for (size_t i = 0; i < gl.size(); i++) {
+    for (size_t j = 0; j < gl[i].size(); j++) {
+      ret.addPoint(
+          ShapePoint(gl[i][j].getY(), gl[i][j].getX(), measures[seq], seq));
+      seq++;
     }
+    hopDists->push_back(measures[seq - 1]);
+  }
 
-    for (auto i = hop.edges.rbegin(); i != hop.edges.rend(); i++) {
-      const auto* e = *i;
-      if ((e->getFrom() == l) ^ e->pl().isRev()) {
-        for (size_t i = 0; i < e->pl().getGeom()->size(); i++) {
-          const POINT& cur = (*e->pl().getGeom())[i];
-          if (dist > -0.5)
-            dist += webMercMeterDist(last, cur);
-          else
-            dist = 0;
-          last = cur;
-          if (dist - lastDist > 0.01) {
-            POINT ll =
-                webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
-            ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
-            seq++;
-            lastDist = dist;
-          }
-        }
-      } else {
-        for (int64_t i = e->pl().getGeom()->size() - 1; i >= 0; i--) {
-          const POINT& cur = (*e->pl().getGeom())[i];
-          if (dist > -0.5)
-            dist += webMercMeterDist(last, cur);
-          else
-            dist = 0;
-          last = cur;
-          if (dist - lastDist > 0.01) {
-            POINT ll =
-                webMercToLatLng<PFAEDLE_PRECISION>(cur.getX(), cur.getY());
-            ret.addPoint(ShapePoint(ll.getY(), ll.getX(), dist, seq));
-            seq++;
-            lastDist = dist;
-          }
-        }
-      }
-      l = e->getOtherNd(l);
+  // get most likely color
+  double best = 0;
+  *bestColor = NO_COLOR;
+  for (const auto& c : colors) {
+    double progr = c.second / measures.back();
+    // TODO(patrick): make threshold configurable
+    if (progr > 0.9 && progr > best) {
+      best = progr;
+      *bestColor = c.first;
     }
-
-    hopDists->push_back(lastDist);
   }
 
   return ret;
@@ -402,20 +611,23 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) {
   if (i == _rAttrs.end()) {
     router::RoutingAttrs ret;
 
+    ret.classifier = _classifier;
+
     const auto& lnormzer = _motCfg.osmBuildOpts.lineNormzer;
+    const auto& snormzer = _motCfg.osmBuildOpts.statNormzer;
 
     ret.shortName = lnormzer.norm(trip->getRoute()->getShortName());
+    ret.lineFrom =
+        snormzer.norm(trip->getStopTimes().front().getStop()->getName());
+    ret.lineTo = {
+        snormzer.norm(trip->getStopTimes().back().getStop()->getName())};
 
+    // fallbacks for line name
     if (ret.shortName.empty())
       ret.shortName = lnormzer.norm(trip->getShortname());
 
     if (ret.shortName.empty())
       ret.shortName = lnormzer.norm(trip->getRoute()->getLongName());
-
-    ret.fromString = _motCfg.osmBuildOpts.statNormzer.norm(
-        trip->getStopTimes().begin()->getStop()->getName());
-    ret.toString = _motCfg.osmBuildOpts.statNormzer.norm(
-        (--trip->getStopTimes().end())->getStop()->getName());
 
     return _rAttrs
         .insert(std::pair<const Trip*, router::RoutingAttrs>(trip, ret))
@@ -433,7 +645,7 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) const {
 // _____________________________________________________________________________
 void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
                               const std::string& tid, bool dropShapes,
-                              osm::BBoxIdx* box) {
+                              osm::BBoxIdx* box, double maxSpeed) {
   for (const auto& t : feed->getTrips()) {
     if (!tid.empty() && t.getId() != tid) continue;
     if (tid.empty() && !t.getShape().empty() && !dropShapes) continue;
@@ -441,7 +653,49 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
 
     if (mots.count(t.getRoute()->getType())) {
       DBox cur;
-      for (const auto& st : t.getStopTimes()) {
+      for (size_t i = 0; i < t.getStopTimes().size(); i++) {
+        // skip outliers
+        const auto& st = t.getStopTimes()[i];
+
+        int toTime = std::numeric_limits<int>::max();
+        double toD = 0;
+        int fromTime = std::numeric_limits<int>::max();
+        double fromD = 0;
+
+        if (i > 0) {
+          const auto& stPrev = t.getStopTimes()[i - 1];
+          toTime = st.getArrivalTime().seconds() -
+                   stPrev.getDepartureTime().seconds();
+          toD = util::geo::haversine(
+              st.getStop()->getLat(), st.getStop()->getLng(),
+              stPrev.getStop()->getLat(), stPrev.getStop()->getLng());
+        }
+
+        if (i < t.getStopTimes().size() - 1) {
+          const auto& stNext = t.getStopTimes()[i + 1];
+          fromTime = stNext.getArrivalTime().seconds() -
+                     st.getDepartureTime().seconds();
+          fromD = util::geo::haversine(
+              st.getStop()->getLat(), st.getStop()->getLng(),
+              stNext.getStop()->getLat(), stNext.getStop()->getLng());
+        }
+
+        const double reqToTime = toD / maxSpeed;
+        const double reqFromTime = fromD / maxSpeed;
+
+        const double BUFFER = 5 * 60;
+
+        if (reqToTime > (BUFFER + toTime) * 3 * MAX_ROUTE_COST_DOUBLING_STEPS &&
+            reqFromTime >
+                (BUFFER + fromTime) * 3 * MAX_ROUTE_COST_DOUBLING_STEPS) {
+          LOG(DEBUG) << "Skipping station " << st.getStop()->getId() << " ("
+                     << st.getStop()->getName() << ") @ "
+                     << st.getStop()->getLat() << ", " << st.getStop()->getLng()
+                     << " for bounding box as the vehicle cannot realistically "
+                        "reach and leave it in the scheduled time";
+          continue;
+        }
+
         cur = extendBox(DPoint(st.getStop()->getLng(), st.getStop()->getLat()),
                         cur);
       }
@@ -451,141 +705,224 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
 }
 
 // _____________________________________________________________________________
-NodeCandRoute ShapeBuilder::getNCR(Trip* trip) const {
-  router::NodeCandRoute ncr(trip->getStopTimes().size());
+std::vector<double> ShapeBuilder::getTransTimes(Trip* trip) const {
+  std::vector<double> ret;
 
-  size_t i = 0;
+  for (size_t i = 0; i < trip->getStopTimes().size() - 1; i++) {
+    auto cur = trip->getStopTimes()[i];
+    auto next = trip->getStopTimes()[i + 1];
 
-  for (const auto& st : trip->getStopTimes()) {
-    ncr[i] = getNodeCands(st.getStop());
-    if (ncr[i].size() == 0) {
-      throw std::runtime_error("No node candidate found for station '" +
-                               st.getStop()->getName() + "' on trip '" +
-                               trip->getId() + "'");
-    }
-    i++;
-  }
-  return ncr;
-}
+    int depTime = cur.getDepartureTime().seconds();
+    int arrTime = next.getArrivalTime().seconds();
 
-// _____________________________________________________________________________
-double ShapeBuilder::avgHopDist(Trip* trip) const {
-  size_t i = 0;
-  double sum = 0;
+    int diff = arrTime - depTime;
+    if (diff < 1) diff = 1;
 
-  const Stop* prev = 0;
-
-  for (const auto& st : trip->getStopTimes()) {
-    if (!prev) {
-      prev = st.getStop();
-      continue;
-    }
-    auto a = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(prev->getLat(),
-                                                           prev->getLng());
-    auto b = util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
-        st.getStop()->getLat(), st.getStop()->getLng());
-    sum += util::geo::webMercMeterDist(a, b);
-
-    prev = st.getStop();
-    i++;
-  }
-  return sum / static_cast<double>(i);
-}
-
-// _____________________________________________________________________________
-Clusters ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
-  // building an index [start station, end station] -> [cluster]
-
-  std::map<StopPair, std::vector<size_t>> clusterIdx;
-
-  Clusters ret;
-  for (auto& trip : f->getTrips()) {
-    if (!trip.getShape().empty() && !_cfg.dropShapes) continue;
-    if (trip.getStopTimes().size() < 2) continue;
-    if (!mots.count(trip.getRoute()->getType()) ||
-        !_motCfg.mots.count(trip.getRoute()->getType()))
-      continue;
-
-    bool found = false;
-    auto spair = StopPair(trip.getStopTimes().begin()->getStop(),
-                          trip.getStopTimes().rbegin()->getStop());
-    const auto& c = clusterIdx[spair];
-
-    for (size_t i = 0; i < c.size(); i++) {
-      if (routingEqual(ret[c[i]][0], &trip)) {
-        ret[c[i]].push_back(&trip);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      ret.push_back(Cluster{&trip});
-      // explicit call to write render attrs to cache
-      getRAttrs(&trip);
-      clusterIdx[spair].push_back(ret.size() - 1);
-    }
+    ret.push_back(diff);
+    assert(ret.back() >= 0);
   }
 
   return ret;
 }
 
 // _____________________________________________________________________________
-bool ShapeBuilder::routingEqual(const Stop* a, const Stop* b) {
-  if (a == b) return true;  // trivial
+std::vector<double> ShapeBuilder::getTransDists(Trip* trip) const {
+  std::vector<double> ret;
 
-  auto namea = _motCfg.osmBuildOpts.statNormzer.norm(a->getName());
-  auto nameb = _motCfg.osmBuildOpts.statNormzer.norm(b->getName());
-  if (namea != nameb) return false;
+  for (size_t i = 0; i < trip->getStopTimes().size() - 1; i++) {
+    auto cur = trip->getStopTimes()[i];
+    auto next = trip->getStopTimes()[i + 1];
 
-  auto tracka = _motCfg.osmBuildOpts.trackNormzer.norm(a->getPlatformCode());
-  auto trackb = _motCfg.osmBuildOpts.trackNormzer.norm(b->getPlatformCode());
-  if (tracka != trackb) return false;
+    double dist = util::geo::haversine(
+        cur.getStop()->getLat(), cur.getStop()->getLng(),
+        next.getStop()->getLat(), next.getStop()->getLng());
 
-  POINT ap =
-      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(a->getLat(), a->getLng());
-  POINT bp =
-      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(b->getLat(), b->getLng());
+    ret.push_back(dist);
+  }
 
-  double d = util::geo::webMercMeterDist(ap, bp);
-
-  if (d > 1) return false;
-
-  return true;
+  return ret;
 }
 
 // _____________________________________________________________________________
-bool ShapeBuilder::routingEqual(Trip* a, Trip* b) {
-  if (a->getStopTimes().size() != b->getStopTimes().size()) return false;
-  if (getRAttrs(a) != getRAttrs(b)) return false;
+EdgeCandMap ShapeBuilder::getECM(const TripTrie* trie) const {
+  EdgeCandMap ecm(trie->getNds().size());
 
-  auto stb = b->getStopTimes().begin();
-  for (const auto& sta : a->getStopTimes()) {
-    if (!routingEqual(sta.getStop(), stb->getStop())) {
-      return false;
+  for (size_t nid = 1; nid < trie->getNds().size(); nid++) {
+    auto trNd = trie->getNds()[nid];
+    auto parentTrNd = trie->getNds()[trNd.parent];
+
+    if (nid != 1 && !trNd.arr) continue;
+
+    double avgT = 0;
+
+    if (trNd.trips) avgT = trNd.accTime / trNd.trips;
+
+    const auto& cands = getEdgCands(trNd.reprStop);
+    ecm[nid].reserve(cands.size());
+
+    for (auto& cand : cands) {
+      const auto& timeExpCands = timeExpand(cand, avgT);
+      assert(timeExpCands.size());
+
+      for (size_t depChildId : trNd.childs) {
+        if (nid == 1) break;
+        auto chldTrNd = trie->getNds()[depChildId];
+        double avgChildT = 0;
+        if (chldTrNd.trips) avgChildT = chldTrNd.accTime / chldTrNd.trips;
+
+        double timeDiff = avgChildT - avgT;
+        if (timeDiff < 0) timeDiff = 0;
+
+        for (size_t candId = 0; candId < timeExpCands.size(); candId++) {
+          const auto& cand = timeExpCands[candId];
+          ecm[depChildId].push_back(cand);
+          ecm[depChildId].back().time += timeDiff;
+
+          ecm[depChildId].back().pen = timePen(cand.time, avgChildT);
+
+          for (size_t sucCandId = 0; sucCandId < timeExpCands.size();
+               sucCandId++) {
+            if (timeExpCands[sucCandId].time <= ecm[depChildId].back().time) {
+              ecm[depChildId].back().depPrede.push_back(sucCandId +
+                                                        ecm[nid].size());
+            }
+          }
+          assert(ecm[depChildId].back().depPrede.size());
+        }
+      }
+      ecm[nid].insert(ecm[nid].end(), timeExpCands.begin(), timeExpCands.end());
     }
-    stb++;
+
+    assert(ecm[nid].size() != 0);
   }
 
-  return true;
+  return ecm;
+}
+
+// _____________________________________________________________________________
+double ShapeBuilder::timePen(int candTime, int schedTime) const {
+  // standard deviation of normal distribution
+  double standarddev = 5 * 60;
+
+  int diff = abs(candTime - schedTime);
+
+  double cNorm = (diff) / standarddev;
+  return cNorm * cNorm;
+}
+
+// _____________________________________________________________________________
+EdgeCandGroup ShapeBuilder::timeExpand(const EdgeCand& ec, int time) const {
+  EdgeCandGroup ret;
+  // TODO(patrick): heuristic for time expansion variance
+  // for (int i = -5; i < 6; i++) {
+  // for (int i = -10; i < 1; i++) {
+  for (int i = 0; i < 1; i++) {
+    EdgeCand ecNew = ec;
+    // in 30 sec steps
+    ecNew.time = time + i * 30;
+    ecNew.pen = ecNew.pen + timePen(ecNew.time, time);
+    ret.push_back(ecNew);
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+TripForests ShapeBuilder::clusterTrips(Feed* f, MOTs mots) {
+  TripForests forest;
+  std::map<RoutingAttrs, std::vector<Trip*>> trips;
+
+  // warm the stop name normalizer caches so a
+  // multithreaded access later on will never write to the underlying cache
+  for (auto& stop : f->getStops()) {
+    const auto& snormzer = _motCfg.osmBuildOpts.statNormzer;
+    auto normedName = snormzer.norm(stop.getName());
+  }
+
+  // cluster by routing attr for parallization later on
+  for (auto& trip : f->getTrips()) {
+    if (!_cfg.dropShapes && !trip.getShape().empty()) continue;
+    if (trip.getStopTimes().size() < 2) continue;
+    if (!mots.count(trip.getRoute()->getType()) ||
+        !_motCfg.mots.count(trip.getRoute()->getType()))
+      continue;
+
+    // important: we are building the routing attributes here, so a
+    // multithreaded access later on will never write to the underlying cache
+    const auto& rAttrs = getRAttrs(&trip);
+
+    trips[rAttrs].push_back(&trip);
+    forest[rAttrs] = {};
+  }
+
+  size_t numThreads = std::thread::hardware_concurrency();
+  std::vector<std::thread> thrds(numThreads);
+  std::vector<std::vector<RoutingAttrs>> attrs(numThreads);
+
+  size_t i = 0;
+  for (auto it : trips) {
+    attrs[i].push_back(it.first);
+    if (++i == numThreads) i = 0;
+  }
+
+  i = 0;
+  for (auto& t : thrds) {
+    t = std::thread(&ShapeBuilder::clusterWorker, this, &attrs[i], &trips,
+                    &forest);
+    i++;
+  }
+
+  for (auto& thr : thrds) thr.join();
+
+  return forest;
+}
+
+// _____________________________________________________________________________
+void ShapeBuilder::clusterWorker(
+    const std::vector<RoutingAttrs>* rAttrsVec,
+    const std::map<RoutingAttrs, std::vector<Trip*>>* trips,
+    TripForests* forest) {
+  for (const auto& rAttrs : *rAttrsVec) {
+    for (auto& trip : trips->at(rAttrs)) {
+      bool ins = false;
+      auto& subForest = forest->at(rAttrs);
+      for (auto& trie : subForest) {
+        if (trie.addTrip(trip, rAttrs,
+                         _motCfg.routingOpts.transPenMethod == "timenorm",
+                         _cfg.noTrie)) {
+          ins = true;
+          break;
+        }
+      }
+
+      if (!ins) {
+        subForest.resize(subForest.size() + 1);
+        subForest.back().addTrip(
+            trip, rAttrs, _motCfg.routingOpts.transPenMethod == "timenorm",
+            false);
+      }
+    }
+  }
 }
 
 // _____________________________________________________________________________
 const pfaedle::trgraph::Graph* ShapeBuilder::getGraph() const { return _g; }
 
 // _____________________________________________________________________________
-void ShapeBuilder::writeTransitGraph(const Shape& shp, TrGraphEdgs* edgs,
-                                     const Cluster& cluster) const {
-  for (auto hop : shp.hops) {
+void ShapeBuilder::writeTransitGraph(
+    const router::EdgeListHops& hops, TrGraphEdgs* edgs,
+    const std::vector<pfaedle::gtfs::Trip*>& trips) const {
+  for (const auto& hop : hops) {
     for (const auto* e : hop.edges) {
       if (e->pl().isRev()) e = _g->getEdg(e->getTo(), e->getFrom());
-      (*edgs)[e].insert(cluster.begin(), cluster.end());
+      (*edgs)[e].insert((*edgs)[e].begin(), trips.begin(), trips.end());
     }
   }
 }
 
 // _____________________________________________________________________________
-void ShapeBuilder::buildTrGraph(TrGraphEdgs* edgs,
-                                pfaedle::netgraph::Graph* ng) const {
+void ShapeBuilder::buildNetGraph(TrGraphEdgs* edgs,
+                                 pfaedle::netgraph::Graph* ng) const {
   std::unordered_map<trgraph::Node*, pfaedle::netgraph::Node*> nodes;
 
   for (auto ep : *edgs) {
@@ -606,4 +943,276 @@ void ShapeBuilder::buildTrGraph(TrGraphEdgs* edgs,
     ng->addEdg(from, to,
                pfaedle::netgraph::EdgePL(*e->pl().getGeom(), ep.second));
   }
+}
+
+// _____________________________________________________________________________
+std::vector<LINE> ShapeBuilder::getGeom(
+    const EdgeListHops& hops, const RoutingAttrs& rAttrs,
+    std::map<uint32_t, double>* colors) const {
+  std::vector<LINE> ret;
+
+  for (size_t i = hops.size(); i > 0; i--) {
+    const auto& hop = hops[i - 1];
+    if (!hop.start || !hop.end) {
+      // no hop was found, use the fallback geometry
+
+      if (hop.start) {
+        auto l = getLine(hop.start);
+        if (hop.progrStart > 0) {
+          PolyLine<PFDL_PREC> pl(l);
+          const auto& seg = pl.getSegment(hop.progrStart, 1);
+          ret.push_back({seg.getLine().front(), hop.pointEnd});
+        } else {
+          ret.push_back({*hop.start->getFrom()->pl().getGeom(), hop.pointEnd});
+        }
+      } else if (hop.end) {
+        auto l = getLine(hop.end);
+        if (hop.progrEnd > 0) {
+          PolyLine<PFDL_PREC> pl(l);
+          const auto& seg = pl.getSegment(0, hop.progrEnd);
+          ret.push_back({hop.pointStart, seg.getLine().back()});
+        } else {
+          ret.push_back({hop.pointStart, *hop.end->getFrom()->pl().getGeom()});
+        }
+      } else {
+        ret.push_back({hop.pointEnd, hop.pointStart});
+      }
+    } else {
+      const auto& l = getLine(hop, rAttrs, colors);
+      ret.push_back(l);
+    }
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+LINE ShapeBuilder::getLine(const EdgeListHop& hop, const RoutingAttrs& rAttrs,
+                           std::map<uint32_t, double>* colors) const {
+  LINE l;
+
+  const auto& curL = getLine(hop.start);
+
+  if (hop.edges.size() == 0) {
+    // draw direct line between positions on edges
+    if (hop.progrStart > 0) {
+      PolyLine<PFDL_PREC> pl(curL);
+      const auto& seg = pl.getSegment(hop.progrStart, 1);
+      l.push_back(seg.front());
+    } else {
+      l.push_back(curL.front());
+    }
+
+    if (hop.progrEnd > 0) {
+      PolyLine<PFDL_PREC> pl(getLine(hop.end));
+      const auto& seg = pl.getSegment(0, hop.progrEnd);
+      l.push_back(seg.back());
+    } else {
+      l.push_back(*hop.end->getFrom()->pl().getGeom());
+    }
+
+    return l;
+  }
+
+  // special case: start and end are on the same edge!
+  if (hop.edges.size() == 1 && hop.start == hop.end) {
+    PolyLine<PFDL_PREC> pl(curL);
+    const auto& seg = pl.getSegment(hop.progrStart, hop.progrEnd);
+    l.insert(l.end(), seg.getLine().begin(), seg.getLine().end());
+
+    for (const auto& color : getColorMatch(hop.start, rAttrs)) {
+      (*colors)[color] += hop.start->pl().getLength();
+    }
+
+    return l;
+  }
+
+  auto from = hop.start->getFrom();
+
+  if (hop.progrStart > 0) {
+    PolyLine<PFDL_PREC> pl(curL);
+    const auto& seg = pl.getSegment(hop.progrStart, 1);
+    l.insert(l.end(), seg.getLine().begin(), seg.getLine().end());
+
+    double l = hop.start->pl().getLength() * (1 - hop.progrStart);
+    for (const auto& color : getColorMatch(hop.start, rAttrs)) {
+      (*colors)[color] += l;
+    }
+  } else {
+    l.insert(l.end(), curL.begin(), curL.end());
+
+    double l = hop.start->pl().getLength();
+    for (const auto& color : getColorMatch(hop.start, rAttrs)) {
+      (*colors)[color] += l;
+    }
+  }
+
+  from = hop.start->getOtherNd(from);
+
+  if (hop.edges.size() > 1) {
+    for (size_t j = hop.edges.size() - 2; j > 0; j--) {
+      const auto* e = hop.edges[j];
+      const auto& curL = getLine(e);
+      l.insert(l.end(), curL.begin(), curL.end());
+      from = e->getOtherNd(from);
+
+      double l = e->pl().getLength();
+      for (const auto& color : getColorMatch(e, rAttrs)) {
+        (*colors)[color] += l;
+      }
+    }
+  }
+
+  if (hop.progrEnd > 0) {
+    PolyLine<PFDL_PREC> pl(getLine(hop.end));
+    const auto& seg = pl.getSegment(0, hop.progrEnd);
+    l.insert(l.end(), seg.getLine().begin(), seg.getLine().end());
+
+    double l = hop.end->pl().getLength() * hop.progrEnd;
+    for (const auto& color : getColorMatch(hop.end, rAttrs)) {
+      (*colors)[color] += l;
+    }
+  }
+
+  if (l.size() > 1) return util::geo::simplify(l, 0.5 / M_PER_DEG);
+  return l;
+}
+
+// _____________________________________________________________________________
+LINE ShapeBuilder::getLine(const trgraph::Edge* e) const {
+  LINE l;
+  if (!e->pl().getGeom() || e->pl().getGeom()->size() == 0)
+    return {*e->getFrom()->pl().getGeom(), *e->getTo()->pl().getGeom()};
+  if (e->pl().isRev()) {
+    l.insert(l.end(), e->pl().getGeom()->rbegin(), e->pl().getGeom()->rend());
+  } else {
+    l.insert(l.end(), e->pl().getGeom()->begin(), e->pl().getGeom()->end());
+  }
+  return l;
+}
+
+// _____________________________________________________________________________
+std::vector<float> ShapeBuilder::getMeasure(
+    const std::vector<LINE>& lines) const {
+  assert(lines.size());
+  assert(lines.front().size());
+  std::vector<float> ret;
+  POINT last = lines.front().front();
+
+  for (const auto& l : lines) {
+    for (size_t i = 0; i < l.size(); i++) {
+      if (ret.size() == 0) {
+        ret.push_back(0);
+      } else {
+        float v = ret.back() + util::geo::haversine(last, l[i]);
+        assert(v >= ret.back());  // required by GTFS standard!
+        ret.push_back(v);
+      }
+      last = l[i];
+    }
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+void ShapeBuilder::shapeWorker(
+    const std::vector<const TripForest*>* tries, std::atomic<size_t>* at,
+    std::map<std::string, size_t>* shpUse,
+    std::map<Route*, std::map<uint32_t, std::vector<gtfs::Trip*>>>* routeColors,
+    TrGraphEdgs* gtfsGraph) {
+  while (1) {
+    size_t j = (*at)++;
+    if (j >= tries->size()) return;
+
+    int step = tries->size() < 10 ? tries->size() : 10;
+
+    if (j % (tries->size() / step) == 0) {
+      LOG(INFO) << "@ " << (static_cast<int>((j * 1.0) / tries->size() * 100))
+                << "%";
+      LOG(DEBUG) << "(@ trie forest " << j << "/" << tries->size() << ")";
+    }
+
+    const auto& forest = *((*tries)[j]);
+
+    // hop cache per forest, thus per routing attributes
+    HopCache hopCacheLoc;
+    HopCache* hopCache = 0;
+
+    if (!_cfg.noHopCache) hopCache = &hopCacheLoc;
+
+    for (size_t i = 0; i < forest.size(); i++) {
+      const TripTrie* trie = &(forest[i]);
+      const auto& hops = shapeify(trie, hopCache);
+
+      for (const auto& leaf : trie->getNdTrips()) {
+        std::vector<float> distances;
+        const RoutingAttrs& rAttrs = trie->getNd(leaf.first).rAttrs;
+
+        uint32_t color;
+
+        const ad::cppgtfs::gtfs::Shape& shp = getGtfsShape(
+            hops.at(leaf.first), leaf.second[0], rAttrs, &distances, &color);
+
+        if (_cfg.buildTransitGraph) {
+          writeTransitGraph(hops.at(leaf.first), gtfsGraph, leaf.second);
+        }
+
+        for (auto t : leaf.second) {
+          if (_cfg.writeColors && color != NO_COLOR &&
+              t->getRoute()->getColor() == NO_COLOR &&
+              t->getRoute()->getTextColor() == NO_COLOR) {
+            (*routeColors)[t->getRoute()][color].push_back(t);
+          } else {
+            // else, use the original route color
+            (*routeColors)[t->getRoute()][t->getRoute()->getColor()].push_back(
+                t);
+          }
+
+          if (!t->getShape().empty() && (*shpUse)[t->getShape()] > 0) {
+            (*shpUse)[t->getShape()]--;
+            if ((*shpUse)[t->getShape()] == 0) {
+              std::lock_guard<std::mutex> guard(_shpMutex);
+              _feed->getShapes().remove(t->getShape());
+            }
+          }
+          setShape(t, shp, distances);
+        }
+      }
+    }
+  }
+}
+
+// _____________________________________________________________________________
+void ShapeBuilder::edgCandWorker(std::vector<const Stop*>* stops,
+                                 GrpCache* cache) {
+  for (auto stop : *stops) {
+    (*cache)[stop] = getEdgCands(stop);
+  }
+}
+
+// _____________________________________________________________________________
+std::set<uint32_t> ShapeBuilder::getColorMatch(
+    const trgraph::Edge* e, const RoutingAttrs& rAttrs) const {
+  std::set<uint32_t> ret;
+  for (const auto* l : e->pl().getLines()) {
+    auto simi = rAttrs.simi(l);
+    if (simi.nameSimilar && l->color != NO_COLOR) ret.insert(l->color);
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+uint32_t ShapeBuilder::getTextColor(uint32_t c) const {
+  double r = (c & 0x00FF0000) >> 16;
+  double g = (c & 0x0000FF00) >> 8;
+  double b = (c & 0x000000FF);
+
+  // gray value approx
+  double a = sqrt((r * r + g * g + b * b) / 3);
+
+  // below a certain gray value, use white, else black
+  if (a < 140) return 0x00FFFFFF;
+  return 0;
 }

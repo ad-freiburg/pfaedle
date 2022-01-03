@@ -15,6 +15,7 @@
 #include <string>
 #include "pfaedle/Def.h"
 #include "pfaedle/osm/OsmIdSet.h"
+#include "util/3rdparty/MurmurHash3.h"
 
 using pfaedle::osm::OsmIdSet;
 
@@ -28,26 +29,46 @@ OsmIdSet::OsmIdSet()
       _last(0),
       _smallest(-1),
       _biggest(0),
+      _hasInv(false),
       _obufpos(0),
       _curBlock(-1),
       _fsize(0) {
   _bitset = new std::bitset<BLOOMF_BITS>();
+  _bitsetNotIn = new std::bitset<BLOOMF_BITS>();
   _file = openTmpFile();
 
   _buffer = new unsigned char[BUFFER_S];
-  _outBuffer = new unsigned char[OBUFFER_S];
+  _outBuffer = new unsigned char[BUFFER_S];
 }
 
 // _____________________________________________________________________________
 OsmIdSet::~OsmIdSet() {
   delete _bitset;
+  delete _bitsetNotIn;
   delete[] _buffer;
   if (!_closed) delete[] _outBuffer;
 }
 
 // _____________________________________________________________________________
+void OsmIdSet::nadd(osmid id) {
+  if (_closed) throw std::exception();
+
+  _hasInv = true;
+
+  uint32_t h1, h2;
+  MurmurHash3_x86_32(&id, 8, 469954432, &h1);
+  h2 = jenkins(id);
+
+  for (int i = 0; i < 5; i++) {
+    uint32_t h = (h1 + i * h2) % BLOOMF_BITS;
+    (*_bitsetNotIn)[h] = 1;
+  }
+}
+
+// _____________________________________________________________________________
 void OsmIdSet::add(osmid id) {
   if (_closed) throw std::exception();
+
   diskAdd(id);
 
   if (_last > id) _sorted = false;
@@ -55,7 +76,14 @@ void OsmIdSet::add(osmid id) {
   if (id < _smallest) _smallest = id;
   if (id > _biggest) _biggest = id;
 
-  for (int i = 0; i < 10; i++) (*_bitset)[hash(id, i)] = 1;
+  uint32_t h1, h2;
+  MurmurHash3_x86_32(&id, 8, 469954432, &h1);
+  h2 = jenkins(id);
+
+  for (int i = 0; i < 5; i++) {
+    uint32_t h = (h1 + i * h2) % BLOOMF_BITS;
+    (*_bitset)[h] = 1;
+  }
 }
 
 // _____________________________________________________________________________
@@ -69,8 +97,8 @@ void OsmIdSet::diskAdd(osmid id) {
     _blockEnds.push_back(id);
   }
 
-  if (_obufpos >= OBUFFER_S) {
-    ssize_t w = cwrite(_file, _outBuffer, OBUFFER_S);
+  if (_obufpos >= BUFFER_S) {
+    ssize_t w = cwrite(_file, _outBuffer, BUFFER_S);
     _fsize += w;
     _obufpos = 0;
   }
@@ -86,7 +114,8 @@ size_t OsmIdSet::getBlock(osmid id) const {
 bool OsmIdSet::diskHas(osmid id) const {
   assert(_sorted);
 
-  if (std::find(_blockEnds.begin(), _blockEnds.end(), id) != _blockEnds.end()) {
+  auto a = std::lower_bound(_blockEnds.begin(), _blockEnds.end(), id);
+  if (a != _blockEnds.end() && *a == id) {
     return true;
   }
 
@@ -125,12 +154,23 @@ bool OsmIdSet::has(osmid id) const {
   LOOKUPS++;
   if (!_closed) close();
 
+  // trivial cases
   if (id < _smallest || id > _biggest) {
     return false;
   }
 
-  for (int i = 0; i < 10; i++) {
-    if ((*_bitset)[hash(id, i)] == 0) return false;
+  uint32_t h1, h2;
+  MurmurHash3_x86_32(&id, 8, 469954432, &h1);
+  h2 = jenkins(id);
+
+  for (int i = 0; i < 5; i++) {
+    uint32_t h = (h1 + i * h2) % BLOOMF_BITS;
+    if ((*_bitset)[h] == 0) {
+      return false;
+    }
+    if (_hasInv && (*_bitsetNotIn)[h] == 0) {
+      return true;
+    }
   }
 
   bool has = diskHas(id);
@@ -249,8 +289,8 @@ size_t OsmIdSet::cread(int f, void* buf, size_t n) const {
 
 // _____________________________________________________________________________
 uint32_t OsmIdSet::knuth(uint32_t in) const {
-  const uint32_t prime = 2654435769;
-  return (in * prime) >> 2;
+  const uint32_t a = 2654435769;
+  return (in * a) >> 2;
 }
 
 // _____________________________________________________________________________
@@ -262,11 +302,6 @@ uint32_t OsmIdSet::jenkins(uint32_t in) const {
   in = (in + 0xfd7046c5) + (in << 3);
   in = (in ^ 0xb55a4f09) ^ (in >> 16);
   return in >> 2;
-}
-
-// _____________________________________________________________________________
-uint32_t OsmIdSet::hash(uint32_t in, int i) const {
-  return (knuth(in) + jenkins(in) * i) % BLOOMF_BITS;
 }
 
 // _____________________________________________________________________________

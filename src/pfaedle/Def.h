@@ -17,17 +17,17 @@
 #define __str_c(s) s ## 1
 #define __str_d(s) __str_c(s)
 
-#if !defined(PFAEDLE_PRECISION) || (__str_d(PFAEDLE_PRECISION) == 1)
-#undef PFAEDLE_PRECISION
-#define PFAEDLE_PRECISION double
+#if !defined(PFDL_PREC) || (__str_d(PFDL_PREC) == 1)
+#undef PFDL_PREC
+#define PFDL_PREC double
 #endif
 
-#define PFAEDLE_PRECISION_STR __str_a(PFAEDLE_PRECISION)
+#define PFDL_PREC_STR __str_a(PFDL_PREC)
 
-#define POINT util::geo::Point<PFAEDLE_PRECISION>
-#define LINE util::geo::Line<PFAEDLE_PRECISION>
-#define BOX util::geo::Box<PFAEDLE_PRECISION>
-#define POLYLINE util::geo::PolyLine<PFAEDLE_PRECISION>
+#define POINT util::geo::Point<PFDL_PREC>
+#define LINE util::geo::Line<PFDL_PREC>
+#define BOX util::geo::Box<PFDL_PREC>
+#define POLYLINE util::geo::PolyLine<PFDL_PREC>
 
 #define BOX_PADDING 2500
 

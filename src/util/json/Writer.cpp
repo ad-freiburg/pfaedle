@@ -43,7 +43,7 @@ void Writer::obj() {
 void Writer::key(const std::string& k) {
   if (_stack.empty() || _stack.top().type != OBJ)
     throw WriterException("Keys only allowed in objects.");
-  if (!_stack.top().empty) (*_out) << "," << (_pretty ? " " : "");
+  if (!_stack.top().empty) (*_out) << ",";
   _stack.top().empty = 0;
   prettor();
   *_out << "\"" << k << "\""
@@ -87,6 +87,12 @@ void Writer::val(int v) {
 }
 
 // _____________________________________________________________________________
+void Writer::val(size_t v) {
+  valCheck();
+  *_out << v;
+}
+
+// _____________________________________________________________________________
 void Writer::val(double v) {
   valCheck();
   *_out << std::fixed << std::setprecision(_floatPrec) << v;
@@ -103,6 +109,9 @@ void Writer::val(const Val& v) {
   switch (v.type) {
     case Val::JSNULL:
       val(Null());
+      return;
+    case Val::UINT:
+      val(v.ui);
       return;
     case Val::INT:
       val(v.i);

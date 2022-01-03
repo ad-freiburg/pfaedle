@@ -9,39 +9,41 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <utility>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/config/MotConfig.h"
 #include "pfaedle/config/PfaedleConfig.h"
-#include "pfaedle/eval/Collector.h"
 #include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/netgraph/Graph.h"
 #include "pfaedle/osm/Restrictor.h"
 #include "pfaedle/router/Misc.h"
 #include "pfaedle/router/Router.h"
+#include "pfaedle/router/Stats.h"
+#include "pfaedle/router/TripTrie.h"
+#include "pfaedle/statsimi-classifier/StatsimiClassifier.h"
 #include "pfaedle/trgraph/Graph.h"
 #include "util/geo/Geo.h"
 
 namespace pfaedle {
 namespace router {
 
-using ad::cppgtfs::gtfs::Stop;
-using pfaedle::gtfs::Trip;
-using pfaedle::gtfs::Feed;
-
-struct Shape {
-  router::EdgeListHops hops;
-  double avgHopDist;
-};
-
-typedef std::vector<Trip*> Cluster;
-typedef std::vector<Cluster> Clusters;
-typedef std::pair<const Stop*, const Stop*> StopPair;
-typedef std::unordered_map<const Trip*, router::RoutingAttrs> TripRAttrs;
-typedef std::unordered_map<const trgraph::Edge*, std::set<const Trip*>>
+typedef std::vector<TripTrie> TripForest;
+typedef std::map<router::RoutingAttrs, TripForest> TripForests;
+typedef std::pair<const ad::cppgtfs::gtfs::Stop*,
+                  const ad::cppgtfs::gtfs::Stop*>
+    StopPair;
+typedef std::unordered_map<const pfaedle::gtfs::Trip*, router::RoutingAttrs>
+    TripRAttrs;
+typedef std::unordered_map<const trgraph::Edge*,
+                           std::vector<const pfaedle::gtfs::Trip*>>
     TrGraphEdgs;
+typedef std::map<Route*, std::map<uint32_t, std::vector<gtfs::Trip*>>>
+    RouteRefColors;
+typedef std::unordered_map<const ad::cppgtfs::gtfs::Stop*, EdgeCandGroup>
+    GrpCache;
 
 /*
  * Layer class for the router. Provides an interface for direct usage with
@@ -49,76 +51,116 @@ typedef std::unordered_map<const trgraph::Edge*, std::set<const Trip*>>
  */
 class ShapeBuilder {
  public:
-  ShapeBuilder(Feed* feed, ad::cppgtfs::gtfs::Feed* evalFeed, MOTs mots,
-               const config::MotConfig& motCfg, eval::Collector* ecoll,
-               trgraph::Graph* g, router::FeedStops* stops,
-               osm::Restrictor* restr, const config::Config& cfg);
+  ShapeBuilder(
+      pfaedle::gtfs::Feed* feed, MOTs mots, const config::MotConfig& motCfg,
+      trgraph::Graph* g, router::FeedStops* stops, osm::Restrictor* restr,
+      const pfaedle::statsimiclassifier::StatsimiClassifier* classifier,
+      router::Router* router, const config::Config& cfg);
 
-  void shape(pfaedle::netgraph::Graph* ng);
+  Stats shapeify(pfaedle::netgraph::Graph* outNg);
 
   router::FeedStops* getFeedStops();
 
-  const NodeCandGroup& getNodeCands(const Stop* s) const;
+  // shape single trip
+  std::pair<std::vector<LINE>, Stats> shapeL(pfaedle::gtfs::Trip* trip);
 
-  LINE shapeL(const router::NodeCandRoute& ncr,
-              const router::RoutingAttrs& rAttrs);
-  LINE shapeL(Trip* trip);
-
-  pfaedle::router::Shape shape(Trip* trip) const;
-  pfaedle::router::Shape shape(Trip* trip);
+  std::map<size_t, EdgeListHops> shapeify(const TripTrie* trie,
+                                          HopCache* hopCache) const;
+  EdgeListHops shapeify(pfaedle::gtfs::Trip* trip);
 
   const trgraph::Graph* getGraph() const;
 
-  static void getGtfsBox(const Feed* feed, const MOTs& mots,
+  static void getGtfsBox(const pfaedle::gtfs::Feed* feed, const MOTs& mots,
                          const std::string& tid, bool dropShapes,
-                         osm::BBoxIdx* box);
+                         osm::BBoxIdx* box, double maxSpeed);
 
  private:
-  Feed* _feed;
-  ad::cppgtfs::gtfs::Feed* _evalFeed;
+  pfaedle::gtfs::Feed* _feed;
   MOTs _mots;
   config::MotConfig _motCfg;
-  eval::Collector* _ecoll;
   config::Config _cfg;
   trgraph::Graph* _g;
-  router::Router _crouter;
-
   router::FeedStops* _stops;
 
-  NodeCandGroup _emptyNCG;
+  EdgeCandGroup _emptyNCG;
 
-  size_t _curShpCnt, _numThreads;
+  size_t _curShpCnt;
 
   std::mutex _shpMutex;
 
   TripRAttrs _rAttrs;
 
   osm::Restrictor* _restr;
+  const pfaedle::statsimiclassifier::StatsimiClassifier* _classifier;
+  GrpCache _grpCache;
 
-  void buildGraph(router::FeedStops* fStops);
+  router::Router* _router;
 
-  Clusters clusterTrips(Feed* f, MOTs mots);
-  void writeTransitGraph(const Shape& shp, TrGraphEdgs* edgs,
-                         const Cluster& cluster) const;
-  void buildTrGraph(TrGraphEdgs* edgs, pfaedle::netgraph::Graph* ng) const;
+  TripForests clusterTrips(pfaedle::gtfs::Feed* f, MOTs mots);
+  void buildNetGraph(TrGraphEdgs* edgs, pfaedle::netgraph::Graph* ng) const;
 
-  std::string getFreeShapeId(Trip* t);
+  std::string getFreeShapeId(pfaedle::gtfs::Trip* t);
+  ad::cppgtfs::gtfs::Shape getGtfsShape(const EdgeListHops& shp,
+                                        pfaedle::gtfs::Trip* t,
+                                        const RoutingAttrs& rAttrs,
+                                        std::vector<float>* hopDists,
+                                        uint32_t* bestColor);
 
-  ad::cppgtfs::gtfs::Shape getGtfsShape(const Shape& shp, Trip* t,
-                                        std::vector<double>* hopDists);
+  void setShape(pfaedle::gtfs::Trip* t, const ad::cppgtfs::gtfs::Shape& s,
+                const std::vector<float>& dists);
 
-  void setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
-                const std::vector<double>& dists);
+  EdgeCandGroup getEdgCands(const ad::cppgtfs::gtfs::Stop* s) const;
 
-  router::NodeCandRoute getNCR(Trip* trip) const;
-  double avgHopDist(Trip* trip) const;
-  const router::RoutingAttrs& getRAttrs(const Trip* trip) const;
-  const router::RoutingAttrs& getRAttrs(const Trip* trip);
-  bool routingEqual(Trip* a, Trip* b);
-  bool routingEqual(const Stop* a, const Stop* b);
-  router::EdgeListHops route(const router::NodeCandRoute& ncr,
-                             const router::RoutingAttrs& rAttrs) const;
+  router::EdgeCandMap getECM(const TripTrie* trie) const;
+  std::vector<double> getTransTimes(pfaedle::gtfs::Trip* trip) const;
+  std::vector<double> getTransDists(pfaedle::gtfs::Trip* trip) const;
+  const router::RoutingAttrs& getRAttrs(const pfaedle::gtfs::Trip* trip) const;
+  const router::RoutingAttrs& getRAttrs(const pfaedle::gtfs::Trip* trip);
+  std::map<size_t, router::EdgeListHops> route(const TripTrie* trie,
+                                               const EdgeCandMap& ecm,
+                                               HopCache* hopCache) const;
+  void buildCandCache(const TripForests& clusters);
+  void buildIndex();
+
+  std::vector<LINE> getGeom(const EdgeListHops& shp, const RoutingAttrs& rAttrs,
+                            std::map<uint32_t, double>* colors) const;
+  double timePen(int candTime, int schedTime) const;
+
+  LINE getLine(const EdgeListHop& hop, const RoutingAttrs&,
+               std::map<uint32_t, double>* colMap) const;
+  LINE getLine(const trgraph::Edge* edg) const;
+  std::vector<float> getMeasure(const std::vector<LINE>& lines) const;
+
+  trgraph::Edge* deg2reachable(trgraph::Edge* e,
+                               std::set<trgraph::Edge*> edgs) const;
+
+  EdgeCandGroup timeExpand(const EdgeCand& ec, int time) const;
+
+  std::set<uint32_t> getColorMatch(const trgraph::Edge* e,
+                                   const RoutingAttrs& rAttrs) const;
+
+  void updateRouteColors(const RouteRefColors& c);
+
+  uint32_t getTextColor(uint32_t c) const;
+
+  void writeTransitGraph(const router::EdgeListHops& shp, TrGraphEdgs* edgs,
+                         const std::vector<pfaedle::gtfs::Trip*>& trips) const;
+
+  void shapeWorker(
+      const std::vector<const TripForest*>* tries, std::atomic<size_t>* at,
+      std::map<std::string, size_t>* shpUsage,
+      std::map<Route*, std::map<uint32_t, std::vector<gtfs::Trip*>>>*,
+      TrGraphEdgs* gtfsGraph);
+
+  void edgCandWorker(std::vector<const Stop*>* stops, GrpCache* cache);
+  void clusterWorker(const std::vector<RoutingAttrs>* rAttrs,
+                     const std::map<RoutingAttrs, std::vector<Trip*>>* trips,
+                     TripForests* forest);
+
+  pfaedle::trgraph::EdgeGrid _eGrid;
+  pfaedle::trgraph::NodeGrid _nGrid;
 };
+
 }  // namespace router
 }  // namespace pfaedle
 

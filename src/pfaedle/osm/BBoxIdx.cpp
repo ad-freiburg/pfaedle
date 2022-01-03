@@ -31,10 +31,10 @@ bool BBoxIdx::contains(const Point<double>& p) const {
 // _____________________________________________________________________________
 BOX BBoxIdx::getFullWebMercBox() const {
   return BOX(
-      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
-          _root.box.getLowerLeft().getY(), _root.box.getLowerLeft().getX()),
-      util::geo::latLngToWebMerc<PFAEDLE_PRECISION>(
-          _root.box.getUpperRight().getY(), _root.box.getUpperRight().getX()));
+      util::geo::latLngToWebMerc<PFDL_PREC>(_root.box.getLowerLeft().getY(),
+                                            _root.box.getLowerLeft().getX()),
+      util::geo::latLngToWebMerc<PFDL_PREC>(_root.box.getUpperRight().getY(),
+                                            _root.box.getUpperRight().getX()));
 }
 
 // _____________________________________________________________________________

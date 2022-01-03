@@ -38,7 +38,7 @@ void PolyLine<T>::reverse() {
 
 // _____________________________________________________________________________
 template <typename T>
-PolyLine<T> PolyLine<T>::getReversed() const {
+PolyLine<T> PolyLine<T>::reversed() const {
   PolyLine ret = *this;
   ret.reverse();
   return ret;
@@ -52,7 +52,7 @@ const Line<T>& PolyLine<T>::getLine() const {
 
 // _____________________________________________________________________________
 template <typename T>
-PolyLine<T> PolyLine<T>::getPerpOffsetted(double units) const {
+PolyLine<T> PolyLine<T>::offsetted(double units) const {
   PolyLine p = *this;
   p.offsetPerp(units);
   return p;
@@ -69,8 +69,6 @@ void PolyLine<T>::offsetPerp(double units) {
    */
 
   if (fabs(units) < 0.001) return;
-
-  assert(getLength() > 0);
 
   if (_line.size() < 2) return;
 
@@ -180,6 +178,7 @@ template <typename T>
 PolyLine<T> PolyLine<T>::getSegment(const LinePoint<T>& start,
                                     const LinePoint<T>& end) const {
   PolyLine ret;
+
   ret << start.p;
 
   if (start.lastIndex + 1 <= end.lastIndex) {
@@ -189,7 +188,9 @@ PolyLine<T> PolyLine<T>::getSegment(const LinePoint<T>& start,
   ret << end.p;
 
   // find a more performant way to clear the result of above
-  ret.simplify(0);
+  // ret.simplify(0);
+
+  // assert(ret.getLine().size());
 
   return ret;
 }
@@ -197,8 +198,18 @@ PolyLine<T> PolyLine<T>::getSegment(const LinePoint<T>& start,
 // _____________________________________________________________________________
 template <typename T>
 LinePoint<T> PolyLine<T>::getPointAtDist(double atDist) const {
-  if (atDist > getLength()) atDist = getLength();
+  double l = getLength();
+  if (atDist > l) atDist = l;
   if (atDist < 0) atDist = 0;
+
+  // shortcuts
+  if (atDist == 0) {
+    return LinePoint<T>(0, 0, _line.front());
+  }
+
+  if (atDist == l) {
+    return LinePoint<T>(_line.size() - 1, 1, _line.back());
+  }
 
   double dist = 0;
 
@@ -213,8 +224,7 @@ LinePoint<T> PolyLine<T>::getPointAtDist(double atDist) const {
 
     if (dist > atDist) {
       double p = (d - (dist - atDist));
-      return LinePoint<T>(i - 1, atDist / getLength(),
-                          interpolate(*last, cur, p));
+      return LinePoint<T>(i - 1, atDist / l, interpolate(*last, cur, p));
     }
 
     last = &_line[i];
@@ -270,8 +280,9 @@ PolyLine<T> PolyLine<T>::average(const std::vector<const PolyLine<T>*>& lines,
 
   double longestLength = DBL_MIN;  // avoid recalc of length on each comparision
   for (const PolyLine* p : lines) {
-    if (p->getLength() > longestLength) {
-      longestLength = p->getLength();
+    double l = p->getLength();
+    if (l > longestLength) {
+      longestLength = l;
     }
   }
 
@@ -377,11 +388,13 @@ LinePoint<T> PolyLine<T>::projectOnAfter(const Point<T>& p, size_t a) const {
   assert(a < _line.size());
   std::pair<size_t, double> bc = nearestSegmentAfter(p, a);
 
-  Point<T> ret = geo::projectOn(_line[bc.first], p, _line[bc.first + 1]);
+  size_t next = bc.first + 1;
+  if (next >= _line.size()) next = bc.first;
 
-  if (getLength() > 0) {
-    bc.second += dist(_line[bc.first], ret) / getLength();
-  }
+  Point<T> ret = geo::projectOn(_line[bc.first], p, _line[next]);
+
+  double l = getLength();
+  if (l > 0) bc.second += dist(_line[bc.first], ret) / l;
 
   return LinePoint<T>(bc.first, bc.second, ret);
 }
@@ -475,7 +488,7 @@ SharedSegments<T> PolyLine<T>::getSharedSegments(const PolyLine<T>& pl,
    */
   double STEP_SIZE = 2;
   double MAX_SKIPS = 4;
-  double MIN_SEG_LENGTH = 1;  // dmax / 2;  // make this configurable!
+  double MIN_SEG_LENGTH = 0.1;  // dmax / 2;  // make this configurable!
 
   SharedSegments<T> ret;
 
@@ -504,7 +517,6 @@ SharedSegments<T> PolyLine<T>::getSharedSegments(const PolyLine<T>& pl,
       if (pl.distTo(curPointer) <= dmax) {
         LinePoint<T> curCmpPointer = pl.projectOn(curPointer);
         LinePoint<T> curBackProjectedPointer = projectOn(curCmpPointer.p);
-
 
         skips = 0;
 
@@ -536,7 +548,6 @@ SharedSegments<T> PolyLine<T>::getSharedSegments(const PolyLine<T>& pl,
                       curEndCand.totalPos * length) > MIN_SEG_LENGTH &&
                  fabs(curStartCandCmp.totalPos * plLength -
                       curEndCandCmp.totalPos * plLength) > MIN_SEG_LENGTH)) {
-              assert(curStartCand.totalPos < curEndCand.totalPos);
               ret.segments.push_back(
                   SharedSegment<T>(std::pair<LinePoint<T>, LinePoint<T>>(
                                        curStartCand, curStartCandCmp),
@@ -573,7 +584,6 @@ SharedSegments<T> PolyLine<T>::getSharedSegments(const PolyLine<T>& pl,
            MIN_SEG_LENGTH &&
        fabs(curStartCandCmp.totalPos * plLength -
             curEndCandCmp.totalPos * plLength) > MIN_SEG_LENGTH)) {
-    assert(curStartCand.totalPos < curEndCand.totalPos);
     ret.segments.push_back(SharedSegment<T>(
         std::pair<LinePoint<T>, LinePoint<T>>(curStartCand, curStartCandCmp),
         std::pair<LinePoint<T>, LinePoint<T>>(curEndCand, curEndCandCmp)));
@@ -661,7 +671,8 @@ std::pair<double, double> PolyLine<T>::getSlopeBetween(double ad,
 template <typename T>
 std::pair<double, double> PolyLine<T>::getSlopeBetweenDists(double ad,
                                                             double bd) const {
-  return getSlopeBetween(ad / getLength(), bd / getLength());
+  double l = getLength();
+  return getSlopeBetween(ad / l, bd / l);
 }
 
 // _____________________________________________________________________________

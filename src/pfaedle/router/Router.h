@@ -6,198 +6,97 @@
 #define PFAEDLE_ROUTER_ROUTER_H_
 
 #include <limits>
-#include <map>
-#include <mutex>
 #include <set>
+#include <stack>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <utility>
 #include <vector>
 #include "pfaedle/Def.h"
 #include "pfaedle/osm/Restrictor.h"
-#include "pfaedle/router/Graph.h"
+#include "pfaedle/router/HopCache.h"
 #include "pfaedle/router/Misc.h"
 #include "pfaedle/router/RoutingAttrs.h"
+#include "pfaedle/router/TripTrie.h"
+#include "pfaedle/router/Weights.h"
 #include "pfaedle/trgraph/Graph.h"
+#include "util/Misc.h"
 #include "util/geo/Geo.h"
-#include "util/graph/Dijkstra.h"
 #include "util/graph/EDijkstra.h"
-
-using util::graph::EDijkstra;
-using util::graph::Dijkstra;
 
 namespace pfaedle {
 namespace router {
 
-typedef std::unordered_map<const trgraph::Edge*, router::Node*> CombNodeMap;
+constexpr static uint32_t ROUTE_INF = std::numeric_limits<uint32_t>::max();
+constexpr static double DBL_INF = std::numeric_limits<double>::infinity();
+constexpr static size_t NO_PREDE = std::numeric_limits<size_t>::max();
+
+constexpr static int MAX_ROUTE_COST_DOUBLING_STEPS = 3;
+
 typedef std::pair<size_t, size_t> HId;
-typedef std::map<
-    RoutingAttrs,
-    std::unordered_map<const trgraph::Edge*,
-                       std::unordered_map<const trgraph::Edge*,
-                                          std::pair<EdgeCost, EdgeList> > > >
-    Cache;
+typedef std::vector<double> LayerCostsDAG;
+typedef std::vector<LayerCostsDAG> CostsDAG;
+typedef std::vector<std::vector<size_t>> PredeDAG;
 
-struct HopBand {
-  double minD;
-  double maxD;
-  const trgraph::Edge* nearest;
-  double maxInGrpDist;
-};
+typedef std::unordered_map<const trgraph::Edge*,
+                           std::unordered_map<const trgraph::Edge*, uint32_t>>
+    EdgeCostMatrix;
+typedef std::unordered_map<const trgraph::Edge*,
+                           std::unordered_map<const trgraph::Edge*, double>>
+    EdgeDistMatrix;
+typedef util::graph::EDijkstra::EList<trgraph::NodePL, trgraph::EdgePL> TrEList;
 
-struct CostFunc
-    : public EDijkstra::CostFunc<trgraph::NodePL, trgraph::EdgePL, EdgeCost> {
-  CostFunc(const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
-           const osm::Restrictor& res, const trgraph::StatGroup* tgGrp,
-           double max)
-      : _rAttrs(rAttrs),
-        _rOpts(rOpts),
-        _res(res),
-        _tgGrp(tgGrp),
-        _inf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, max, 0) {}
+typedef std::vector<std::pair<std::pair<size_t, size_t>, uint32_t>> CostMatrix;
 
-  const RoutingAttrs& _rAttrs;
-  const RoutingOpts& _rOpts;
-  const osm::Restrictor& _res;
-  const trgraph::StatGroup* _tgGrp;
-  EdgeCost _inf;
-
-  EdgeCost operator()(const trgraph::Edge* from, const trgraph::Node* n,
-                      const trgraph::Edge* to) const;
-  EdgeCost inf() const { return _inf; }
-
-  double transitLineCmp(const trgraph::EdgePL& e) const;
-};
-
-struct NCostFunc
-    : public Dijkstra::CostFunc<trgraph::NodePL, trgraph::EdgePL, EdgeCost> {
-  NCostFunc(const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
-            const osm::Restrictor& res, const trgraph::StatGroup* tgGrp)
-      : _rAttrs(rAttrs),
-        _rOpts(rOpts),
-        _res(res),
-        _tgGrp(tgGrp),
-        _inf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             std::numeric_limits<double>::infinity(), 0) {}
-
-  const RoutingAttrs& _rAttrs;
-  const RoutingOpts& _rOpts;
-  const osm::Restrictor& _res;
-  const trgraph::StatGroup* _tgGrp;
-  EdgeCost _inf;
-
-  EdgeCost operator()(const trgraph::Node* from, const trgraph::Edge* e,
-                      const trgraph::Node* to) const;
-  EdgeCost inf() const { return _inf; }
-
-  double transitLineCmp(const trgraph::EdgePL& e) const;
-};
-
-struct DistHeur
-    : public EDijkstra::HeurFunc<trgraph::NodePL, trgraph::EdgePL, EdgeCost> {
-  DistHeur(uint8_t minLvl, const RoutingOpts& rOpts,
-           const std::set<trgraph::Edge*>& tos);
-
-  const RoutingOpts& _rOpts;
-  uint8_t _lvl;
-  POINT _center;
-  double _maxCentD;
-  EdgeCost operator()(const trgraph::Edge* a,
-                      const std::set<trgraph::Edge*>& b) const;
-};
-
-struct NDistHeur
-    : public Dijkstra::HeurFunc<trgraph::NodePL, trgraph::EdgePL, EdgeCost> {
-  NDistHeur(const RoutingOpts& rOpts, const std::set<trgraph::Node*>& tos);
-
-  const RoutingOpts& _rOpts;
-  POINT _center;
-  double _maxCentD;
-  EdgeCost operator()(const trgraph::Node* a,
-                      const std::set<trgraph::Node*>& b) const;
-};
-
-struct CombCostFunc
-    : public EDijkstra::CostFunc<router::NodePL, router::EdgePL, double> {
-  explicit CombCostFunc(const RoutingOpts& rOpts) : _rOpts(rOpts) {}
-
-  const RoutingOpts& _rOpts;
-
-  double operator()(const router::Edge* from, const router::Node* n,
-                    const router::Edge* to) const;
-  double inf() const { return std::numeric_limits<double>::infinity(); }
+class Router {
+ public:
+  virtual ~Router() = default;
+  virtual std::map<size_t, EdgeListHops> route(const TripTrie* trie,
+                                               const EdgeCandMap& ecm,
+                                               const RoutingOpts& rOpts,
+                                               const osm::Restrictor& rest,
+                                               HopCache* hopCache,
+                                               bool noFastHops) const = 0;
 };
 
 /*
  * Finds the most likely route of schedule-based vehicle between stops in a
  * physical transportation network
  */
-class Router {
+template <typename TW>
+class RouterImpl : public Router {
  public:
-  // Init this router with caches for numThreads threads
-  explicit Router(size_t numThreads, bool caching);
-  ~Router();
-
-  // Find the most likely path through the graph for a node candidate route.
-  EdgeListHops route(const NodeCandRoute& route, const RoutingAttrs& rAttrs,
-                     const RoutingOpts& rOpts,
-                     const osm::Restrictor& rest) const;
-  EdgeListHops route(const NodeCandRoute& route, const RoutingAttrs& rAttrs,
-                     const RoutingOpts& rOpts, const osm::Restrictor& rest,
-                     router::Graph* cgraph) const;
-
-  // Find the most likely path through the graph for an edge candidate route.
-  EdgeListHops route(const EdgeCandRoute& route, const RoutingAttrs& rAttrs,
-                     const RoutingOpts& rOpts,
-                     const osm::Restrictor& rest) const;
-  EdgeListHops route(const EdgeCandRoute& route, const RoutingAttrs& rAttrs,
-                     const RoutingOpts& rOpts, const osm::Restrictor& rest,
-                     router::Graph* cgraph) const;
-
-  // Find the most likely path through cgraph for a node candidate route, but
-  // based on a greedy node to node approach
-  EdgeListHops routeGreedy(const NodeCandRoute& route,
-                           const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
-                           const osm::Restrictor& rest) const;
-
-  // Find the most likely path through cgraph for a node candidate route, but
-  // based on a greedy node to node set approach
-  EdgeListHops routeGreedy2(const NodeCandRoute& route,
-                            const RoutingAttrs& rAttrs,
-                            const RoutingOpts& rOpts,
-                            const osm::Restrictor& rest) const;
-
-  // Return the number of thread caches this router was initialized with
-  size_t getCacheNumber() const;
+  // Find the most likely path through the graph for a trip trie.
+  virtual std::map<size_t, EdgeListHops> route(
+      const TripTrie* trie, const EdgeCandMap& ecm, const RoutingOpts& rOpts,
+      const osm::Restrictor& rest, HopCache* hopCache, bool noFastHops) const;
 
  private:
-  mutable std::vector<Cache*> _cache;
-  bool _caching;
-  HopBand getHopBand(const EdgeCandGroup& a, const EdgeCandGroup& b,
-                     const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
-                     const osm::Restrictor& rest) const;
+  void hops(const EdgeCandGroup& from, const EdgeCandGroup& to,
+            CostMatrix* rCosts, CostMatrix* dists, const RoutingAttrs& rAttrs,
+            const RoutingOpts& rOpts, const osm::Restrictor& rest,
+            HopCache* hopCache, uint32_t maxCost) const;
 
-  void hops(trgraph::Edge* from, const std::set<trgraph::Edge*>& froms,
-            const std::set<trgraph::Edge*> to, const trgraph::StatGroup* tgGrp,
-            const std::unordered_map<trgraph::Edge*, EdgeList*>& edgesRet,
-            std::unordered_map<trgraph::Edge*, EdgeCost>* rCosts,
-            const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
-            const osm::Restrictor& rest, HopBand hopB) const;
+  void hopsFast(const EdgeCandGroup& from, const EdgeCandGroup& to,
+                const LayerCostsDAG& initCosts, CostMatrix* rCosts,
+                const RoutingAttrs& rAttrs, const RoutingOpts& rOpts,
+                const osm::Restrictor& rest,
 
-  std::set<trgraph::Edge*> getCachedHops(
-      trgraph::Edge* from, const std::set<trgraph::Edge*>& to,
-      const std::unordered_map<trgraph::Edge*, EdgeList*>& edgesRet,
-      std::unordered_map<trgraph::Edge*, EdgeCost>* rCosts,
-      const RoutingAttrs& rAttrs) const;
+                HopCache* hopCache, uint32_t maxCost) const;
 
-  void cache(trgraph::Edge* from, trgraph::Edge* to, const EdgeCost& c,
-             EdgeList* edges, const RoutingAttrs& rAttrs) const;
+  bool connected(const EdgeCand& from, const EdgeCandGroup& tos) const;
+  bool connected(const EdgeCandGroup& froms, const EdgeCand& to) const;
 
-  void nestedCache(const EdgeList* el, const std::set<trgraph::Edge*>& froms,
-                   const CostFunc& cost, const RoutingAttrs& rAttrs) const;
+  bool cacheDrop(
 
-  bool compConned(const EdgeCandGroup& a, const EdgeCandGroup& b) const;
+      HopCache* hopCache, const std::set<trgraph::Edge*>& froms,
+      const trgraph::Edge* to, uint32_t maxCost) const;
+
+  uint32_t addNonOverflow(uint32_t a, uint32_t b) const;
 };
+
+#include "pfaedle/router/Router.tpp"
 }  // namespace router
 }  // namespace pfaedle
 

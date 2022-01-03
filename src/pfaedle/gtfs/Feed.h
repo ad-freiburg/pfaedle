@@ -6,7 +6,6 @@
 #define PFAEDLE_GTFS_FEED_H_
 
 #include <string>
-#include "Route.h"
 #include "Service.h"
 #include "ShapeContainer.h"
 #include "StopTime.h"
@@ -21,14 +20,15 @@ namespace pfaedle {
 namespace gtfs {
 
 typedef ad::cppgtfs::gtfs::FeedB<
-    ad::cppgtfs::gtfs::Agency, Route, ad::cppgtfs::gtfs::Stop, Service,
-    StopTime, Shape, ad::cppgtfs::gtfs::Fare, ad::cppgtfs::gtfs::Container,
-    ad::cppgtfs::gtfs::ContContainer, ad::cppgtfs::gtfs::NullContainer,
-    ad::cppgtfs::gtfs::ContContainer, ad::cppgtfs::gtfs::ContContainer,
-    ShapeContainer, ad::cppgtfs::gtfs::NullContainer>
+    ad::cppgtfs::gtfs::Agency, ad::cppgtfs::gtfs::Route,
+    ad::cppgtfs::gtfs::Stop, Service, StopTime, Shape, ad::cppgtfs::gtfs::Fare,
+    ad::cppgtfs::gtfs::Container, ad::cppgtfs::gtfs::Container,
+    ad::cppgtfs::gtfs::NullContainer, ad::cppgtfs::gtfs::ContContainer,
+    ad::cppgtfs::gtfs::ContContainer, ShapeContainer,
+    ad::cppgtfs::gtfs::Container>
     Feed;
 typedef ad::cppgtfs::gtfs::TripB<StopTime<ad::cppgtfs::gtfs::Stop>, Service,
-                                 Route, Shape>
+                                 ad::cppgtfs::gtfs::Route, Shape>
     Trip;
 
 }  // namespace gtfs

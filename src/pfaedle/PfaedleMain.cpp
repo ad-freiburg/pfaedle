@@ -18,19 +18,19 @@
 #include "pfaedle/config/ConfigReader.h"
 #include "pfaedle/config/MotConfig.h"
 #include "pfaedle/config/MotConfigReader.h"
-#include "pfaedle/eval/Collector.h"
 #include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/gtfs/Writer.h"
 #include "pfaedle/netgraph/Graph.h"
 #include "pfaedle/osm/OsmIdSet.h"
 #include "pfaedle/router/ShapeBuilder.h"
+#include "pfaedle/router/Stats.h"
+#include "pfaedle/statsimi-classifier/StatsimiClassifier.h"
 #include "pfaedle/trgraph/Graph.h"
-#include "pfaedle/trgraph/StatGroup.h"
+#include "util/Misc.h"
 #include "util/geo/output/GeoGraphJsonOutput.h"
 #include "util/geo/output/GeoJsonOutput.h"
 #include "util/json/Writer.h"
 #include "util/log/Log.h"
-#include "util/Misc.h"
 
 #ifndef CFG_HOME_SUFFIX
 #define CFG_HOME_SUFFIX "/.config"
@@ -42,16 +42,25 @@
 #define CFG_FILE_NAME "pfaedle.cfg"
 #endif
 
-using pfaedle::router::MOTs;
+using configparser::ParseFileExc;
+using pfaedle::config::Config;
+using pfaedle::config::ConfigReader;
+using pfaedle::config::MotConfig;
+using pfaedle::config::MotConfigReader;
 using pfaedle::osm::BBoxIdx;
 using pfaedle::osm::OsmBuilder;
-using pfaedle::config::MotConfig;
-using pfaedle::config::Config;
+using pfaedle::router::DistDiffTransWeight;
+using pfaedle::router::DistDiffTransWeightNoHeur;
+using pfaedle::router::ExpoTransWeight;
+using pfaedle::router::ExpoTransWeightNoHeur;
+using pfaedle::router::MOTs;
+using pfaedle::router::NormDistrTransWeight;
+using pfaedle::router::NormDistrTransWeightNoHeur;
+using pfaedle::router::Router;
+using pfaedle::router::RouterImpl;
 using pfaedle::router::ShapeBuilder;
-using configparser::ParseFileExc;
-using pfaedle::config::MotConfigReader;
-using pfaedle::config::ConfigReader;
-using pfaedle::eval::Collector;
+using pfaedle::router::Stats;
+using pfaedle::statsimiclassifier::JaccardClassifier;
 
 enum class RetCode {
   SUCCESS = 0,
@@ -77,6 +86,11 @@ int main(int argc, char** argv) {
   // initialize randomness
   srand(time(NULL) + rand());  // NOLINT
 
+  // use utf8 locale
+  std::setlocale(LC_ALL, "en_US.utf8");
+
+  T_START(total);
+
   Config cfg;
   MotConfigReader motCfgReader;
 
@@ -84,13 +98,11 @@ int main(int argc, char** argv) {
   cr.read(&cfg, argc, argv);
 
   std::vector<pfaedle::gtfs::Feed> gtfs(cfg.feedPaths.size());
-  // feed containing the shapes in memory for evaluation
-  ad::cppgtfs::gtfs::Feed evalFeed;
 
   std::vector<std::string> cfgPaths = getCfgPaths(cfg);
 
   try {
-    motCfgReader.parse(cfgPaths);
+    motCfgReader.parse(cfgPaths, cfg.motCfgParam);
   } catch (const configparser::ParseExc& ex) {
     LOG(ERROR) << "Could not parse MOT configurations, reason was:";
     std::cerr << ex.what() << std::endl;
@@ -108,27 +120,24 @@ int main(int argc, char** argv) {
     exit(static_cast<int>(RetCode::NO_MOT_CFG));
   }
 
+  T_START(gtfsBuild);
+
   if (cfg.feedPaths.size() == 1) {
     if (cfg.inPlace) cfg.outputPath = cfg.feedPaths[0];
     if (!cfg.writeOverpass)
-      LOG(INFO) << "Reading " << cfg.feedPaths[0] << " ...";
+      LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[0] << " ...";
     try {
       ad::cppgtfs::Parser p;
       p.parse(&gtfs[0], cfg.feedPaths[0]);
-      if (cfg.evaluate) {
-        // read the shapes and store them in memory
-        p.parseShapes(&evalFeed, cfg.feedPaths[0]);
-      }
     } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
     }
-    if (!cfg.writeOverpass) LOG(INFO) << "Done.";
   } else if (cfg.writeOsm.size() || cfg.writeOverpass) {
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       if (!cfg.writeOverpass)
-        LOG(INFO) << "Reading " << cfg.feedPaths[i] << " ...";
+        LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[i] << " ...";
       ad::cppgtfs::Parser p;
       try {
         p.parse(&gtfs[i], cfg.feedPaths[i]);
@@ -137,12 +146,13 @@ int main(int argc, char** argv) {
         std::cerr << ex.what() << std::endl;
         exit(static_cast<int>(RetCode::GTFS_PARSE_ERR));
       }
-      if (!cfg.writeOverpass) LOG(INFO) << "Done.";
     }
   } else if (cfg.feedPaths.size() > 1) {
     std::cerr << "Multiple feeds only allowed in filter mode." << std::endl;
     exit(static_cast<int>(RetCode::MULT_FEEDS_NOT_ALWD));
   }
+
+  auto tGtfsBuild = T_STOP(gtfsBuild);
 
   LOG(DEBUG) << "Read " << motCfgReader.getConfigs().size()
              << " unique MOT configs.";
@@ -161,12 +171,20 @@ int main(int argc, char** argv) {
     }
   }
 
+  double maxSpeed = 0;
+  for (const auto& c : motCfgReader.getConfigs()) {
+    if (c.osmBuildOpts.maxSpeed > maxSpeed) {
+      maxSpeed = c.osmBuildOpts.maxSpeed;
+    }
+  }
+
   if (cfg.writeOsm.size()) {
     LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
     BBoxIdx box(BOX_PADDING);
+
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box);
+                               &box, maxSpeed);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -188,7 +206,7 @@ int main(int argc, char** argv) {
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box);
+                               &box, maxSpeed);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -205,11 +223,6 @@ int main(int argc, char** argv) {
     exit(static_cast<int>(RetCode::NO_INPUT_FEED));
   }
 
-  std::vector<double> dfBins;
-  auto dfBinStrings = util::split(std::string(cfg.evalDfBins), ',');
-  for (auto st : dfBinStrings) dfBins.push_back(atof(st.c_str()));
-  Collector ecoll(cfg.evalPath, dfBins);
-
   for (const auto& motCfg : motCfgReader.getConfigs()) {
     std::string filePost;
     auto usedMots = pfaedle::router::motISect(motCfg.mots, cmdCfgMots);
@@ -220,7 +233,7 @@ int main(int argc, char** argv) {
       filePost = getFileNameMotStr(usedMots);
 
     std::string motStr = pfaedle::router::getMotStr(usedMots);
-    LOG(INFO) << "Calculating shapes for mots " << motStr;
+    LOG(INFO) << "Matching shapes for mots " << motStr;
 
     try {
       pfaedle::router::FeedStops fStops =
@@ -231,62 +244,117 @@ int main(int argc, char** argv) {
       pfaedle::osm::OsmBuilder osmBuilder;
 
       pfaedle::osm::BBoxIdx box(BOX_PADDING);
-      ShapeBuilder::getGtfsBox(&gtfs[0], cmdCfgMots, cfg.shapeTripId,
-                               cfg.dropShapes, &box);
+      ShapeBuilder::getGtfsBox(&gtfs[0], usedMots, cfg.shapeTripId,
+                               cfg.dropShapes, &box,
+                               motCfg.osmBuildOpts.maxSpeed);
+
+      T_START(osmBuild);
 
       if (fStops.size())
         osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
-                        cfg.gridSize, &fStops, &restr);
+                        cfg.gridSize, &restr);
 
-      // TODO(patrick): move this somewhere else
-      for (auto& feedStop : fStops) {
-        if (feedStop.second) {
-          feedStop.second->pl().getSI()->getGroup()->writePens(
-              motCfg.osmBuildOpts.trackNormzer,
-              motCfg.routingOpts.platformUnmatchedPen,
-              motCfg.routingOpts.stationDistPenFactor,
-              motCfg.routingOpts.nonOsmPen);
-        }
+      auto tOsmBuild = T_STOP(osmBuild);
+
+      JaccardClassifier statsimiClassifier;
+
+      Router* router = 0;
+
+      if (motCfg.routingOpts.transPenMethod == "exp") {
+        if (cfg.noAStar)
+          router = new RouterImpl<ExpoTransWeightNoHeur>();
+        else
+          router = new RouterImpl<ExpoTransWeight>();
+      } else if (motCfg.routingOpts.transPenMethod == "distdiff") {
+        if (cfg.noAStar)
+          router = new RouterImpl<DistDiffTransWeightNoHeur>();
+        else
+          router = new RouterImpl<DistDiffTransWeight>();
+      } else if (motCfg.routingOpts.transPenMethod == "timenorm") {
+        if (cfg.noAStar)
+          router = new RouterImpl<NormDistrTransWeightNoHeur>();
+        else
+          router = new RouterImpl<NormDistrTransWeight>();
+      } else {
+        LOG(ERROR) << "Unknown routing method "
+                   << motCfg.routingOpts.transPenMethod;
+        exit(1);
       }
 
-      ShapeBuilder shapeBuilder(&gtfs[0], &evalFeed, cmdCfgMots, motCfg, &ecoll,
-                                &graph, &fStops, &restr, cfg);
+      ShapeBuilder shapeBuilder(&gtfs[0], usedMots, motCfg, &graph, &fStops,
+                                &restr, &statsimiClassifier, router, cfg);
+
+      pfaedle::netgraph::Graph ng;
+      Stats stats;
+
+      if (singleTrip) {
+        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        std::ofstream pstr(cfg.dbgOutputPath + "/path.json");
+        util::geo::output::GeoJsonOutput o(pstr);
+
+        auto l = shapeBuilder.shapeL(singleTrip);
+        stats = l.second;
+
+        LOG(INFO) << "Outputting path.json...";
+        // reproject to WGS84 to match RFC 7946
+        o.print(l.first, {});
+
+        o.flush();
+        pstr.close();
+      } else {
+        stats = shapeBuilder.shapeify(&ng);
+      }
+
+      // outputting stats
+
+      if (cfg.writeStats) {
+        size_t numEdgs = 0;
+        for (const auto& nd : graph.getNds()) {
+          numEdgs += nd->getAdjListOut().size();
+        }
+        util::json::Dict jsonStats = {
+            {"statistics",
+             util::json::Dict{
+                 {"gtfs_num_stations", gtfs[0].getStops().size()},
+                 {"gtfs_num_trips", gtfs[0].getTrips().size()},
+                 {"graph_nds", graph.getNds().size()},
+                 {"graph_edgs", numEdgs},
+                 {"num_tries", stats.numTries},
+                 {"num_trie_leafs", stats.numTrieLeafs},
+                 {"dijkstra_iters", stats.dijkstraIters},
+                 {"time_solve", stats.solveTime},
+                 {"time_read_osm", tOsmBuild},
+                 {"time_read_gtfs", tGtfsBuild},
+                 {"time_tot", T_STOP(total)},
+                 {"peak-memory", util::readableSize(util::getPeakRSS())},
+                 {"peak-memory-bytes", util::getPeakRSS()}}}};
+
+        std::ofstream ofs;
+        ofs.open("stats" + filePost + ".json");
+        util::json::Writer wr(&ofs, 10, true);
+        wr.val(jsonStats);
+        wr.closeAll();
+      }
+
+      if (router) delete router;
 
       if (cfg.writeGraph) {
         LOG(INFO) << "Outputting graph.json...";
         util::geo::output::GeoGraphJsonOutput out;
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         std::ofstream fstr(cfg.dbgOutputPath + "/graph.json");
-        out.printLatLng(*shapeBuilder.getGraph(), fstr);
+        out.print(*shapeBuilder.getGraph(), fstr);
         fstr.close();
       }
 
-      if (singleTrip) {
-        LOG(INFO) << "Outputting path.json...";
-        mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        std::ofstream pstr(cfg.dbgOutputPath + "/path.json");
-        util::geo::output::GeoJsonOutput o(pstr);
-
-        auto l = shapeBuilder.shapeL(singleTrip);
-
-        // reproject to WGS84 to match RFC 7946
-        o.printLatLng(l, {});
-
-        o.flush();
-        pstr.close();
-
-        exit(static_cast<int>(RetCode::SUCCESS));
-      }
-
-      pfaedle::netgraph::Graph ng;
-      shapeBuilder.shape(&ng);
+      if (singleTrip) exit(static_cast<int>(RetCode::SUCCESS));
 
       if (cfg.buildTransitGraph) {
         util::geo::output::GeoGraphJsonOutput out;
         LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
-        out.printLatLng(ng, fstr);
+        out.print(ng, fstr);
         fstr.close();
       }
     } catch (const pfxml::parse_exc& ex) {
@@ -296,8 +364,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (cfg.evaluate) ecoll.printStats(&std::cout);
-
   if (cfg.feedPaths.size()) {
     try {
       mkdir(cfg.outputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -305,7 +371,7 @@ int main(int argc, char** argv) {
       pfaedle::gtfs::Writer w;
       w.write(&gtfs[0], cfg.outputPath);
     } catch (const ad::cppgtfs::WriterException& ex) {
-      LOG(ERROR) << "Could not write final GTFS feed, reason was:";
+      LOG(ERROR) << "Could not write output GTFS feed, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::GTFS_WRITE_ERR));
     }
@@ -329,12 +395,10 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
   if (cfg.configPaths.size()) return cfg.configPaths;
   std::vector<std::string> ret;
 
-
   // install prefix global configuration path, if available
   {
-    auto path = std::string(INSTALL_PREFIX) +
-                std::string(CFG_DIR) + "/" + "pfaedle" + "/" +
-                CFG_FILE_NAME;
+    auto path = std::string(INSTALL_PREFIX) + std::string(CFG_DIR) + "/" +
+                "pfaedle" + "/" + CFG_FILE_NAME;
     std::ifstream is(path);
 
     LOG(DEBUG) << "Testing for config file at " << path;
@@ -346,8 +410,8 @@ std::vector<std::string> getCfgPaths(const Config& cfg) {
 
   // local user configuration path, if available
   {
-    auto path = util::getHomeDir() + CFG_HOME_SUFFIX + "/" +
-                "pfaedle" + "/" + CFG_FILE_NAME;
+    auto path = util::getHomeDir() + CFG_HOME_SUFFIX + "/" + "pfaedle" + "/" +
+                CFG_FILE_NAME;
     std::ifstream is(path);
 
     LOG(DEBUG) << "Testing for config file at " << path;

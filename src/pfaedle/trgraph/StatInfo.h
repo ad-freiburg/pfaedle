@@ -6,24 +6,20 @@
 #define PFAEDLE_TRGRAPH_STATINFO_H_
 
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace pfaedle {
 namespace trgraph {
 
-// forward declaration
-class StatGroup;
-
 /*
- * Meta information (name, alternative names, track, group...) of a single stop
+ * Meta information (name, alternative names, track, ...) of a single stop
  */
 class StatInfo {
  public:
   StatInfo();
   StatInfo(const StatInfo& si);
-  StatInfo(const std::string& name, const std::string& track, bool _fromOsm);
-  ~StatInfo();
+  StatInfo(const std::string& name, const std::string& track);
 
   // Return this stops names.
   const std::string& getName() const;
@@ -43,18 +39,6 @@ class StatInfo {
   // Return the similarity between this stop and other
   double simi(const StatInfo* other) const;
 
-  // Set this stations group.
-  void setGroup(StatGroup* g);
-
-  // Return this stations group.
-  StatGroup* getGroup() const;
-
-  // True if this stop was from osm
-  bool isFromOsm() const;
-
-  // Set this stop as coming from osm
-  void setIsFromOsm(bool is);
-
 #ifdef PFAEDLE_STATION_IDS
   const std::string& getId() const { return _id; }
   void setId(const std::string& id) { _id = id; }
@@ -64,17 +48,12 @@ class StatInfo {
   std::string _name;
   std::vector<std::string> _altNames;
   std::string _track;
-  bool _fromOsm;
-  StatGroup* _group;
 
 #ifdef PFAEDLE_STATION_IDS
   // debug feature to store station ids from both OSM
   // and GTFS
   std::string _id;
 #endif
-
-  static std::unordered_map<const StatGroup*, size_t> _groups;
-  static void unRefGroup(StatGroup* g);
 };
 }  // namespace trgraph
 }  // namespace pfaedle

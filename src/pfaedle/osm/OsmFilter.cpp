@@ -26,6 +26,7 @@ OsmFilter::OsmFilter(const OsmReadOpts& o)
       _posRestr(o.restrPosRestr),
       _negRestr(o.restrNegRestr),
       _noRestr(o.noRestrFilter),
+      _turnCycle(o.turnCycleFilter),
       _levels(o.levelFilters) {}
 
 // _____________________________________________________________________________
@@ -70,6 +71,11 @@ uint64_t OsmFilter::station(const AttrMap& attrs) const {
 // _____________________________________________________________________________
 uint64_t OsmFilter::blocker(const AttrMap& attrs) const {
   return contained(attrs, _blocker, NODE);
+}
+
+// _____________________________________________________________________________
+uint64_t OsmFilter::turnCycle(const AttrMap& attrs) const {
+  return contained(attrs, _turnCycle, NODE);
 }
 
 // _____________________________________________________________________________

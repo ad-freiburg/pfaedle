@@ -16,7 +16,7 @@ namespace router {
 using util::editDist;
 
 // _____________________________________________________________________________
-inline double statSimi(const std::string& a, const std::string& b) {
+inline bool statSimi(const std::string& a, const std::string& b) {
   if (a == b) return 1;
 
   if (a.empty() || b.empty()) return 0;
@@ -55,7 +55,7 @@ inline double statSimi(const std::string& a, const std::string& b) {
 }
 
 // _____________________________________________________________________________
-inline double lineSimi(const std::string& a, const std::string& b) {
+inline bool lineSimi(const std::string& a, const std::string& b) {
   if (a == b) return 1;
 
   if (a.empty() || b.empty()) return 0;

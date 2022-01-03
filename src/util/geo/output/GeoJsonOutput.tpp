@@ -49,6 +49,46 @@ void GeoJsonOutput::print(const Line<T>& line, json::Val attrs) {
 
 // _____________________________________________________________________________
 template <typename T>
+void GeoJsonOutput::print(const MultiLine<T>& line, json::Val attrs) {
+  for (const auto& l : line) print(l, attrs);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+void GeoJsonOutput::print(const Polygon<T>& poly, json::Val attrs) {
+  if (!poly.getOuter().size()) return;
+  _wr.obj();
+  _wr.keyVal("type", "Feature");
+
+  _wr.key("geometry");
+  _wr.obj();
+  _wr.keyVal("type", "Polygon");
+  _wr.key("coordinates");
+  _wr.arr();
+  _wr.arr();
+  for (auto p : poly.getOuter()) {
+    _wr.arr();
+    _wr.val(p.getX());
+    _wr.val(p.getY());
+    _wr.close();
+  }
+
+  _wr.close();
+  _wr.close();
+  _wr.close();
+  _wr.key("properties");
+  _wr.val(attrs);
+  _wr.close();
+}
+
+// _____________________________________________________________________________
+template <typename T>
+void GeoJsonOutput::print(const MultiPolygon<T>& mpoly, json::Val attrs) {
+  for (const auto& p : mpoly) print(p, attrs);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 void GeoJsonOutput::printLatLng(const Point<T>& p, json::Val attrs) {
   auto projP = util::geo::webMercToLatLng<double>(p.getX(), p.getY());
   print(projP, attrs);
@@ -58,7 +98,30 @@ void GeoJsonOutput::printLatLng(const Point<T>& p, json::Val attrs) {
 template <typename T>
 void GeoJsonOutput::printLatLng(const Line<T>& line, json::Val attrs) {
   Line<T> projL;
-  for (auto p : line) projL.push_back(util::geo::webMercToLatLng<double>(p.getX(), p.getY()));
+  for (auto p : line)
+    projL.push_back(util::geo::webMercToLatLng<double>(p.getX(), p.getY()));
 
   print(projL, attrs);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+void GeoJsonOutput::printLatLng(const MultiLine<T>& mline, json::Val attrs) {
+  for (const auto& l : mline) printLatLng(l, attrs);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+void GeoJsonOutput::printLatLng(const Polygon<T>& poly, json::Val attrs) {
+  Polygon<T> projP;
+  for (auto p : poly)
+    projP.push_back(util::geo::webMercToLatLng<double>(p.getX(), p.getY()));
+
+  print(projP, attrs);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+void GeoJsonOutput::printLatLng(const MultiPolygon<T>& mpoly, json::Val attrs) {
+  for (const auto& p : mpoly) printLatLng(p, attrs);
 }

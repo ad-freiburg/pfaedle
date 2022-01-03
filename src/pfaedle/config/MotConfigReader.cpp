@@ -2,28 +2,33 @@
 // Chair of Algorithms and Data Structures.
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
+#include <limits>
 #include <set>
 #include <string>
 #include "pfaedle/config/MotConfigReader.h"
+#include "pfaedle/osm/OsmReadOpts.h"
 #include "util/Misc.h"
 #include "util/String.h"
 #include "util/log/Log.h"
 
-using pfaedle::config::MotConfigReader;
-using pfaedle::config::MotConfig;
-using pfaedle::osm::FilterRule;
-using pfaedle::osm::KeyVal;
+using ad::cppgtfs::gtfs::Route;
 using configparser::ConfigFileParser;
 using configparser::ParseExc;
+using pfaedle::config::MotConfig;
+using pfaedle::config::MotConfigReader;
 using pfaedle::osm::DeepAttrRule;
+using pfaedle::osm::FilterRule;
+using pfaedle::osm::KeyVal;
 using pfaedle::trgraph::ReplRules;
-using ad::cppgtfs::gtfs::Route;
+
+double DEF_TRANS_PEN = 0.0083;
 
 // _____________________________________________________________________________
 MotConfigReader::MotConfigReader() {}
 
 // _____________________________________________________________________________
-void MotConfigReader::parse(const std::vector<std::string>& paths) {
+void MotConfigReader::parse(const std::vector<std::string>& paths,
+                            const std::string& literal) {
   ConfigFileParser p;
 
   // parse explicitely given paths
@@ -32,17 +37,33 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     p.parse(s);
   }
 
+  if (literal.size()) p.parseStr(literal);
+
   for (const auto& sec : p.getSecs()) {
-    MotConfig curCfg;
+    MotConfig cfg;
+
+    cfg.transWeight = "expo";
+
     std::string secStr = sec.first;
     if (secStr.empty()) continue;
-    std::set<std::string> procedKeys;
+
+    if (p.hasKey(secStr, "routing_transition_method")) {
+      cfg.routingOpts.transPenMethod =
+          p.getStr(secStr, "routing_transition_method");
+    } else {
+      cfg.routingOpts.transPenMethod = "exp";
+    }
+
+    if (p.hasKey(secStr, "routing_use_stations")) {
+      cfg.routingOpts.useStations = p.getBool(secStr, "routing_use_stations");
+    } else {
+      cfg.routingOpts.useStations = true;
+    }
 
     if (p.hasKey(secStr, "osm_filter_keep")) {
-      procedKeys.insert("osm_filter_keep");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_keep", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.keepFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.keepFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
@@ -50,321 +71,471 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     for (uint8_t i = 0; i < 8; i++) {
       std::string name = std::string("osm_filter_lvl") + std::to_string(i);
       if (p.hasKey(secStr, name)) {
-        procedKeys.insert(name);
         for (const auto& kvs : p.getStrArr(sec.first, name, ' ')) {
           auto fRule = getFRule(kvs);
-          curCfg.osmBuildOpts.levelFilters[i][fRule.kv.first].insert(
+          cfg.osmBuildOpts.levelFilters[i][fRule.kv.first].insert(
               osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
         }
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_drop")) {
-      procedKeys.insert("osm_filter_drop");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_drop", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.dropFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.dropFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_max_snap_level")) {
-      procedKeys.insert("osm_max_snap_level");
-      curCfg.osmBuildOpts.maxSnapLevel =
-          p.getInt(sec.first, "osm_max_snap_level");
+      cfg.osmBuildOpts.maxSnapLevel = p.getInt(sec.first, "osm_max_snap_level");
     } else {
-      curCfg.osmBuildOpts.maxSnapLevel = 7;
+      cfg.osmBuildOpts.maxSnapLevel = 7;
     }
 
     if (p.hasKey(secStr, "osm_filter_nohup")) {
-      procedKeys.insert("osm_filter_nohup");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_nohup", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.noHupFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.noHupFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_oneway")) {
-      procedKeys.insert("osm_filter_oneway");
       for (const auto& kvs : p.getStrArr(sec.first, "osm_filter_oneway", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.oneWayFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.oneWayFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_oneway_reverse")) {
-      procedKeys.insert("osm_filter_oneway_reverse");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_oneway_reverse", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.oneWayFilterRev[fRule.kv.first].insert(
+        cfg.osmBuildOpts.oneWayFilterRev[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_undirected")) {
-      procedKeys.insert("osm_filter_undirected");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_undirected", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.twoWayFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.twoWayFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_station")) {
-      procedKeys.insert("osm_filter_station");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_station", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.stationFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.stationFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_station_blocker")) {
-      procedKeys.insert("osm_filter_station_blocker");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_station_blocker", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.stationBlockerFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.stationBlockerFilter[fRule.kv.first].insert(
+            osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
+      }
+    }
+
+    if (p.hasKey(secStr, "osm_filter_turning_cycle")) {
+      for (const auto& kvs :
+           p.getStrArr(sec.first, "osm_filter_turning_cycle", ' ')) {
+        auto fRule = getFRule(kvs);
+        cfg.osmBuildOpts.turnCycleFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_node_positive_restriction")) {
-      procedKeys.insert("osm_node_positive_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_node_positive_restriction", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.restrPosRestr[fRule.kv.first].insert(
+        cfg.osmBuildOpts.restrPosRestr[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_node_negative_restriction")) {
-      procedKeys.insert("osm_node_negative_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_node_negative_restriction", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.restrNegRestr[fRule.kv.first].insert(
+        cfg.osmBuildOpts.restrNegRestr[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_filter_no_restriction")) {
-      procedKeys.insert("osm_filter_no_restriction");
       for (const auto& kvs :
            p.getStrArr(sec.first, "osm_filter_no_restriction", ' ')) {
         auto fRule = getFRule(kvs);
-        curCfg.osmBuildOpts.noRestrFilter[fRule.kv.first].insert(
+        cfg.osmBuildOpts.noRestrFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));
       }
     }
 
     if (p.hasKey(secStr, "osm_station_name_attrs")) {
-      procedKeys.insert("osm_station_name_attrs");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_station_name_attrs", ' ')) {
-        curCfg.osmBuildOpts.statAttrRules.nameRule.push_back(
-            getDeepAttrRule(r));
+        cfg.osmBuildOpts.statAttrRules.nameRule.push_back(getDeepAttrRule(r));
       }
     }
 
     if (p.hasKey(secStr, "osm_track_number_tags")) {
-      procedKeys.insert("osm_track_number_tags");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_track_number_tags", ' ')) {
-        curCfg.osmBuildOpts.statAttrRules.platformRule.push_back(
+        cfg.osmBuildOpts.statAttrRules.platformRule.push_back(
             getDeepAttrRule(r));
       }
     }
 
     if (p.hasKey(secStr, "osm_station_id_attrs")) {
-      procedKeys.insert("osm_station_id_attrs");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_station_id_attrs", ' ')) {
-        curCfg.osmBuildOpts.statAttrRules.idRule.push_back(getDeepAttrRule(r));
+        cfg.osmBuildOpts.statAttrRules.idRule.push_back(getDeepAttrRule(r));
       }
     }
 
     if (p.hasKey(secStr, "osm_edge_track_number_tags")) {
-      procedKeys.insert("osm_edge_track_number_tags");
       for (const std::string& r :
            p.getStrArr(sec.first, "osm_edge_track_number_tags", ' ')) {
-        curCfg.osmBuildOpts.edgePlatformRules.push_back(getDeepAttrRule(r));
+        cfg.osmBuildOpts.edgePlatformRules.push_back(getDeepAttrRule(r));
       }
     }
 
     if (p.hasKey(secStr, "osm_station_group_attrs")) {
-      procedKeys.insert("osm_station_group_attrs");
-      auto arr = p.getStrArr(secStr, "osm_station_group_attrs", ' ');
-
-      for (const auto& ruleStr : arr) {
-        auto deep = getDeepAttrRule(ruleStr);
-        // TODO(patrick): getKv is misused here as a a=b parser
-        auto attrD = getKv(deep.attr);
-        deep.attr = attrD.first;
-        double dist = atof(attrD.second.c_str());
-        curCfg.osmBuildOpts.statGroupNAttrRules.push_back({deep, dist});
-      }
+      LOG(WARN) << "Option osm_station_group_attrs has been removed.";
     }
 
+    // default value, to enable color writing on old configs
+    cfg.osmBuildOpts.relLinerules.colorRule = {"colour", "color"};
+
     if (p.hasKey(secStr, "osm_line_relation_tags")) {
-      procedKeys.insert("osm_line_relation_tags");
       auto arr = p.getStrArr(secStr, "osm_line_relation_tags", ' ');
 
       for (const auto& ruleStr : arr) {
         auto rule = getKv(ruleStr);
         auto tags = util::split(rule.second, ',');
         if (rule.first == "from_name")
-          curCfg.osmBuildOpts.relLinerules.fromNameRule = tags;
+          cfg.osmBuildOpts.relLinerules.fromNameRule = tags;
         else if (rule.first == "to_name")
-          curCfg.osmBuildOpts.relLinerules.toNameRule = tags;
+          cfg.osmBuildOpts.relLinerules.toNameRule = tags;
         else if (rule.first == "line_name")
-          curCfg.osmBuildOpts.relLinerules.sNameRule = tags;
+          cfg.osmBuildOpts.relLinerules.sNameRule = tags;
+        else if (rule.first == "line_color")
+          cfg.osmBuildOpts.relLinerules.colorRule = tags;
       }
     }
 
+    cfg.osmBuildOpts.maxSnapDistance = 50;
     if (p.hasKey(secStr, "osm_max_snap_distance")) {
-      procedKeys.insert("osm_max_snap_distance");
-      curCfg.osmBuildOpts.maxSnapDistances =
-          p.getDoubleArr(secStr, "osm_max_snap_distance", ',');
-    } else {
-      curCfg.osmBuildOpts.maxSnapDistances.push_back(50);
+      auto v = p.getDoubleArr(secStr, "osm_max_snap_distance", ',');
+      if (v.size()) cfg.osmBuildOpts.maxSnapDistance = v.back();
+    }
+
+    cfg.osmBuildOpts.maxStationCandDistance =
+        cfg.osmBuildOpts.maxSnapDistance * 2;
+    if (p.hasKey(secStr, "osm_max_station_cand_distance")) {
+      auto v = p.getDouble(secStr, "osm_max_station_cand_distance");
+      cfg.osmBuildOpts.maxStationCandDistance = v;
     }
 
     if (p.hasKey(secStr, "osm_max_snap_fallback_distance")) {
-      procedKeys.insert("osm_max_snap_fallback_distance");
-      curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
-          p.getDouble(secStr, "osm_max_snap_fallback_distance");
-    } else {
-      curCfg.osmBuildOpts.maxSnapFallbackHeurDistance =
-          *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
-                            curCfg.osmBuildOpts.maxSnapDistances.end()) *
-          2;
+      LOG(WARN) << "Option osm_max_snap_fallback_distance has been removed.";
     }
 
     if (p.hasKey(secStr, "osm_max_osm_station_distance")) {
-      procedKeys.insert("osm_max_osm_station_distance");
-      curCfg.osmBuildOpts.maxOsmStationDistance =
-          p.getDouble(secStr, "osm_max_osm_station_distance");
+      double ref = p.getDouble(secStr, "osm_max_osm_station_distance");
+      cfg.osmBuildOpts.maxOsmStationDistances.push_back(fmin(5, ref));
+      for (double i = 10; i < ref + 1; i += 10) {
+        cfg.osmBuildOpts.maxOsmStationDistances.push_back(i);
+      }
     } else {
-      curCfg.osmBuildOpts.maxOsmStationDistance = 5;
+      cfg.osmBuildOpts.maxOsmStationDistances.push_back(5);
     }
 
     if (p.hasKey(secStr, "osm_max_node_block_distance")) {
-      procedKeys.insert("osm_max_node_block_distance");
-      curCfg.osmBuildOpts.maxBlockDistance =
+      cfg.osmBuildOpts.maxBlockDistance =
           p.getDouble(secStr, "osm_max_node_block_distance");
     } else {
-      curCfg.osmBuildOpts.maxBlockDistance =
-          *std::max_element(curCfg.osmBuildOpts.maxSnapDistances.begin(),
-                            curCfg.osmBuildOpts.maxSnapDistances.end()) /
+      cfg.osmBuildOpts.maxBlockDistance =
+          *std::max_element(cfg.osmBuildOpts.maxOsmStationDistances.begin(),
+                            cfg.osmBuildOpts.maxOsmStationDistances.end()) /
           8;
     }
 
+    double DEF_SPEED = 85;
     for (uint8_t i = 0; i < 8; i++) {
       std::string name =
           std::string("routing_lvl") + std::to_string(i) + "_fac";
       if (p.hasKey(secStr, name)) {
-        procedKeys.insert(name);
-        double v = p.getDouble(sec.first, name);
-        curCfg.routingOpts.levelPunish[i] = v;
-      } else {
-        curCfg.routingOpts.levelPunish[i] = 1;
+        double f = p.getPosDouble(sec.first, name);
+        LOG(WARN) << "Option " << name << " is deprecated, use osm_lvl"
+                  << std::to_string(i) << "_avg_speed instead.";
+        double v = DEF_SPEED / f;
+        LOG(DEBUG) << " (using osm_lvl" << std::to_string(i) << "_avg_speed of "
+                   << v << " instead)";
+        cfg.osmBuildOpts.levelDefSpeed[i] = v * 0.2777;  // store in m/s
       }
     }
 
-    if (p.hasKey(secStr, "routing_full_turn_punish")) {
-      procedKeys.insert("routing_full_turn_punish");
-      curCfg.routingOpts.fullTurnPunishFac =
-          p.getDouble(secStr, "routing_full_turn_punish");
-    }
-
-    if (p.hasKey(secStr, "routing_no_self_hops")) {
-      procedKeys.insert("routing_no_self_hops");
-      curCfg.routingOpts.noSelfHops = p.getBool(secStr, "routing_no_self_hops");
-    }
-
-    if (p.hasKey(secStr, "routing_full_turn_angle")) {
-      procedKeys.insert("routing_full_turn_angle");
-      double ang = p.getDouble(secStr, "routing_full_turn_angle");
-      curCfg.routingOpts.fullTurnAngle = ang;
-      curCfg.osmBuildOpts.fullTurnAngle = ang;
-    } else {
-      curCfg.routingOpts.fullTurnAngle = 5;
-      curCfg.osmBuildOpts.fullTurnAngle = 5;
-    }
-
-    if (p.hasKey(secStr, "routing_snap_full_turn_angle")) {
-      procedKeys.insert("routing_snap_full_turn_angle");
-      double ang = p.getDouble(secStr, "routing_snap_full_turn_angle");
-      curCfg.osmBuildOpts.maxAngleSnapReach = ang;
-    } else {
-      curCfg.osmBuildOpts.maxAngleSnapReach = curCfg.routingOpts.fullTurnAngle;
-    }
-
-    if (p.hasKey(secStr, "routing_pass_thru_station_punish")) {
-      procedKeys.insert("routing_pass_thru_station_punish");
-      curCfg.routingOpts.passThruStationsPunish =
-          p.getDouble(secStr, "routing_pass_thru_station_punish");
+    for (uint8_t i = 0; i < 8; i++) {
+      std::string name =
+          std::string("osm_lvl") + std::to_string(i) + "_avg_speed";
+      if (p.hasKey(secStr, name)) {
+        double v = p.getPosDouble(sec.first, name);
+        cfg.osmBuildOpts.levelDefSpeed[i] = v * 0.2777;  // store in m/s
+      }
     }
 
     if (p.hasKey(secStr, "routing_one_way_meter_punish_fac")) {
-      procedKeys.insert("routing_one_way_meter_punish_fac");
-      curCfg.routingOpts.oneWayPunishFac =
-          p.getDouble(secStr, "routing_one_way_meter_punish_fac");
+      LOG(WARN) << "Option routing_one_way_meter_punish_fac is deprecated, use "
+                   "osm_one_way_speed_penalty_fac instead.";
+      cfg.osmBuildOpts.oneWaySpeedPen =
+          1 + p.getPosDouble(secStr, "routing_one_way_meter_punish_fac");
+      LOG(DEBUG) << " (using osm_one_way_speed_penalty_fac of "
+                 << cfg.osmBuildOpts.oneWaySpeedPen << " instead)";
+    } else {
+      cfg.osmBuildOpts.oneWaySpeedPen = 1;
     }
 
-    if (p.hasKey(secStr, "routing_one_way_edge_punish")) {
-      procedKeys.insert("routing_one_way_edge_punish");
-      curCfg.routingOpts.oneWayEdgePunish =
-          p.getDouble(secStr, "routing_one_way_edge_punish");
+    if (p.hasKey(secStr, "osm_one_way_speed_penalty_fac")) {
+      cfg.osmBuildOpts.oneWaySpeedPen =
+          p.getPosDouble(secStr, "osm_one_way_speed_penalty_fac");
+    } else {
+      // def already set above
     }
 
-    if (p.hasKey(secStr, "routing_line_unmatched_punish_fac")) {
-      procedKeys.insert("routing_line_unmatched_punish_fac");
-      curCfg.routingOpts.lineUnmatchedPunishFact =
-          p.getDouble(secStr, "routing_line_unmatched_punish_fac");
+    if (p.hasKey(secStr, "osm_one_way_entry_cost")) {
+      cfg.osmBuildOpts.oneWayEntryCost =
+          p.getPosDouble(secStr, "osm_one_way_entry_cost");
+
+    } else {
+      cfg.osmBuildOpts.oneWayEntryCost = 0;
     }
+
+    // take the same cost for taking restricted turns to keep
+    // configuration simple
+    double val = cfg.osmBuildOpts.oneWayEntryCost * 10.0;
+    if (val > std::numeric_limits<uint32_t>::max()) {
+      val = std::numeric_limits<uint32_t>::max();
+    }
+
+    cfg.routingOpts.turnRestrCost = val;
+
+    if (p.hasKey(secStr, "routing_full_turn_punish")) {
+      double val = p.getPosDouble(secStr, "routing_full_turn_punish");
+
+      LOG(WARN) << "Option routing_full_turn_punish is deprecated, use "
+                   "routing_full_turn_penalty instead.";
+
+      val /= cfg.osmBuildOpts.levelDefSpeed[0];
+
+      LOG(DEBUG) << " (using routing_full_turn_penalty of " << val
+                 << " instead)";
+
+      val *= 10.0;
+
+      if (val > std::numeric_limits<uint32_t>::max()) {
+        val = std::numeric_limits<uint32_t>::max();
+      }
+
+      cfg.routingOpts.fullTurnPunishFac = val;
+    }
+
+    if (p.hasKey(secStr, "routing_full_turn_penalty")) {
+      double val = p.getPosDouble(secStr, "routing_full_turn_penalty") * 10.0;
+
+      if (val > std::numeric_limits<uint32_t>::max()) {
+        val = std::numeric_limits<uint32_t>::max();
+      }
+
+      cfg.routingOpts.fullTurnPunishFac = val;
+    }
+
+    if (p.hasKey(secStr, "routing_no_self_hops")) {
+      cfg.routingOpts.noSelfHops = p.getBool(secStr, "routing_no_self_hops");
+    }
+
+    if (p.hasKey(secStr, "routing_full_turn_angle")) {
+      double ang = p.getPosDouble(secStr, "routing_full_turn_angle");
+      cfg.routingOpts.fullTurnAngle = ang;
+      cfg.osmBuildOpts.fullTurnAngle = ang;
+    } else {
+      cfg.routingOpts.fullTurnAngle = 5;
+      cfg.osmBuildOpts.fullTurnAngle = 5;
+    }
+
+    if (p.hasKey(secStr, "routing_snap_full_turn_angle")) {
+      double ang = p.getPosDouble(secStr, "routing_snap_full_turn_angle");
+      cfg.osmBuildOpts.maxAngleSnapReach = ang;
+    } else {
+      cfg.osmBuildOpts.maxAngleSnapReach = cfg.routingOpts.fullTurnAngle;
+    }
+
+    if (p.hasKey(secStr, "routing_pass_thru_station_punish")) {
+      LOG(WARN) << "Option routing_pass_thru_station_punish has been removed.";
+    }
+
+    cfg.routingOpts.turnRestrCost *= 10.0;
 
     if (p.hasKey(secStr, "routing_no_lines_punish_fac")) {
-      procedKeys.insert("routing_no_lines_punish_fac");
-      curCfg.routingOpts.noLinesPunishFact =
-          p.getDouble(secStr, "routing_no_lines_punish_fac");
+      LOG(WARN) << "Option routing_no_lines_punish_fac is deprecated, use "
+                   "routing_no_lines_penalty_fac instead.";
+
+      cfg.routingOpts.noLinesPunishFact =
+          1 + p.getPosDouble(secStr, "routing_no_lines_punish_fac");
+
+      LOG(DEBUG) << " (using routing_no_lines_penalty_fac of "
+                 << cfg.routingOpts.noLinesPunishFact << " instead)";
+    } else {
+      cfg.routingOpts.noLinesPunishFact = 1;
+    }
+
+    if (p.hasKey(secStr, "routing_no_lines_penalty_fac")) {
+      cfg.routingOpts.noLinesPunishFact =
+          p.getPosDouble(secStr, "routing_no_lines_penalty_fac");
+    } else {
+      // default already set above
+    }
+
+    // store this at two places, as we are writing the punishment into the graph
+    cfg.osmBuildOpts.noLinesPunishFact = cfg.routingOpts.noLinesPunishFact;
+
+    if (p.hasKey(secStr, "routing_line_unmatched_punish_fac")) {
+      LOG(WARN)
+          << "Option routing_line_unmatched_punish_fac is deprecated, use "
+             "routing_line_unmatched_time_penalty_fac, "
+             "routing_line_station_from_unmatched_time_penalty, and "
+             "routing_line_station_to_unmatched_time_penalty instead.";
+
+      cfg.routingOpts.lineUnmatchedPunishFact =
+          1 + p.getPosDouble(secStr, "routing_line_unmatched_punish_fac") / 3;
+
+      cfg.routingOpts.lineNameFromUnmatchedPunishFact =
+          1 + p.getPosDouble(secStr, "routing_line_unmatched_punish_fac") / 3;
+
+      cfg.routingOpts.lineNameToUnmatchedPunishFact =
+          1 + p.getPosDouble(secStr, "routing_line_unmatched_punish_fac") / 3;
+
+      LOG(DEBUG) << " (using routing_line_unmatched_punish_fac of "
+                 << cfg.routingOpts.lineUnmatchedPunishFact << " instead)";
+      LOG(DEBUG)
+          << " (using routing_line_station_from_unmatched_time_penalty of "
+          << cfg.routingOpts.lineNameFromUnmatchedPunishFact << " instead)";
+      LOG(DEBUG) << " (using routing_line_station_to_unmatched_time_penalty of "
+                 << cfg.routingOpts.lineNameToUnmatchedPunishFact
+                 << " instead)";
+    }
+
+    if (p.hasKey(secStr, "routing_line_unmatched_time_penalty_fac")) {
+      cfg.routingOpts.lineUnmatchedPunishFact =
+          p.getPosDouble(secStr, "routing_line_unmatched_time_penalty_fac");
+    }
+
+    if (p.hasKey(secStr, "routing_line_station_from_unmatched_time_penalty")) {
+      cfg.routingOpts.lineNameFromUnmatchedPunishFact = p.getPosDouble(
+          secStr, "routing_line_station_from_unmatched_time_penalty");
+    }
+
+    if (p.hasKey(secStr, "routing_line_station_to_unmatched_time_penalty")) {
+      cfg.routingOpts.lineNameToUnmatchedPunishFact = p.getPosDouble(
+          secStr, "routing_line_station_to_unmatched_time_penalty");
     }
 
     if (p.hasKey(secStr, "routing_platform_unmatched_punish")) {
-      procedKeys.insert("routing_platform_unmatched_punish");
-      curCfg.routingOpts.platformUnmatchedPen =
-          p.getDouble(secStr, "routing_platform_unmatched_punish");
+      LOG(WARN)
+          << "Option routing_platform_unmatched_punish is deprecated, use "
+             "routing_platform_unmatched_penalty instead.";
+      cfg.routingOpts.platformUnmatchedPen =
+          p.getPosDouble(secStr, "routing_platform_unmatched_punish");
+
+      cfg.routingOpts.platformUnmatchedPen =
+          cfg.routingOpts.platformUnmatchedPen *
+          (DEF_TRANS_PEN / cfg.osmBuildOpts.levelDefSpeed[0]);
+
+      LOG(DEBUG) << " (using routing_platform_unmatched_penalty of "
+                 << cfg.routingOpts.platformUnmatchedPen << " instead)";
+    } else {
+      cfg.routingOpts.platformUnmatchedPen = 0;
     }
 
-    if (p.hasKey(secStr, "routing_non_osm_station_punish")) {
-      procedKeys.insert("routing_non_osm_station_punish");
-      curCfg.routingOpts.nonOsmPen =
-          p.getDouble(secStr, "routing_non_osm_station_punish");
+    if (p.hasKey(secStr, "routing_platform_unmatched_penalty")) {
+      cfg.routingOpts.platformUnmatchedPen =
+          p.getPosDouble(secStr, "routing_platform_unmatched_penalty");
     } else {
-      curCfg.routingOpts.nonOsmPen = 0;
+      // default already set above
+    }
+
+    if (p.hasKey(secStr, "routing_transition_penalty_fac")) {
+      cfg.routingOpts.transitionPen =
+          p.getPosDouble(secStr, "routing_transition_penalty_fac");
+    } else {
+      cfg.routingOpts.transitionPen = DEF_TRANS_PEN;
     }
 
     if (p.hasKey(secStr, "routing_station_distance_punish_fac")) {
-      procedKeys.insert("routing_station_distance_punish_fac");
-      curCfg.routingOpts.stationDistPenFactor =
-          p.getDouble(secStr, "routing_station_distance_punish_fac");
+      cfg.routingOpts.stationDistPenFactor =
+          p.getPosDouble(secStr, "routing_station_distance_punish_fac");
+      LOG(WARN) << "Option routing_station_distance_punish_fac is deprecated, "
+                   "use routing_station_move_penalty_fac instead.";
+      cfg.routingOpts.stationDistPenFactor =
+          cfg.routingOpts.stationDistPenFactor *
+          (DEF_TRANS_PEN / cfg.osmBuildOpts.levelDefSpeed[0]);
+      LOG(DEBUG) << " (using routing_station_move_penalty_fac of "
+                 << cfg.routingOpts.stationDistPenFactor << " instead)";
     } else {
-      curCfg.routingOpts.stationDistPenFactor = 1;
+      cfg.routingOpts.stationDistPenFactor =
+          cfg.routingOpts.stationDistPenFactor *
+          (DEF_TRANS_PEN / cfg.osmBuildOpts.levelDefSpeed[0]);
+    }
+
+    if (p.hasKey(secStr, "routing_station_move_penalty_fac")) {
+      cfg.routingOpts.stationDistPenFactor =
+          p.getPosDouble(secStr, "routing_station_move_penalty_fac");
+    } else {
+      // the default value was already set above
+    }
+
+    if (p.hasKey(secStr, "routing_non_osm_station_punish")) {
+      cfg.routingOpts.nonStationPen =
+          p.getPosDouble(secStr, "routing_non_osm_station_punish");
+      LOG(WARN) << "Option routing_non_osm_station_punish is deprecated, use "
+                   "routing_non_station_penalty instead.";
+      cfg.routingOpts.nonStationPen =
+          cfg.routingOpts.nonStationPen *
+          (DEF_TRANS_PEN / cfg.osmBuildOpts.levelDefSpeed[0]);
+      LOG(DEBUG) << " (using routing_non_station_penalty of "
+                 << cfg.routingOpts.nonStationPen << " instead)";
+    } else {
+      cfg.routingOpts.nonStationPen = 0;
+    }
+
+    if (p.hasKey(secStr, "routing_non_station_penalty")) {
+      cfg.routingOpts.nonStationPen =
+          p.getPosDouble(secStr, "routing_non_station_penalty");
+    } else {
+      // default was already set above
+    }
+
+    if (p.hasKey(secStr, "routing_station_unmatched_penalty")) {
+      cfg.routingOpts.stationUnmatchedPen =
+          p.getPosDouble(secStr, "routing_station_unmatched_penalty");
+    } else {
+      cfg.routingOpts.stationUnmatchedPen = cfg.routingOpts.nonStationPen / 2;
     }
 
     if (p.hasKey(secStr, "station_normalize_chain")) {
-      procedKeys.insert("station_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "station_normalize_chain", ';');
-        curCfg.osmBuildOpts.statNormzer =
-            trgraph::Normalizer(getNormRules(arr));
+        cfg.osmBuildOpts.statNormzer = trgraph::Normalizer(getNormRules(arr));
       } catch (const std::exception& e) {
         throw ParseExc(p.getVal(secStr, "station_normalize_chain").line,
                        p.getVal(secStr, "station_normalize_chain").pos,
@@ -375,11 +546,9 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "track_normalize_chain")) {
-      procedKeys.insert("track_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "track_normalize_chain", ';');
-        curCfg.osmBuildOpts.trackNormzer =
-            trgraph::Normalizer(getNormRules(arr));
+        cfg.osmBuildOpts.trackNormzer = trgraph::Normalizer(getNormRules(arr));
       } catch (const std::exception& e) {
         throw ParseExc(p.getVal(secStr, "track_normalize_chain").line,
                        p.getVal(secStr, "track_normalize_chain").pos,
@@ -390,11 +559,9 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "line_normalize_chain")) {
-      procedKeys.insert("line_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "line_normalize_chain", ';');
-        curCfg.osmBuildOpts.lineNormzer =
-            trgraph::Normalizer(getNormRules(arr));
+        cfg.osmBuildOpts.lineNormzer = trgraph::Normalizer(getNormRules(arr));
       } catch (const std::exception& e) {
         throw ParseExc(p.getVal(secStr, "line_normalize_chain").line,
                        p.getVal(secStr, "line_normalize_chain").pos,
@@ -405,10 +572,9 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (p.hasKey(secStr, "station_id_normalize_chain")) {
-      procedKeys.insert("station_id_normalize_chain");
       try {
         auto arr = p.getStrArr(secStr, "station_id_normalize_chain", ';');
-        curCfg.osmBuildOpts.idNormzer = trgraph::Normalizer(getNormRules(arr));
+        cfg.osmBuildOpts.idNormzer = trgraph::Normalizer(getNormRules(arr));
       } catch (const std::exception& e) {
         throw ParseExc(p.getVal(secStr, "station_id_normalize_chain").line,
                        p.getVal(secStr, "station_id_normalize_chain").pos,
@@ -418,18 +584,41 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
       }
     }
 
-    for (const auto& kv : p.getKeyVals(secStr)) {
-      if (!procedKeys.count(kv.first))
-        curCfg.unproced[kv.first] = kv.second.val;
+    // determine the maximum possible speed for this config, this is later
+    // used to filter out station which are so far out of reach we don't
+    // have to consider them for the bounding box calculation
+    cfg.osmBuildOpts.maxSpeed = 0;
+    cfg.osmBuildOpts.maxSpeedCorFac = 1;
+    for (size_t i = 0; i < 8; i++) {
+      if (cfg.osmBuildOpts.levelDefSpeed[i] > cfg.osmBuildOpts.maxSpeed)
+        cfg.osmBuildOpts.maxSpeed = cfg.osmBuildOpts.levelDefSpeed[i];
     }
+
+    if (cfg.routingOpts.lineUnmatchedPunishFact < 1)
+      cfg.osmBuildOpts.maxSpeedCorFac *=
+          cfg.routingOpts.lineUnmatchedPunishFact;
+    if (cfg.routingOpts.lineNameFromUnmatchedPunishFact < 1)
+      cfg.osmBuildOpts.maxSpeedCorFac *=
+          cfg.routingOpts.lineNameFromUnmatchedPunishFact;
+    if (cfg.routingOpts.lineNameToUnmatchedPunishFact < 1)
+      cfg.osmBuildOpts.maxSpeedCorFac *=
+          cfg.routingOpts.lineNameToUnmatchedPunishFact;
+
+    if (cfg.routingOpts.noLinesPunishFact < 1)
+      cfg.osmBuildOpts.maxSpeedCorFac *= cfg.routingOpts.noLinesPunishFact;
+
+    if (cfg.osmBuildOpts.oneWaySpeedPen < 1)
+      cfg.osmBuildOpts.maxSpeedCorFac *= cfg.osmBuildOpts.oneWaySpeedPen;
+
+    cfg.osmBuildOpts.maxSpeed /= cfg.osmBuildOpts.maxSpeedCorFac;
 
     bool found = false;
 
-    for (auto& cfg : _cfgs) {
-      if (cfg == curCfg) {
+    for (auto& exCfg : _cfgs) {
+      if (cfg == exCfg) {
         for (auto mot :
              ad::cppgtfs::gtfs::flat::Route::getTypesFromString(secStr)) {
-          cfg.mots.insert(mot);
+          exCfg.mots.insert(mot);
         }
         found = true;
         break;
@@ -437,8 +626,8 @@ void MotConfigReader::parse(const std::vector<std::string>& paths) {
     }
 
     if (!found) {
-      curCfg.mots = ad::cppgtfs::gtfs::flat::Route::getTypesFromString(secStr);
-      _cfgs.push_back(curCfg);
+      cfg.mots = ad::cppgtfs::gtfs::flat::Route::getTypesFromString(secStr);
+      _cfgs.push_back(cfg);
     }
   }
 }

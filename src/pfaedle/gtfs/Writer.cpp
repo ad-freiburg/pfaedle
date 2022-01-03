@@ -13,13 +13,13 @@
 #include "ad/util/CsvWriter.h"
 #include "pfaedle/gtfs/Writer.h"
 
-using ad::util::CsvWriter;
 using ad::cppgtfs::Parser;
-using pfaedle::gtfs::Writer;
+using ad::util::CsvWriter;
 using pfaedle::getTmpFName;
+using pfaedle::gtfs::Writer;
 
 // ____________________________________________________________________________
-bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
+void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
   std::ofstream fs;
   std::ifstream is;
   std::string gtfsPath(path);
@@ -59,8 +59,7 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeCalendar(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/calendar_dates.txt").c_str());
@@ -72,8 +71,7 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeCalendarDates(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/transfers.txt").c_str());
@@ -85,8 +83,7 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeTransfers(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/fare_attributes.txt").c_str());
@@ -98,8 +95,7 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFares(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.open((sourceFeed->getPath() + "/fare_rules.txt").c_str());
@@ -111,8 +107,7 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFareRules(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.close();
@@ -142,14 +137,14 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFrequencies(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
 
   is.close();
   curFile = getTmpFName(gtfsPath, "stop_times.txt");
   curFileTg = gtfsPath + "/stop_times.txt";
   fs.open(curFile.c_str());
+
   if (!fs.good()) cannotWrite(curFile, curFileTg);
   writeStopTimes(sourceFeed, &fs);
   fs.close();
@@ -163,15 +158,12 @@ bool Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (!fs.good()) cannotWrite(curFile, curFileTg);
     writeFeedInfo(sourceFeed, &fs);
     fs.close();
-    if (std::rename(curFile.c_str(), curFileTg.c_str()))
-      cannotWrite(curFileTg);
+    if (std::rename(curFile.c_str(), curFileTg.c_str())) cannotWrite(curFileTg);
   }
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeFeedInfo(gtfs::Feed* f, std::ostream* os) const {
+void Writer::writeFeedInfo(gtfs::Feed* f, std::ostream* os) const {
   auto csvw = ad::cppgtfs::Writer::getFeedInfoCsvw(os);
   csvw.flushLine();
   csvw.writeString(f->getPublisherName());
@@ -187,12 +179,10 @@ bool Writer::writeFeedInfo(gtfs::Feed* f, std::ostream* os) const {
     csvw.skip();
   csvw.writeString(f->getVersion());
   csvw.flushLine();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeAgency(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeAgency(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/agency.txt").c_str());
 
@@ -210,12 +200,10 @@ bool Writer::writeAgency(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeAgency(fa, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeStops(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeStops(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/stops.txt").c_str());
 
@@ -233,35 +221,22 @@ bool Writer::writeStops(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeStop(s, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeRoutes(gtfs::Feed* sourceFeed, std::ostream* os) const {
-  std::ifstream fs;
-  fs.open((sourceFeed->getPath() + "/routes.txt").c_str());
-
-  CsvParser csvp(&fs);
-  Parser p;
+void Writer::writeRoutes(gtfs::Feed* sourceFeed, std::ostream* os) const {
   ad::cppgtfs::Writer w;
 
   CsvWriter csvw = ad::cppgtfs::Writer::getRoutesCsvw(os);
   csvw.flushLine();
 
-  ad::cppgtfs::gtfs::flat::Route s;
-  auto flds = Parser::getRouteFlds(&csvp);
-
-  while (p.nextRoute(&csvp, &s, flds)) {
-    w.writeRoute(s, &csvw);
+  for (auto r : sourceFeed->getRoutes()) {
+    w.writeRoute(r.second->getFlat(), &csvw);
   }
-  fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeCalendar(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeCalendar(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/calendar.txt").c_str());
 
@@ -279,12 +254,10 @@ bool Writer::writeCalendar(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeCalendar(c, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeCalendarDates(gtfs::Feed* sourceFeed,
+void Writer::writeCalendarDates(gtfs::Feed* sourceFeed,
                                 std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/calendar_dates.txt").c_str());
@@ -303,12 +276,10 @@ bool Writer::writeCalendarDates(gtfs::Feed* sourceFeed,
     w.writeCalendarDate(c, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeFrequencies(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeFrequencies(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/frequencies.txt").c_str());
 
@@ -326,12 +297,10 @@ bool Writer::writeFrequencies(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeFrequency(f, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeTransfers(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeTransfers(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/transfers.txt").c_str());
 
@@ -349,12 +318,10 @@ bool Writer::writeTransfers(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeTransfer(t, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeFares(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeFares(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/fare_attributes.txt").c_str());
 
@@ -372,12 +339,10 @@ bool Writer::writeFares(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeFare(f, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeFareRules(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeFareRules(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/fare_rules.txt").c_str());
 
@@ -395,12 +360,10 @@ bool Writer::writeFareRules(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeFareRule(f, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
-bool Writer::writeShapes(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeShapes(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/shapes.txt").c_str());
 
@@ -439,8 +402,6 @@ bool Writer::writeShapes(gtfs::Feed* sourceFeed, std::ostream* os) const {
   }
 
   fs.close();
-
-  return true;
 }
 
 // ____________________________________________________________________________
@@ -460,7 +421,7 @@ bool Writer::writeTrips(gtfs::Feed* sourceFeed, std::ostream* os) const {
 }
 
 // ____________________________________________________________________________
-bool Writer::writeStopTimes(gtfs::Feed* sourceFeed, std::ostream* os) const {
+void Writer::writeStopTimes(gtfs::Feed* sourceFeed, std::ostream* os) const {
   std::ifstream fs;
   fs.open((sourceFeed->getPath() + "/stop_times.txt").c_str());
 
@@ -491,8 +452,6 @@ bool Writer::writeStopTimes(gtfs::Feed* sourceFeed, std::ostream* os) const {
     w.writeStopTime(st, &csvw);
   }
   fs.close();
-
-  return true;
 }
 
 // ___________________________________________________________________________
@@ -508,4 +467,3 @@ void Writer::cannotWrite(const std::string& file, const std::string& file2) {
   ss << "(temporary file for " << file2 << ") Could not write to file";
   throw ad::cppgtfs::WriterException(ss.str(), file);
 }
-

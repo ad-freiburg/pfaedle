@@ -17,20 +17,11 @@ struct MotConfig {
   router::MOTs mots;
   osm::OsmReadOpts osmBuildOpts;
   router::RoutingOpts routingOpts;
-  std::map<std::string, std::string> unproced;
+  std::string transWeight;
 };
 
 inline bool operator==(const MotConfig& a, const MotConfig& b) {
-  bool unprocedEq = a.unproced.size() == b.unproced.size();
-  for (const auto& kv : a.unproced) {
-    if (!b.unproced.count(kv.first) ||
-        b.unproced.find(kv.first)->second != kv.second) {
-      unprocedEq = false;
-      break;
-    }
-  }
-  return a.osmBuildOpts == b.osmBuildOpts && a.routingOpts == b.routingOpts &&
-         unprocedEq;
+  return a.osmBuildOpts == b.osmBuildOpts && a.routingOpts == b.routingOpts;
 }
 
 }  // namespace config

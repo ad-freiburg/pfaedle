@@ -22,12 +22,6 @@ const std::set<Node<N, E>*>& Graph<N, E>::getNds() const {
 
 // _____________________________________________________________________________
 template <typename N, typename E>
-std::set<Node<N, E>*>* Graph<N, E>::getNds() {
-  return &_nodes;
-}
-
-// _____________________________________________________________________________
-template <typename N, typename E>
 typename std::set<Node<N, E>*>::iterator Graph<N, E>::delNd(
     Node<N, E>* n) {
   return delNd(_nodes.find(n));
@@ -64,6 +58,17 @@ Edge<N, E>* Graph<N, E>::getEdg(Node<N, E>* from, Node<N, E>* to) {
 
   return 0;
 }
+
+// _____________________________________________________________________________
+template <typename N, typename E>
+Node<N, E>* Graph<N, E>::sharedNode(const Edge<N, E>* a, const Edge<N, E>* b) {
+  Node<N, E>* r = 0;
+  if (a->getFrom() == b->getFrom() || a->getFrom() == b->getTo())
+    r = a->getFrom();
+  if (a->getTo() == b->getFrom() || a->getTo() == b->getTo()) r = a->getTo();
+  return r;
+}
+
 
 // _____________________________________________________________________________
 template <typename N, typename E>

@@ -10,7 +10,6 @@ Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://tr
 # pfaedle
 
 Precise OpenStreetMap (OSM) map-matching for public transit schedules ([GTFS](https://developers.google.com/transit/gtfs/reference/) data).
-Implementation and evaluation code for our paper [Sparse Map-Matching in Public Transit Networks with Turn Restrictions](http://ad-publications.informatik.uni-freiburg.de/SIGSPATIAL_Sparse%20map%20matching%202018.pdf).
 
 ## Requirements
 
@@ -96,48 +95,8 @@ The following flags may be useful for debugging:
  * `-T <GTFS TRIP ID>` only calculate shape for a single trip (specified via its GTFS trip id) and output it as GeoJSON to
    `<dbg-path>/path.json`
  * `--write-graph` write the graph used for routing as GeoJSON to
-   `<dbg-path>/graph.json`
- * `--write-cgraph` if `-T` is set, write the combination graph used for
-   routing as GeoJSON to `<dbg-path>/combgraph.json`
  * `--write-trgraph` write the complete network graph to `<dbg-path>/trgraph.json`
 
 # Configuration
 
 A default configuration file `pfaedle.cfg` can be found in this repo and will be installed with `make install`. Custom configuration files can be specified with the `-c` flag. If no `-c` flag is set, `pfaedle` will parse and merge the following cfg files in the given order (if present): `<install prefix>/etc/pfaedle/pfaedle.cfg`, `$HOME/.config/pfaedle/pfaedle.cfg`, `<CWD>/pfaedle.cfg`. Values given in later files will overwrite earlier defined values.
-
-# Evaluation
-
-You may run an entire evaluation of our testing datasets Vitoria-Gasteiz, Paris, Switzerland and
-Stuttgart with
-
-```
-mkdir build && cd build
-cmake ..
-make -j
-make eval
-```
-
-*Notes:*
- * this will download, and filter, the entire OSM files for Spain and the
-Stuttgart region. Make sure you have enough space left on your hard drive.
- * in evaluation mode, pfaedle needs significantly more time, because the
-   calculation of the similarity measurements between shapes are expensive
- * if you are only interested in the end results of a single dataset, run
-   `make <dataset>.lighteval` in `/eval`. For example, `make paris.lighteval`
-   generates a shaped version of the paris dataset, without doing extensive
-   comparisons to the ground truth.
- * similarily, if you want to run the extensive evaluation for a single dataset,
-   run `make <dataset>.eval` in `/eval`.
-
-
-## Evaluation requirements
-
- * zlib
-
-On Debianesque systems, type
-
-```
-sudo apt-get install zlib1g-dev
-```
-
-to install the dependencies.

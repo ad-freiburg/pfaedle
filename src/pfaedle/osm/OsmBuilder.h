@@ -30,20 +30,19 @@
 namespace pfaedle {
 namespace osm {
 
+using ad::cppgtfs::gtfs::Stop;
+using pfaedle::router::NodeSet;
+using pfaedle::trgraph::Component;
+using pfaedle::trgraph::Edge;
 using pfaedle::trgraph::EdgeGrid;
-using pfaedle::trgraph::NodeGrid;
-using pfaedle::trgraph::Normalizer;
+using pfaedle::trgraph::EdgePL;
 using pfaedle::trgraph::Graph;
 using pfaedle::trgraph::Node;
+using pfaedle::trgraph::NodeGrid;
 using pfaedle::trgraph::NodePL;
-using pfaedle::trgraph::Edge;
-using pfaedle::trgraph::EdgePL;
-using pfaedle::trgraph::TransitEdgeLine;
+using pfaedle::trgraph::Normalizer;
 using pfaedle::trgraph::StatInfo;
-using pfaedle::trgraph::StatGroup;
-using pfaedle::trgraph::Component;
-using pfaedle::router::NodeSet;
-using ad::cppgtfs::gtfs::Stop;
+using pfaedle::trgraph::TransitEdgeLine;
 using util::Nullable;
 
 struct NodeCand {
@@ -58,9 +57,8 @@ struct SearchFunc {
 };
 
 struct EqSearch : public SearchFunc {
-  explicit EqSearch(bool orphanSnap) : orphanSnap(orphanSnap) {}
+  EqSearch() {}
   double minSimi = 0.9;
-  bool orphanSnap;
   bool operator()(const Node* cand, const StatInfo* si) const;
 };
 
@@ -87,8 +85,7 @@ class OsmBuilder {
   // Read the OSM file at path, and write a graph to g. Only elements
   // inside the bounding box will be read
   void read(const std::string& path, const OsmReadOpts& opts, Graph* g,
-            const BBoxIdx& box, size_t gridSize, router::FeedStops* fs,
-            Restrictor* res);
+            const BBoxIdx& box, double gridSize, Restrictor* res);
 
   // Based on the list of options, output an overpass XML query for getting
   // the data needed for routing
@@ -103,8 +100,8 @@ class OsmBuilder {
 
  private:
   pfxml::parser_state readBBoxNds(pfxml::file* xml, OsmIdSet* nodes,
-                               OsmIdSet* noHupNodes, const OsmFilter& filter,
-                               const BBoxIdx& bbox) const;
+                                  OsmIdSet* noHupNodes, const OsmFilter& filter,
+                                  const BBoxIdx& bbox) const;
 
   void readRels(pfxml::file* f, RelLst* rels, RelMap* nodeRels, RelMap* wayRels,
                 const OsmFilter& filter, const AttrKeySet& keepAttrs,
@@ -140,13 +137,14 @@ class OsmBuilder {
                  Restrictor* restor, const FlatRels& flatRels,
                  EdgTracks* etracks, const OsmReadOpts& opts);
 
-  void readEdges(pfxml::file* xml, const RelMap& wayRels, const OsmFilter& filter,
-                 const OsmIdSet& bBoxNodes, const AttrKeySet& keepAttrs,
-                 OsmIdList* ret, NIdMap* nodes, const FlatRels& flatRels);
+  void readEdges(pfxml::file* xml, const RelMap& wayRels,
+                 const OsmFilter& filter, const OsmIdSet& bBoxNodes,
+                 const AttrKeySet& keepAttrs, OsmIdList* ret, NIdMap* nodes,
+                 const FlatRels& flatRels);
 
-  OsmWay nextWay(pfxml::file* xml, const RelMap& wayRels, const OsmFilter& filter,
-                 const OsmIdSet& bBoxNodes, const AttrKeySet& keepAttrs,
-                 const FlatRels& flatRels) const;
+  OsmWay nextWay(pfxml::file* xml, const RelMap& wayRels,
+                 const OsmFilter& filter, const OsmIdSet& bBoxNodes,
+                 const AttrKeySet& keepAttrs, const FlatRels& flatRels) const;
 
   bool keepWay(const OsmWay& w, const RelMap& wayRels, const OsmFilter& filter,
                const OsmIdSet& bBoxNodes, const FlatRels& fl) const;
@@ -168,52 +166,46 @@ class OsmBuilder {
                  const AttrKeySet& keepAttrs) const;
 
  protected:
-  Nullable<StatInfo> getStatInfo(Node* node, osmid nid, const POINT& pos,
-                                 const AttrMap& m, StAttrGroups* groups,
+  Nullable<StatInfo> getStatInfo(osmid nid, const AttrMap& m,
                                  const RelMap& nodeRels, const RelLst& rels,
                                  const OsmReadOpts& ops) const;
 
   static void snapStats(const OsmReadOpts& opts, Graph* g, const BBoxIdx& bbox,
-                        size_t gridSize, router::FeedStops* fs, Restrictor* res,
+                        double gridSize, Restrictor* res,
                         const NodeSet& orphanStations);
-  static void writeGeoms(Graph* g);
-  static void deleteOrphNds(Graph* g);
+  static void writeGeoms(Graph* g, const OsmReadOpts& opts);
   static void deleteOrphEdgs(Graph* g, const OsmReadOpts& opts);
+  static void deleteOrphNds(Graph* g, const OsmReadOpts& opts);
   static double dist(const Node* a, const Node* b);
-  static double webMercDist(const Node* a, const Node* b);
 
-  static NodeGrid buildNodeIdx(Graph* g, size_t size, const BOX& webMercBox,
+  static NodeGrid buildNodeIdx(Graph* g, double size, const BOX& box,
                                bool which);
 
-  static EdgeGrid buildEdgeIdx(Graph* g, size_t size, const BOX& webMercBox);
+  static EdgeGrid buildEdgeIdx(Graph* g, double size, const BOX& box);
 
   static void fixGaps(Graph* g, NodeGrid* ng);
   static void collapseEdges(Graph* g);
   static void writeODirEdgs(Graph* g, Restrictor* restor);
   static void writeSelfEdgs(Graph* g);
+  static void writeOneWayPens(Graph* g, const OsmReadOpts& opts);
+  static void writeNoLinePens(Graph* g, const OsmReadOpts& opts);
   static void writeEdgeTracks(const EdgTracks& tracks);
   static void simplifyGeoms(Graph* g);
-  static uint32_t writeComps(Graph* g);
+  static uint32_t writeComps(Graph* g, const OsmReadOpts& opts);
   static bool edgesSim(const Edge* a, const Edge* b);
   static const EdgePL& mergeEdgePL(Edge* a, Edge* b);
   static void getEdgCands(const POINT& s, EdgeCandPQ* ret, EdgeGrid* eg,
                           double d);
 
-  static std::set<Node*> getMatchingNds(const NodePL& s, NodeGrid* ng,
-                                        double d);
-
-  static Node* getMatchingNd(const NodePL& s, NodeGrid* ng, double d);
-
-  static NodeSet snapStation(Graph* g, NodePL* s, EdgeGrid* eg, NodeGrid* sng,
-                             const OsmReadOpts& opts, Restrictor* restor,
-                             bool surHeur, bool orphSnap, double maxD);
+  static void snapStation(Graph* g, NodePL* s, EdgeGrid* eg, NodeGrid* sng,
+                          const OsmReadOpts& opts, Restrictor* restor,
+                          double maxD);
 
   // Checks if from the edge e, a station similar to si can be reach with less
   // than maxD distance and less or equal to "maxFullTurns" full turns. If
   // such a station exists, it is returned. If not, 0 is returned.
   static Node* eqStatReach(const Edge* e, const StatInfo* si, const POINT& p,
-                           double maxD, int maxFullTurns, double maxAng,
-                           bool orph);
+                           double maxD, int maxFullTurns, double maxAng);
 
   static Node* depthSearch(const Edge* e, const StatInfo* si, const POINT& p,
                            double maxD, int maxFullTurns, double minAngle,
@@ -222,8 +214,6 @@ class OsmBuilder {
   static bool isBlocked(const Edge* e, const StatInfo* si, const POINT& p,
                         double maxD, int maxFullTurns, double minAngle);
   static bool keepFullTurn(const trgraph::Node* n, double ang);
-
-  static StatGroup* groupStats(const NodeSet& s);
 
   static NodePL plFromGtfs(const Stop* s, const OsmReadOpts& ops);
 
@@ -253,6 +243,10 @@ class OsmBuilder {
                       const RelMap& entRels, const RelLst& rels) const;
 
   bool relKeep(osmid id, const RelMap& rels, const FlatRels& fl) const;
+
+  uint32_t parseHexColor(std::string) const;
+
+  static uint32_t costToInt(double c);
 
   std::map<TransitEdgeLine, TransitEdgeLine*> _lines;
   std::map<size_t, TransitEdgeLine*> _relLines;

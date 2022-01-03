@@ -11,15 +11,12 @@
 using pfaedle::trgraph::EdgePL;
 using pfaedle::trgraph::TransitEdgeLine;
 
-
 std::map<LINE*, size_t> EdgePL::_flines;
 std::map<const TransitEdgeLine*, size_t> EdgePL::_tlines;
 
 // _____________________________________________________________________________
 EdgePL::EdgePL()
-    : _length(0), _oneWay(0), _hasRestr(false), _rev(false), _lvl(0) {
-  _l = new LINE();
-  _flines[_l] = 1;
+    : _oneWay(0), _hasRestr(false), _rev(false), _lvl(0), _cost(0), _l(0) {
 }
 
 // _____________________________________________________________________________
@@ -27,17 +24,20 @@ EdgePL::EdgePL(const EdgePL& pl) : EdgePL(pl, false) {}
 
 // _____________________________________________________________________________
 EdgePL::EdgePL(const EdgePL& pl, bool geoflat)
-    : _length(pl._length),
-      _oneWay(pl._oneWay),
+    : _oneWay(pl._oneWay),
       _hasRestr(pl._hasRestr),
       _rev(pl._rev),
-      _lvl(pl._lvl) {
-  if (geoflat) {
-    _l = pl._l;
-  } else {
-    _l = new LINE(*pl._l);
+      _lvl(pl._lvl),
+      _cost(pl._cost),
+      _l(0) {
+  if (pl._l) {
+    if (geoflat) {
+      _l = pl._l;
+    } else {
+      _l = new LINE(*pl._l);
+    }
+    _flines[_l]++;
   }
-  _flines[_l]++;
 
   for (auto l : pl._lines) addLine(l);
 }
@@ -75,16 +75,23 @@ EdgePL EdgePL::revCopy() const {
 }
 
 // _____________________________________________________________________________
-void EdgePL::setLength(double d) { _length = d; }
+double EdgePL::getLength() const {
+  double len = 0;
 
-// _____________________________________________________________________________
-double EdgePL::getLength() const { return _length; }
+  for (size_t i = 1; i < _l->size(); i++) {
+    len += haversine((*_l)[i-1], (*_l)[i]);
+  }
+
+  return len;
+}
 
 // _____________________________________________________________________________
 void EdgePL::addLine(const TransitEdgeLine* l) {
-  if (std::find(_lines.begin(), _lines.end(), l) == _lines.end()) {
+  auto lb = std::lower_bound(_lines.begin(), _lines.end(), l);
+  if (lb == _lines.end() || *lb != l) {
     _lines.reserve(_lines.size() + 1);
-    _lines.push_back(l);
+    lb = std::lower_bound(_lines.begin(), _lines.end(), l);
+    _lines.insert(lb, l);
     if (_tlines.count(l))
       _tlines[l]++;
     else
@@ -103,7 +110,13 @@ const std::vector<const TransitEdgeLine*>& EdgePL::getLines() const {
 }
 
 // _____________________________________________________________________________
-void EdgePL::addPoint(const POINT& p) { _l->push_back(p); }
+void EdgePL::addPoint(const POINT& p) {
+  if (!_l) {
+    _l = new LINE();
+    _flines[_l] = 1;
+  }
+  _l->push_back(p);
+}
 
 // _____________________________________________________________________________
 const LINE* EdgePL::getGeom() const { return _l; }
@@ -114,8 +127,9 @@ LINE* EdgePL::getGeom() { return _l; }
 // _____________________________________________________________________________
 util::json::Dict EdgePL::getAttrs() const {
   util::json::Dict obj;
-  obj["m_length"] = std::to_string(_length);
+  obj["m_length"] = std::to_string(getLength());
   obj["oneway"] = std::to_string(static_cast<int>(_oneWay));
+  obj["cost"] = std::to_string(static_cast<double>(_cost) / 10.0);
   obj["level"] = std::to_string(_lvl);
   obj["restriction"] = isRestricted() ? "yes" : "no";
 
@@ -152,10 +166,10 @@ void EdgePL::setOneWay(uint8_t dir) { _oneWay = dir; }
 void EdgePL::setOneWay() { _oneWay = 1; }
 
 // _____________________________________________________________________________
-void EdgePL::setLvl(uint8_t lvl) { _lvl = lvl; }
+uint32_t EdgePL::getCost() const { return _cost; }
 
 // _____________________________________________________________________________
-uint8_t EdgePL::lvl() const { return _lvl; }
+void EdgePL::setCost(uint32_t c) { _cost = c; }
 
 // _____________________________________________________________________________
 void EdgePL::setRev() { _rev = true; }

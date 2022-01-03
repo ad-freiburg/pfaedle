@@ -5,8 +5,8 @@
 // _____________________________________________________________________________
 template <typename N, typename E, typename C>
 C Dijkstra::shortestPathImpl(Node<N, E>* from, const std::set<Node<N, E>*>& to,
-                             const ShortestPath::CostFunc<N, E, C>& costFunc,
-                             const ShortestPath::HeurFunc<N, E, C>& heurFunc,
+                             const util::graph::CostFunc<N, E, C>& costFunc,
+                             const util::graph::HeurFunc<N, E, C>& heurFunc,
                              EList<N, E>* resEdges, NList<N, E>* resNodes) {
   if (from->getOutDeg() == 0) return costFunc.inf();
 
@@ -18,12 +18,12 @@ C Dijkstra::shortestPathImpl(Node<N, E>* from, const std::set<Node<N, E>*>& to,
   RouteNode<N, E, C> cur;
 
   while (!pq.empty()) {
-    Dijkstra::ITERS++;
-
+    if (costFunc.inf() <= pq.top().h) return costFunc.inf();
     if (settled.find(pq.top().n) != settled.end()) {
       pq.pop();
       continue;
     }
+    Dijkstra::ITERS++;
 
     cur = pq.top();
     pq.pop();
@@ -49,8 +49,8 @@ C Dijkstra::shortestPathImpl(Node<N, E>* from, const std::set<Node<N, E>*>& to,
 template <typename N, typename E, typename C>
 C Dijkstra::shortestPathImpl(const std::set<Node<N, E>*> from,
                              const std::set<Node<N, E>*>& to,
-                             const ShortestPath::CostFunc<N, E, C>& costFunc,
-                             const ShortestPath::HeurFunc<N, E, C>& heurFunc,
+                             const util::graph::CostFunc<N, E, C>& costFunc,
+                             const util::graph::HeurFunc<N, E, C>& heurFunc,
                              EList<N, E>* resEdges, NList<N, E>* resNodes) {
   Settled<N, E, C> settled;
   PQ<N, E, C> pq;
@@ -61,12 +61,16 @@ C Dijkstra::shortestPathImpl(const std::set<Node<N, E>*> from,
   RouteNode<N, E, C> cur;
 
   while (!pq.empty()) {
-    Dijkstra::ITERS++;
-
-    if (settled.find(pq.top().n) != settled.end()) {
-      pq.pop();
-      continue;
+    if (costFunc.inf() <= pq.top().h) return costFunc.inf();
+    auto se = settled.find(pq.top().n);
+    if (se != settled.end()) {
+      // to allow non-consistent heuristics
+      if (se->second.d <= pq.top().d) {
+        pq.pop();
+        continue;
+      }
     }
+    Dijkstra::ITERS++;
 
     cur = pq.top();
     pq.pop();
@@ -92,8 +96,8 @@ C Dijkstra::shortestPathImpl(const std::set<Node<N, E>*> from,
 template <typename N, typename E, typename C>
 std::unordered_map<Node<N, E>*, C> Dijkstra::shortestPathImpl(
     Node<N, E>* from, const std::set<Node<N, E>*>& to,
-    const ShortestPath::CostFunc<N, E, C>& costFunc,
-    const ShortestPath::HeurFunc<N, E, C>& heurFunc,
+    const util::graph::CostFunc<N, E, C>& costFunc,
+    const util::graph::HeurFunc<N, E, C>& heurFunc,
     std::unordered_map<Node<N, E>*, EList<N, E>*> resEdges,
     std::unordered_map<Node<N, E>*, NList<N, E>*> resNodes) {
   std::unordered_map<Node<N, E>*, C> costs;
@@ -112,12 +116,16 @@ std::unordered_map<Node<N, E>*, C> Dijkstra::shortestPathImpl(
   RouteNode<N, E, C> cur;
 
   while (!pq.empty()) {
-    Dijkstra::ITERS++;
-
-    if (settled.find(pq.top().n) != settled.end()) {
-      pq.pop();
-      continue;
+    if (costFunc.inf() <= pq.top().h) return costs;
+    auto se = settled.find(pq.top().n);
+    if (se != settled.end()) {
+      // to allow non-consistent heuristics
+      if (se->second.d <= pq.top().d) {
+        pq.pop();
+        continue;
+      }
     }
+    Dijkstra::ITERS++;
 
     cur = pq.top();
     pq.pop();
@@ -147,29 +155,41 @@ std::unordered_map<Node<N, E>*, C> Dijkstra::shortestPathImpl(
 // _____________________________________________________________________________
 template <typename N, typename E, typename C>
 void Dijkstra::relax(RouteNode<N, E, C>& cur, const std::set<Node<N, E>*>& to,
-                     const ShortestPath::CostFunc<N, E, C>& costFunc,
-                     const ShortestPath::HeurFunc<N, E, C>& heurFunc, PQ<N, E, C>& pq) {
+                     const util::graph::CostFunc<N, E, C>& costFunc,
+                     const util::graph::HeurFunc<N, E, C>& heurFunc,
+                     PQ<N, E, C>& pq) {
   for (auto edge : cur.n->getAdjListOut()) {
     C newC = costFunc(cur.n, edge, edge->getOtherNd(cur.n));
     newC = cur.d + newC;
+    if (newC < cur.d) continue; // cost overflow!
     if (costFunc.inf() <= newC) continue;
 
-    const C& newH = newC + heurFunc(edge->getOtherNd(cur.n), to);
+    // addition done here to avoid it in the PQ
+    auto h = heurFunc(edge->getOtherNd(cur.n), to);
+    if (costFunc.inf() <= h) continue;
 
-    pq.emplace(edge->getOtherNd(cur.n), cur.n, newC, newH, &(*edge));
+    const C& newH = newC + h;
+
+    if (newH < newC) continue;  // cost overflow!
+
+    pq.emplace(edge->getOtherNd(cur.n), cur.n, newC, newH);
   }
 }
 
 // _____________________________________________________________________________
 template <typename N, typename E, typename C>
-void Dijkstra::buildPath(Node<N, E>* curN,
-                         Settled<N, E, C>& settled, NList<N, E>* resNodes,
-                         EList<N, E>* resEdges) {
-  while (true) {
+void Dijkstra::buildPath(Node<N, E>* curN, Settled<N, E, C>& settled,
+                         NList<N, E>* resNodes, EList<N, E>* resEdges) {
+  while (resNodes || resEdges) {
     const RouteNode<N, E, C>& curNode = settled[curN];
     if (resNodes) resNodes->push_back(curNode.n);
     if (!curNode.parent) break;
-    if (resEdges) resEdges->push_back(curNode.e);
+
+    if (resEdges) {
+      for (auto e : curNode.n->getAdjListIn()) {
+        if (e->getOtherNd(curNode.n) == curNode.parent) resEdges->push_back(e);
+      }
+    }
     curN = curNode.parent;
   }
 }

@@ -17,7 +17,6 @@ namespace util {
 namespace geo {
 
 static const double MAX_EQ_DISTANCE = 15;
-static const double AVERAGING_STEP = 20;
 
 // legacy code, will be removed in the future
 
@@ -61,11 +60,11 @@ class PolyLine {
   PolyLine& operator>>(const Point<T>& p);
 
   void reverse();
-  PolyLine getReversed() const;
+  PolyLine reversed() const;
 
   void offsetPerp(double units);
 
-  PolyLine getPerpOffsetted(double units) const;
+  PolyLine offsetted(double units) const;
 
   const Line<T>& getLine() const;
 

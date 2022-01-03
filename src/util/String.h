@@ -6,11 +6,17 @@
 #define UTIL_STRING_H_
 
 #include <algorithm>
+#include <cassert>
+#include <codecvt>
 #include <cstring>
+#include <exception>
 #include <iomanip>
+#include <iostream>
+#include <locale>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <set>
 
 namespace util {
 
@@ -169,7 +175,8 @@ inline size_t editDist(const std::string& s1, const std::string& s2) {
 }
 
 // _____________________________________________________________________________
-inline size_t prefixEditDist(const std::string& prefix, const std::string& s,
+template <class String>
+inline size_t prefixEditDist(const String& prefix, const String& s,
                              size_t deltaMax) {
   // https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
   size_t len1 = prefix.size();
@@ -200,8 +207,43 @@ inline size_t prefixEditDist(const std::string& prefix, const std::string& s,
 }
 
 // _____________________________________________________________________________
-inline size_t prefixEditDist(const std::string& prefix, const std::string& s) {
+template <class String>
+inline size_t prefixEditDist(const String& prefix, const String& s) {
   return prefixEditDist(prefix, s, s.size());
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const char* prefix, const char* s) {
+  return prefixEditDist<std::string>(std::string(prefix), std::string(s));
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const char* prefix, const char* s,
+                             size_t deltaMax) {
+  return prefixEditDist<std::string>(std::string(prefix), std::string(s),
+                                     deltaMax);
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const char* prefix, const std::string& s) {
+  return prefixEditDist<std::string>(std::string(prefix), s);
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const char* prefix, const std::string& s,
+                             size_t deltaMax) {
+  return prefixEditDist<std::string>(std::string(prefix), s, deltaMax);
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const std::string& prefix, const char* s) {
+  return prefixEditDist<std::string>(prefix, std::string(s));
+}
+
+// _____________________________________________________________________________
+inline size_t prefixEditDist(const std::string& prefix, const char* s,
+                             size_t deltaMax) {
+  return prefixEditDist<std::string>(prefix, std::string(s), deltaMax);
 }
 
 // _____________________________________________________________________________
@@ -251,10 +293,66 @@ inline std::string normalizeWhiteSpace(const std::string& input) {
 }
 
 // _____________________________________________________________________________
-template <typename T>
+inline std::wstring toWStr(const std::string& str) {
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+  return converter.from_bytes(str);
+}
+
+// _____________________________________________________________________________
+inline std::string toNStr(const std::wstring& wstr) {
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+  return converter.to_bytes(wstr);
+}
+
+// _____________________________________________________________________________
+inline std::vector<std::string> tokenize(const std::string& str) {
+  std::vector<std::string> ret;
+  std::wstring wStr = toWStr(str);
+
+  std::wstring cur;
+  for (size_t i = 0; i < wStr.size(); ++i) {
+    if (!std::iswalnum(wStr[i])) {
+      if (cur.size()) ret.push_back(toNStr(cur));
+      cur = L"";
+      continue;
+    }
+    cur += wStr[i];
+  }
+  if (cur.size()) ret.push_back(toNStr(cur));
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+inline double jaccardSimi(const std::string& a,
+                                            const std::string& b) {
+  std::set<std::string> sa, sb;
+
+  auto toksA = tokenize(a);
+  auto toksB = tokenize(b);
+
+  // 0 if both are empty
+  if (toksA.size() == 0 && toksB.size() == 0) return 0;
+
+  sa.insert(toksA.begin(), toksA.end());
+  sb.insert(toksB.begin(), toksB.end());
+
+  std::set<std::string> isect;
+
+  std::set_intersection(sa.begin(), sa.end(), sb.begin(), sb.end(),
+                        std::inserter(isect, isect.begin()));
+
+  double sInter = isect.size();
+  double s1 = sa.size();
+  double s2 = sb.size();
+  return sInter / (s1 + s2 - sInter);
+}
+
+// _____________________________________________________________________________
+template <class T>
 inline std::string implode(const std::vector<T>& vec, const char* del) {
   return implode(vec.begin(), vec.end(), del);
 }
-}
+}  // namespace util
 
 #endif  // UTIL_STRING_H_

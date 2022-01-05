@@ -223,6 +223,10 @@ int main(int argc, char** argv) {
     exit(static_cast<int>(RetCode::NO_INPUT_FEED));
   }
 
+  Stats stats;
+  double tOsmBuild = 0;
+  std::map<std::string, std::pair<size_t, size_t>> graphDimensions;
+
   for (const auto& motCfg : motCfgReader.getConfigs()) {
     std::string filePost;
     auto usedMots = pfaedle::router::motISect(motCfg.mots, cmdCfgMots);
@@ -254,7 +258,12 @@ int main(int argc, char** argv) {
         osmBuilder.read(cfg.osmPath, motCfg.osmBuildOpts, &graph, box,
                         cfg.gridSize, &restr);
 
-      auto tOsmBuild = T_STOP(osmBuild);
+      tOsmBuild += T_STOP(osmBuild);
+      graphDimensions[filePost].first = graph.getNds().size();
+
+      for (const auto& nd : graph.getNds()) {
+        graphDimensions[filePost].second += nd->getAdjListOut().size();
+      }
 
       JaccardClassifier statsimiClassifier;
 
@@ -285,7 +294,6 @@ int main(int argc, char** argv) {
                                 &restr, &statsimiClassifier, router, cfg);
 
       pfaedle::netgraph::Graph ng;
-      Stats stats;
 
       if (singleTrip) {
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -293,7 +301,7 @@ int main(int argc, char** argv) {
         util::geo::output::GeoJsonOutput o(pstr);
 
         auto l = shapeBuilder.shapeL(singleTrip);
-        stats = l.second;
+        stats += l.second;
 
         LOG(INFO) << "Outputting path.json...";
         // reproject to WGS84 to match RFC 7946
@@ -302,38 +310,7 @@ int main(int argc, char** argv) {
         o.flush();
         pstr.close();
       } else {
-        stats = shapeBuilder.shapeify(&ng);
-      }
-
-      // outputting stats
-
-      if (cfg.writeStats) {
-        size_t numEdgs = 0;
-        for (const auto& nd : graph.getNds()) {
-          numEdgs += nd->getAdjListOut().size();
-        }
-        util::json::Dict jsonStats = {
-            {"statistics",
-             util::json::Dict{
-                 {"gtfs_num_stations", gtfs[0].getStops().size()},
-                 {"gtfs_num_trips", gtfs[0].getTrips().size()},
-                 {"graph_nds", graph.getNds().size()},
-                 {"graph_edgs", numEdgs},
-                 {"num_tries", stats.numTries},
-                 {"num_trie_leafs", stats.numTrieLeafs},
-                 {"dijkstra_iters", stats.dijkstraIters},
-                 {"time_solve", stats.solveTime},
-                 {"time_read_osm", tOsmBuild},
-                 {"time_read_gtfs", tGtfsBuild},
-                 {"time_tot", T_STOP(total)},
-                 {"peak-memory", util::readableSize(util::getPeakRSS())},
-                 {"peak-memory-bytes", util::getPeakRSS()}}}};
-
-        std::ofstream ofs;
-        ofs.open("stats" + filePost + ".json");
-        util::json::Writer wr(&ofs, 10, true);
-        wr.val(jsonStats);
-        wr.closeAll();
+        stats += shapeBuilder.shapeify(&ng);
       }
 
       if (router) delete router;
@@ -351,9 +328,10 @@ int main(int argc, char** argv) {
 
       if (cfg.buildTransitGraph) {
         util::geo::output::GeoGraphJsonOutput out;
-        LOG(INFO) << "Outputting trgraph" + filePost + ".json...";
+        LOG(INFO) << "Outputting trgraph-" + filePost + ".json...";
         mkdir(cfg.dbgOutputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        std::ofstream fstr(cfg.dbgOutputPath + "/trgraph" + filePost + ".json");
+        std::ofstream fstr(cfg.dbgOutputPath + "/trgraph-" + filePost +
+                           ".json");
         out.print(ng, fstr);
         fstr.close();
       }
@@ -362,6 +340,40 @@ int main(int argc, char** argv) {
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
     }
+  }
+
+  // outputting stats
+  if (cfg.writeStats) {
+    util::json::Dict graphSizes;
+
+    for (const auto& gd : graphDimensions) {
+      util::json::Dict a;
+      a["num_nodes"] = gd.second.first;
+      a["num_edges"] = gd.second.second;
+      graphSizes[gd.first] = a;
+    }
+
+    util::json::Dict jsonStats = {
+        {"statistics",
+         util::json::Dict{
+             {"gtfs_num_stations", gtfs[0].getStops().size()},
+             {"gtfs_num_trips", gtfs[0].getTrips().size()},
+             {"graph_dimension", graphSizes},
+             {"num_tries", stats.numTries},
+             {"num_trie_leafs", stats.numTrieLeafs},
+             {"dijkstra_iters", stats.dijkstraIters},
+             {"time_solve", stats.solveTime},
+             {"time_read_osm", tOsmBuild},
+             {"time_read_gtfs", tGtfsBuild},
+             {"time_tot", T_STOP(total)},
+             {"peak-memory", util::readableSize(util::getPeakRSS())},
+             {"peak-memory-bytes", util::getPeakRSS()}}}};
+
+    std::ofstream ofs;
+    ofs.open(cfg.dbgOutputPath + "/stats.json");
+    util::json::Writer wr(&ofs, 10, true);
+    wr.val(jsonStats);
+    wr.closeAll();
   }
 
   if (cfg.feedPaths.size()) {
@@ -384,7 +396,8 @@ int main(int argc, char** argv) {
 std::string getFileNameMotStr(const MOTs& mots) {
   std::string motStr;
   for (const auto& mot : mots) {
-    motStr += "-" + ad::cppgtfs::gtfs::flat::Route::getTypeString(mot);
+    if (motStr.size()) motStr += "-";
+    motStr += ad::cppgtfs::gtfs::flat::Route::getTypeString(mot);
   }
 
   return motStr;

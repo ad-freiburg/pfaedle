@@ -27,6 +27,20 @@ struct Stats {
   size_t dijkstraIters;
 };
 
+inline Stats operator+ (const Stats& c1, const Stats& c2) {
+  Stats ret = c1;
+  ret.totNumTrips += c2.totNumTrips;
+  ret.numTries += c2.numTries;
+  ret.solveTime += c2.solveTime;
+  ret.dijkstraIters += c2.dijkstraIters;
+  return ret;
+}
+
+inline Stats& operator+= (Stats& c1, const Stats& c2) {
+  c1 = c1 + c2;
+  return c1;
+}
+
 }  // namespace router
 }  // namespace pfaedle
 

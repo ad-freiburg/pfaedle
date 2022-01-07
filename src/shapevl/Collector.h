@@ -77,11 +77,13 @@ class Collector {
   size_t _unmatchedSegSum;
   double _unmatchedSegLengthSum;
 
-  size_t _acc0;
-  size_t _acc10;
-  size_t _acc20;
-  size_t _acc40;
-  size_t _acc80;
+  size_t _an0;
+  size_t _an5;
+  size_t _an10;
+  size_t _an30;
+  size_t _an50;
+  size_t _an70;
+  size_t _an90;
 
   std::ostream* _reportOut;
 

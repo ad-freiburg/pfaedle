@@ -31,6 +31,7 @@ inline Stats operator+ (const Stats& c1, const Stats& c2) {
   Stats ret = c1;
   ret.totNumTrips += c2.totNumTrips;
   ret.numTries += c2.numTries;
+  ret.numTrieLeafs += c2.numTrieLeafs;
   ret.solveTime += c2.solveTime;
   ret.dijkstraIters += c2.dijkstraIters;
   return ret;

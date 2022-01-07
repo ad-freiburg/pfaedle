@@ -59,7 +59,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   // A "segment" is a path from station s_i to station s_{i+1}
 
   size_t unmatchedSegments;        // number of unmatched segments
-  double unmatchedSegmentsLength;  // total _acc. length of unmatched segments
+  double unmatchedSegmentsLength;  // total _an. length of unmatched segments
 
   std::vector<double> oldDists;
   LINE oldL = getWebMercLine(oldS, &oldDists);
@@ -127,11 +127,13 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
 
   _results.insert(Result(oldT, avgFd));
 
-  if (AN <= 0.0001) _acc0++;
-  if (AN <= 0.1) _acc10++;
-  if (AN <= 0.2) _acc20++;
-  if (AN <= 0.4) _acc40++;
-  if (AN <= 0.8) _acc80++;
+  if (AN <= 0.0001) _an0++;
+  if (AN <= 0.05) _an5++;
+  if (AN <= 0.1) _an10++;
+  if (AN <= 0.3) _an30++;
+  if (AN <= 0.5) _an50++;
+  if (AN <= 0.7) _an70++;
+  if (AN <= 0.9) _an90++;
 
   LOG(VDEBUG) << "This result (" << oldT->getId()
               << "): A_N/N = " << unmatchedSegments << "/" << oldSegs.size()
@@ -169,9 +171,9 @@ std::vector<LINE> Collector::segmentize(const Trip* t, const LINE& shape,
   //    a different position philosophy than the test data)
   // 6) To normalize this, we always the following approach:
   //      a) Get the exact progression of the measurment on the shape
-  //      b) Extract a segment of 200 meters, with the measurement progress in the middle
-  //      c) Project the GROUND TRUTH station coordinate to this segment
-  //      d) The result is the cutting point
+  //      b) Extract a segment of 200 meters, with the measurement progress in
+  //      the middle c) Project the GROUND TRUTH station coordinate to this
+  //      segment d) The result is the cutting point
   // 7) If a completely wrong track was chosen, the frechet distance will still
   //    be greater than 20 meters and AN will measure an unmatch.
   // 8) TODO: implement this, explain this in diss
@@ -258,37 +260,39 @@ void Collector::printCsv(std::ostream* os,
 
 // _____________________________________________________________________________
 double Collector::getAcc() const {
-  return static_cast<double>(_acc0) / static_cast<double>(_results.size());
+  return static_cast<double>(_an0) / static_cast<double>(_results.size());
 }
 
 // _____________________________________________________________________________
 void Collector::printShortStats(std::ostream* os) const {
   if (_results.size()) {
-    (*os) << "acc-0: "
-          << (static_cast<double>(_acc0) /
+    (*os) << (static_cast<double>(_an0) /
               static_cast<double>(_results.size())) *
                  100
-          << " %";
-    (*os) << " acc-10: "
-          << (static_cast<double>(_acc10) /
+          << ",";
+    (*os) << (static_cast<double>(_an5) /
               static_cast<double>(_results.size())) *
                  100
-          << " %";
-    (*os) << " acc-20: "
-          << (static_cast<double>(_acc20) /
+          << ",";
+    (*os) << (static_cast<double>(_an10) /
               static_cast<double>(_results.size())) *
                  100
-          << " %";
-    (*os) << " acc-40: "
-          << (static_cast<double>(_acc40) /
+          << ",";
+    (*os) << (static_cast<double>(_an30) /
               static_cast<double>(_results.size())) *
                  100
-          << " %";
-    (*os) << " acc-80: "
-          << (static_cast<double>(_acc80) /
+          << ",";
+    (*os) << (static_cast<double>(_an50) /
               static_cast<double>(_results.size())) *
                  100
-          << " %";
+          << ",";
+    (*os) << (static_cast<double>(_an70) /
+              static_cast<double>(_results.size())) *
+                 100
+          << ",";
+    (*os) << (static_cast<double>(_an90) /
+              static_cast<double>(_results.size())) *
+                 100;
   }
 }
 
@@ -313,32 +317,44 @@ void Collector::printStats(std::ostream* os) const {
           << "  averaged avg frechet distance: " << getAvgDist() << "\n";
 
     (*os) << "\n";
-    (*os) << "  acc-0: "
-          << (static_cast<double>(_acc0) /
+    (*os) << "  an-0: "
+          << (static_cast<double>(_an0) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
           << "\n";
-    (*os) << "  acc-10: "
-          << (static_cast<double>(_acc10) /
+    (*os) << "  an-5: "
+          << (static_cast<double>(_an5) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
           << "\n";
-    (*os) << "  acc-20: "
-          << (static_cast<double>(_acc20) /
+    (*os) << "  an-10: "
+          << (static_cast<double>(_an10) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
           << "\n";
-    (*os) << "  acc-40: "
-          << (static_cast<double>(_acc40) /
+    (*os) << "  acc-30: "
+          << (static_cast<double>(_an30) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
           << "\n";
-    (*os) << "  acc-80: "
-          << (static_cast<double>(_acc80) /
+    (*os) << "  acc-50: "
+          << (static_cast<double>(_an50) /
+              static_cast<double>(_results.size())) *
+                 100
+          << " %"
+          << "\n";
+    (*os) << "  acc-70: "
+          << (static_cast<double>(_an70) /
+              static_cast<double>(_results.size())) *
+                 100
+          << " %"
+          << "\n";
+    (*os) << "  acc-90: "
+          << (static_cast<double>(_an90) /
               static_cast<double>(_results.size())) *
                  100
           << " %"

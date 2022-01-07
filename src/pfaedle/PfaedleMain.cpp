@@ -346,10 +346,15 @@ int main(int argc, char** argv) {
   if (cfg.writeStats) {
     util::json::Dict graphSizes;
 
+    double numNodesTot = 0;
+    double numEdgesTot = 0;
+
     for (const auto& gd : graphDimensions) {
       util::json::Dict a;
       a["num_nodes"] = gd.second.first;
       a["num_edges"] = gd.second.second;
+      numNodesTot += gd.second.first;
+      numEdgesTot += gd.second.second;
       graphSizes[gd.first] = a;
     }
 
@@ -358,7 +363,10 @@ int main(int argc, char** argv) {
          util::json::Dict{
              {"gtfs_num_stations", gtfs[0].getStops().size()},
              {"gtfs_num_trips", gtfs[0].getTrips().size()},
+             {"gtfs_has_shapes", gtfs[0].getShapes().size() > 1},
              {"graph_dimension", graphSizes},
+             {"num_nodes_tot", numNodesTot},
+             {"num_edges_tot", numEdgesTot},
              {"num_tries", stats.numTries},
              {"num_trie_leafs", stats.numTrieLeafs},
              {"dijkstra_iters", stats.dijkstraIters},

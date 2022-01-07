@@ -206,12 +206,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         cfg->noHopCache = true;
         break;
       case 'v':
-        std::cout << "pfaedle " << VERSION_FULL << " (built " << __DATE__ << " "
-                  << __TIME__ << " with geometry precision <"
-                  << PFDL_PREC_STR << ">)\n"
-                  << "(C) " << YEAR << " " << COPY << "\n"
-                  << "Authors: " << AUTHORS << "\nGNU General Public "
-                                               "License v3.0\n";
+        std::cout << "pfaedle " << VERSION_FULL << std::endl;
         exit(0);
       case 'p':
         printOpts = true;

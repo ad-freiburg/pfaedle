@@ -53,7 +53,7 @@ void eval(const std::vector<std::string>* paths,
     }
 
     LOG(DEBUG) << "Evaluating " << path << "...";
-    for (const auto oldTrip : evalFeed->getTrips()) {
+    for (const auto& oldTrip : evalFeed->getTrips()) {
       if (!mots->count(oldTrip.second->getRoute()->getType())) continue;
       auto newTrip = feed.getTrips().get(oldTrip.first);
       if (!newTrip)

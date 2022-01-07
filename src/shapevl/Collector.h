@@ -34,11 +34,13 @@ class Collector {
         _fdSum(0),
         _unmatchedSegSum(0),
         _unmatchedSegLengthSum(0),
-        _acc0(0),
-        _acc10(0),
-        _acc20(0),
-        _acc40(0),
-        _acc80(0),
+        _an0(0),
+        _an5(0),
+        _an10(0),
+        _an30(0),
+        _an50(0),
+        _an70(0),
+        _an90(0),
         _reportOut(reportOut) {}
 
   // Add a shape found by our tool newS for a trip t with newly calculated

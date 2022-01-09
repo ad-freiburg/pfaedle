@@ -12,6 +12,7 @@
 #include "ad/cppgtfs/Parser.h"
 #include "shapevl/Collector.h"
 #include "util/Misc.h"
+#include "util/json/Writer.h"
 #include "util/log/Log.h"
 
 std::atomic<int> count(0);
@@ -25,6 +26,7 @@ void printHelp(int argc, char** argv) {
   std::cout
       << "\nAllowed arguments:\n    -g <gtfs>     Ground truth GTFS file\n";
   std::cout << "     -s           Only output summary\n";
+  std::cout << "     --json       Output JSON\n";
   std::cout << "     -f <folder>  Output full reports (per feed) to <folder>\n";
   std::cout
       << "     -m           MOTs to match (GTFS MOT or string, default: all)\n";
@@ -84,6 +86,7 @@ int main(int argc, char** argv) {
   std::vector<pfaedle::eval::Collector> evalColls;
   std::vector<std::ofstream> reportStreams;
   bool summarize = false;
+  bool json = false;
 
   for (int i = 1; i < argc; i++) {
     std::string cur = argv[i];
@@ -98,6 +101,8 @@ int main(int argc, char** argv) {
       groundTruthFeedPath = argv[i];
     } else if (cur == "-s") {
       summarize = true;
+    } else if (cur == "--json") {
+      json = true;
     } else if (cur == "-f") {
       if (++i >= argc) {
         LOG(ERROR) << "Missing argument for full reports (-f).";
@@ -164,15 +169,39 @@ int main(int argc, char** argv) {
 
   for (auto& thr : thrds) thr.join();
 
-  for (size_t i = 0; i < evalColls.size(); i++) {
-    if (summarize) {
-      std::cout << evlFeedPaths[i] << ": ";
-      evalColls[i].printShortStats(&std::cout);
-      std::cout << std::endl;
+  if (json) {
+    util::json::Dict stats = {};
+
+    for (size_t i = 0; i < evalColls.size(); i++) {
+      stats[evlFeedPaths[i]] = evalColls[i].getJSONStats();
+    }
+
+    util::json::Dict jsonStats;
+
+    if (evalColls.size() == 1) {
+      jsonStats = {
+          {"statistics", stats[evlFeedPaths[0]]
+      }};
     } else {
-      std::cout << " == Evaluation results for " << evlFeedPaths[i]
-                << " ===" << std::endl;
-      evalColls[i].printStats(&std::cout);
+      jsonStats = {
+          {"statistics", stats
+      }};
+    }
+
+    util::json::Writer wr(&std::cout, 10, true);
+    wr.val(jsonStats);
+    wr.closeAll();
+  } else {
+    for (size_t i = 0; i < evalColls.size(); i++) {
+      if (summarize) {
+        std::cout << evlFeedPaths[i] << ": ";
+        evalColls[i].printShortStats(&std::cout);
+        std::cout << std::endl;
+      } else {
+        std::cout << " == Evaluation results for " << evlFeedPaths[i]
+                  << " ===" << std::endl;
+        evalColls[i].printStats(&std::cout);
+      }
     }
   }
 }

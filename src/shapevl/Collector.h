@@ -16,6 +16,7 @@
 #include "pfaedle/Def.h"
 #include "shapevl/Result.h"
 #include "util/geo/Geo.h"
+#include "util/json/Writer.h"
 
 using ad::cppgtfs::gtfs::Shape;
 using ad::cppgtfs::gtfs::Trip;
@@ -56,6 +57,9 @@ class Collector {
 
   // Print general stats to os
   void printShortStats(std::ostream* os) const;
+
+  // Get JSON stats
+  util::json::Dict getJSONStats() const;
 
   // Print a CSV for the results to os
   void printCsv(std::ostream* os, const std::set<Result>& result) const;

@@ -365,6 +365,32 @@ void Collector::printStats(std::ostream* os) const {
 }
 
 // _____________________________________________________________________________
+util::json::Dict Collector::getJSONStats() const {
+  util::json::Dict stats = {};
+
+  stats["num-trips"] = _trips;
+  stats["num-trips-matched"] = _results.size();
+  stats["num-trips-wo-shapes"] = _noOrigShp;
+  stats["avg-fr"] = getAvgDist();
+  stats["an-0"] =
+      (static_cast<double>(_an0) / static_cast<double>(_results.size())) * 100;
+  stats["an-5"] =
+      (static_cast<double>(_an5) / static_cast<double>(_results.size())) * 100;
+  stats["an-10"] =
+      (static_cast<double>(_an10) / static_cast<double>(_results.size())) * 100;
+  stats["an-30"] =
+      (static_cast<double>(_an30) / static_cast<double>(_results.size())) * 100;
+  stats["an-50"] =
+      (static_cast<double>(_an50) / static_cast<double>(_results.size())) * 100;
+  stats["an-70"] =
+      (static_cast<double>(_an70) / static_cast<double>(_results.size())) * 100;
+  stats["an-90"] =
+      (static_cast<double>(_an90) / static_cast<double>(_results.size())) * 100;
+
+  return stats;
+}
+
+// _____________________________________________________________________________
 std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
                                            const std::vector<LINE>& b) {
   assert(a.size() == b.size());

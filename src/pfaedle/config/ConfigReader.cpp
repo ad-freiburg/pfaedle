@@ -136,6 +136,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"write-colors", no_argument, 0, 13},
                          {"stats", no_argument, 0, 14},
                          {"no-hop-cache", no_argument, 0, 15},
+                         {"gaussian-noise", required_argument, 0, 16},
                          {0, 0, 0, 0}};
 
   char c;
@@ -204,6 +205,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 15:
         cfg->noHopCache = true;
+        break;
+      case 16:
+        cfg->gaussianNoise = atof(optarg);
         break;
       case 'v':
         std::cout << "pfaedle " << VERSION_FULL << std::endl;

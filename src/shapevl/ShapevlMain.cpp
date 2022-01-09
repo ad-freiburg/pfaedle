@@ -56,8 +56,11 @@ void eval(const std::vector<std::string>* paths,
     for (const auto& oldTrip : evalFeed->getTrips()) {
       if (!mots->count(oldTrip.second->getRoute()->getType())) continue;
       auto newTrip = feed.getTrips().get(oldTrip.first);
-      if (!newTrip)
-        LOG(ERROR) << "Trip #" << oldTrip.first << " not present in " << path;
+      if (!newTrip) {
+        LOG(ERROR) << "Trip #" << oldTrip.first << " not present in " << path
+                   << ", skipping...";
+        continue;
+      }
       (*colls)[myFeed].add(oldTrip.second, oldTrip.second->getShape(), newTrip,
                            newTrip->getShape());
     }
@@ -121,6 +124,7 @@ int main(int argc, char** argv) {
     evlFeedPaths.push_back(feedPath);
     if (fullReportPath.size()) {
       reportStreams.emplace_back();
+      reportStreams.back().exceptions(std::ios::failbit | std::ios::badbit);
       reportStreams.back().open(fullReportPath + "/" +
                                 util::split(feedPath, '/').back() +
                                 ".fullreport.tsv");

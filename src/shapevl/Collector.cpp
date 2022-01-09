@@ -169,7 +169,7 @@ std::vector<LINE> Collector::segmentize(const Trip* t, const LINE& shape,
   // 5) As tracks are often longer than 20 meters, this will dillute our AN
   //    measure, although the shape is CORRECT (because the ground truth uses
   //    a different position philosophy than the test data)
-  // 6) To normalize this, we always the following approach:
+  // 6) To normalize this, we use the following approach:
   //      a) Get the exact progression of the measurment on the shape
   //      b) Extract a segment of 200 meters, with the measurement progress in
   //      the middle c) Project the GROUND TRUTH station coordinate to this

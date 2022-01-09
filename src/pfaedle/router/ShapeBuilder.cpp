@@ -167,18 +167,24 @@ EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
   auto pos = POINT(s->getLng(), s->getLat());
   ret.push_back({0, 0, 0, pos, 0, {}});
 
-  // unsigned seed =
-  // std::chrono::system_clock::now().time_since_epoch().count();
-  // std::default_random_engine gen(seed);
-  // std::normal_distribution<double> dist(0.0, 25.0);
-
-  // add some gaussian noise
-  // pos.setX(pos.getX() + dist(gen));
-  // pos.setY(pos.getY() + dist(gen));
-
   double maxMDist = _motCfg.osmBuildOpts.maxStationCandDistance;
 
   double distor = util::geo::latLngDistFactor(pos);
+
+  if (_cfg.gaussianNoise > 0) {
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine gen(seed);
+
+    // the standard dev is given in meters, convert (roughly...) to degrees
+    double standardDev = (_cfg.gaussianNoise / M_PER_DEG) / distor;
+
+    // mean 0 (no movement), standard dev according to config
+    std::normal_distribution<double> dist(0.0, standardDev);
+
+    // add gaussian noise
+    pos.setX(pos.getX() + dist(gen));
+    pos.setY(pos.getY() + dist(gen));
+  }
 
   std::set<trgraph::Node*> frNIdx;
   _nGrid.get(util::geo::pad(util::geo::getBoundingBox(pos),
@@ -594,7 +600,7 @@ ad::cppgtfs::gtfs::Shape ShapeBuilder::getGtfsShape(
 std::string ShapeBuilder::getFreeShapeId(Trip* trip) {
   std::string ret;
   std::lock_guard<std::mutex> guard(_shpMutex);
-  while (!ret.size() || _feed->getShapes().get(ret)) {
+  while (!ret.size() || _feed->getShapes().has(ret)) {
     _curShpCnt++;
     ret = "shp_";
     ret += std::to_string(trip->getRoute()->getType());

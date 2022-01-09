@@ -35,7 +35,8 @@ struct Config {
         noTrie(false),
         noHopCache(false),
         writeStats(false),
-        gridSize(2000 / util::geo::M_PER_DEG) {}
+        gridSize(2000 / util::geo::M_PER_DEG),
+        gaussianNoise(0) {}
   std::string dbgOutputPath;
   std::string solveMethod;
   std::string shapeTripId;
@@ -60,6 +61,7 @@ struct Config {
   bool noHopCache;
   bool writeStats;
   double gridSize;
+  double gaussianNoise;
 
   std::string toString() {
     std::stringstream ss;

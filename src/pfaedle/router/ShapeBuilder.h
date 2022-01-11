@@ -119,6 +119,8 @@ class ShapeBuilder {
   std::map<size_t, router::EdgeListHops> route(const TripTrie* trie,
                                                const EdgeCandMap& ecm,
                                                HopCache* hopCache) const;
+  double emWeight(double mDist) const;
+
   void buildCandCache(const TripForests& clusters);
   void buildIndex();
 

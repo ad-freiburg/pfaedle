@@ -184,6 +184,50 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 }
 
 // _____________________________________________________________________________
+void OsmBuilder::osmfilterRuleWrite(std::ostream* out,
+                                  const std::vector<OsmReadOpts>& opts,
+                                  const BBoxIdx& latLngBox) const {
+  UNUSED(latLngBox);
+  OsmIdSet bboxNodes, noHupNodes;
+  MultAttrMap emptyF;
+
+  RelLst rels;
+  OsmIdList ways;
+  RelMap nodeRels, wayRels;
+
+  NIdMap nodes;
+
+  OsmFilter filter;
+
+  AttrKeySet attrKeys[3] = {};
+
+  for (const OsmReadOpts& o : opts) {
+    filter = filter.merge(OsmFilter(o.keepFilter, o.dropFilter));
+    getKeptAttrKeys(o, attrKeys);
+  }
+
+  *out << "--keep=\n";
+
+  for (auto r : filter.getKeepRules()) {
+    for (auto val : r.second) {
+      *out << r.first << "=";
+      if (val.first != "*") *out << val.first;
+      *out << "\n";
+    }
+  }
+
+  *out << "\n";
+
+  *out << "--keep-tags=\n";
+
+  for (const auto& keys : attrKeys) {
+    for (auto val : keys) {
+      *out << val << "=\n";
+    }
+  }
+}
+
+// _____________________________________________________________________________
 void OsmBuilder::overpassQryWrite(std::ostream* out,
                                   const std::vector<OsmReadOpts>& opts,
                                   const BBoxIdx& latLngBox) const {

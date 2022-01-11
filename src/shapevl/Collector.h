@@ -59,7 +59,7 @@ class Collector {
   void printShortStats(std::ostream* os) const;
 
   // Get JSON stats
-  util::json::Dict getJSONStats() const;
+  std::map<string, double> getStats();
 
   // Print a CSV for the results to os
   void printCsv(std::ostream* os, const std::set<Result>& result) const;
@@ -79,6 +79,8 @@ class Collector {
   size_t _trips;
   size_t _noOrigShp;
 
+  std::vector<double> _distDiffs;
+
   double _fdSum;
   size_t _unmatchedSegSum;
   double _unmatchedSegLengthSum;
@@ -97,7 +99,8 @@ class Collector {
                                          const std::vector<LINE>& b);
 
   static std::vector<LINE> segmentize(const Trip* t, const LINE& shape,
-                                      const std::vector<double>& dists);
+                                      const std::vector<double>& dists,
+                                      std::vector<std::pair<double, double>>& lenDist);
 
   static std::vector<double> getBins(double mind, double maxd, size_t steps);
 };

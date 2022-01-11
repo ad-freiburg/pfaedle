@@ -27,6 +27,7 @@ void printHelp(int argc, char** argv) {
       << "\nAllowed arguments:\n    -g <gtfs>     Ground truth GTFS file\n";
   std::cout << "     -s           Only output summary\n";
   std::cout << "     --json       Output JSON\n";
+  std::cout << "     --avg       Take avg of all inputs (only for --json)\n";
   std::cout << "     -f <folder>  Output full reports (per feed) to <folder>\n";
   std::cout
       << "     -m           MOTs to match (GTFS MOT or string, default: all)\n";
@@ -87,6 +88,7 @@ int main(int argc, char** argv) {
   std::vector<std::ofstream> reportStreams;
   bool summarize = false;
   bool json = false;
+  bool avg = false;
 
   for (int i = 1; i < argc; i++) {
     std::string cur = argv[i];
@@ -103,6 +105,8 @@ int main(int argc, char** argv) {
       summarize = true;
     } else if (cur == "--json") {
       json = true;
+    } else if (cur == "--avg") {
+      avg = true;
     } else if (cur == "-f") {
       if (++i >= argc) {
         LOG(ERROR) << "Missing argument for full reports (-f).";
@@ -173,7 +177,11 @@ int main(int argc, char** argv) {
     util::json::Dict stats = {};
 
     for (size_t i = 0; i < evalColls.size(); i++) {
-      stats[evlFeedPaths[i]] = evalColls[i].getJSONStats();
+      util::json::Dict locStats = {};
+      for (const auto& kv : evalColls[i].getStats()) {
+        locStats[kv.first] = kv.second;
+      }
+      stats[evlFeedPaths[i]] = locStats;
     }
 
     util::json::Dict jsonStats;
@@ -183,9 +191,28 @@ int main(int argc, char** argv) {
           {"statistics", stats[evlFeedPaths[0]]
       }};
     } else {
-      jsonStats = {
-          {"statistics", stats
-      }};
+      if (avg) {
+        double count = evalColls.size();
+        std::vector<std::string> keys;
+        for (const auto& a : evalColls[0].getStats()) {
+          keys.push_back(a.first);
+        }
+        util::json::Dict avgStats;
+        for (const auto& k : keys) {
+          double sum = 0;
+          for (size_t i = 0; i < evalColls.size(); i++) {
+            sum += evalColls[i].getStats()[k];
+          }
+          avgStats[k] = sum / count;
+        }
+        jsonStats = {
+            {"statistics", avgStats
+        }};
+      } else {
+        jsonStats = {
+            {"statistics", stats
+        }};
+      }
     }
 
     util::json::Writer wr(&std::cout, 10, true);

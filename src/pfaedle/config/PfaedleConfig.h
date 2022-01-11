@@ -9,8 +9,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "util/geo/Geo.h"
 #include "ad/cppgtfs/gtfs/Route.h"
+#include "util/geo/Geo.h"
 
 namespace pfaedle {
 namespace config {
@@ -28,6 +28,7 @@ struct Config {
         buildTransitGraph(false),
         useCaching(false),
         writeOverpass(false),
+        writeOsmfilter(false),
         inPlace(false),
         writeColors(false),
         noFastHops(false),
@@ -53,6 +54,7 @@ struct Config {
   bool buildTransitGraph;
   bool useCaching;
   bool writeOverpass;
+  bool writeOsmfilter;
   bool inPlace;
   bool writeColors;
   bool noFastHops;
@@ -76,6 +78,7 @@ struct Config {
        << "grid-size: " << gridSize << "\n"
        << "use-cache: " << useCaching << "\n"
        << "write-overpass: " << writeOverpass << "\n"
+       << "write-osmfilter: " << writeOsmfilter << "\n"
        << "inplace: " << inPlace << "\n"
        << "write-colors: " << writeColors << "\n"
        << "no-fast-hops: " << noFastHops << "\n"

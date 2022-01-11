@@ -92,6 +92,12 @@ class OsmBuilder {
   void overpassQryWrite(std::ostream* out, const std::vector<OsmReadOpts>& opts,
                         const BBoxIdx& latLngBox) const;
 
+  // Based on the list of options, output an osmfilter configuration file
+  // to filter the data needed for routing
+  void osmfilterRuleWrite(std::ostream* out,
+                          const std::vector<OsmReadOpts>& opts,
+                          const BBoxIdx& latLngBox) const;
+
   // Based on the list of options, read an OSM file from in and output an
   // OSM file to out which contains exactly the entities that are needed
   // from the file at in

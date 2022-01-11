@@ -10,14 +10,15 @@
 #include "pfaedle/Def.h"
 #include "pfaedle/_config.h"
 #include "pfaedle/config/ConfigReader.h"
+#include "pfaedle/config/PfaedleConfig.h"
 #include "util/String.h"
 #include "util/geo/Geo.h"
 #include "util/log/Log.h"
 
 using pfaedle::config::ConfigReader;
 
-using std::string;
 using std::exception;
+using std::string;
 using std::vector;
 
 static const char* YEAR = &__DATE__[7];
@@ -32,8 +33,7 @@ void ConfigReader::help(const char* bin) {
             << " with geometry precision <" << PFDL_PREC_STR << ">)\n\n"
             << "(C) " << YEAR << " " << COPY << "\n"
             << "Authors: " << AUTHORS << "\n\n"
-            << "Usage: " << bin
-            << " -x <OSM FILE> <GTFS FEED>\n\n"
+            << "Usage: " << bin << " -x <OSM FILE> <GTFS FEED>\n\n"
             << "Allowed options:\n\n"
             << "General:\n"
             << std::setw(35) << "  -v [ --version ]"
@@ -93,6 +93,8 @@ void ConfigReader::help(const char* bin) {
             << "  to <dbg-path>/path.json\n"
             << std::setw(35) << "  --overpass"
             << "Output overpass query for matching OSM data\n"
+            << std::setw(35) << "  --osmfilter"
+            << "Output osmfilter filter rules for matching OSM data\n"
             << std::setw(35) << "  --grid-size arg (=2000)"
             << "Approx. grid cell size in meters\n"
             << std::setw(35) << "  --no-fast-hops"
@@ -122,6 +124,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"mots", required_argument, NULL, 'm'},
                          {"grid-size", required_argument, 0, 'g'},
                          {"overpass", no_argument, 0, 'a'},
+                         {"osmfilter", no_argument, 0, 'f'},
                          {"osm-out", required_argument, 0, 'X'},
                          {"trip-id", required_argument, 0, 'T'},
                          {"write-graph", no_argument, 0, 1},
@@ -193,6 +196,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 'a':
         cfg->writeOverpass = true;
+        break;
+      case 'f':
+        cfg->writeOsmfilter = true;
         break;
       case 9:
         cfg->inPlace = true;

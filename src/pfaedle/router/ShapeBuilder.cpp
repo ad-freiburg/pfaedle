@@ -206,7 +206,6 @@ EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
         // stations do not match, punish
         nameMatchPunish = _motCfg.routingOpts.stationUnmatchedPen;
       }
-
       std::string platform = s->getPlatformCode();
 
       if (!platform.empty() && !nd->pl().getSI()->getTrack().empty() &&
@@ -218,8 +217,7 @@ EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
         // don't snap to one way edges
         if (e->pl().oneWay() == 2) continue;
         ret.push_back({e,
-                       mDist * _motCfg.routingOpts.stationDistPenFactor +
-                           nameMatchPunish + trackMatchPunish,
+                       emWeight(mDist) + nameMatchPunish + trackMatchPunish,
                        0,
                        {},
                        0,
@@ -265,8 +263,7 @@ EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
 
   for (auto e : selected) {
     ret.push_back({e,
-                   scores[e] * _motCfg.routingOpts.stationDistPenFactor +
-                       _motCfg.routingOpts.nonStationPen,
+                   emWeight(scores[e]) + _motCfg.routingOpts.nonStationPen,
                    progrs[e],
                    {},
                    0,
@@ -981,7 +978,7 @@ std::vector<LINE> ShapeBuilder::getGeom(
           ret.push_back({hop.pointStart, *hop.end->getFrom()->pl().getGeom()});
         }
       } else {
-        ret.push_back({hop.pointEnd, hop.pointStart});
+        ret.push_back({hop.pointStart, hop.pointEnd});
       }
     } else {
       const auto& l = getLine(hop, rAttrs, colors);
@@ -1221,4 +1218,18 @@ uint32_t ShapeBuilder::getTextColor(uint32_t c) const {
   // below a certain gray value, use white, else black
   if (a < 140) return 0x00FFFFFF;
   return 0;
+}
+
+// _____________________________________________________________________________
+double ShapeBuilder::emWeight(double mDist) const {
+  if (_motCfg.routingOpts.emPenMethod == "exp") {
+    return mDist * _motCfg.routingOpts.stationDistPenFactor;
+  }
+
+  if (_motCfg.routingOpts.emPenMethod == "norm") {
+    double s = mDist * _motCfg.routingOpts.stationDistPenFactor;
+    return 0.5 * s * s;
+  }
+
+  return mDist;
 }

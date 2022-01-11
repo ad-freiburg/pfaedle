@@ -47,6 +47,13 @@ void MotConfigReader::parse(const std::vector<std::string>& paths,
     std::string secStr = sec.first;
     if (secStr.empty()) continue;
 
+    if (p.hasKey(secStr, "routing_emission_method")) {
+      cfg.routingOpts.emPenMethod =
+          p.getStr(secStr, "routing_emission_method");
+    } else {
+      cfg.routingOpts.emPenMethod = "exp";
+    }
+
     if (p.hasKey(secStr, "routing_transition_method")) {
       cfg.routingOpts.transPenMethod =
           p.getStr(secStr, "routing_transition_method");

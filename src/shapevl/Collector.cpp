@@ -67,8 +67,15 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   std::vector<double> newDists;
   LINE newL = getWebMercLine(newS, &newDists);
 
-  auto oldSegs = segmentize(oldT, oldL, oldDists);
-  auto newSegs = segmentize(newT, newL, newDists);
+  std::vector<std::pair<double, double>> newLenDists;
+  std::vector<std::pair<double, double>> oldLenDists;
+
+  auto oldSegs = segmentize(oldT, oldL, oldDists, newLenDists);
+  auto newSegs = segmentize(newT, newL, newDists, oldLenDists);
+
+  for (const auto& p : oldLenDists) {
+    _distDiffs.push_back(fabs(p.first - p.second));
+  }
 
   // new lines build from cleaned-up shapes
   LINE oldLCut;
@@ -77,8 +84,9 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   for (auto oldL : oldSegs)
     oldLCut.insert(oldLCut.end(), oldL.begin(), oldL.end());
 
-  for (auto newL : newSegs)
+  for (auto newL : newSegs) {
     newLCut.insert(newLCut.end(), newL.begin(), newL.end());
+  }
 
   // determine the scale factor between the distance in projected
   // coordinates and the real-world distance in meters
@@ -150,8 +158,9 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
 }
 
 // _____________________________________________________________________________
-std::vector<LINE> Collector::segmentize(const Trip* t, const LINE& shape,
-                                        const std::vector<double>& dists) {
+std::vector<LINE> Collector::segmentize(
+    const Trip* t, const LINE& shape, const std::vector<double>& dists,
+    std::vector<std::pair<double, double>>& lenDist) {
   // The straightforward way to segmentize the shape would be to just cut it at
   // the exact measurements in stop_times.txt. We have tried that, but found
   // that it produces misleading results for the following reason:
@@ -182,7 +191,7 @@ std::vector<LINE> Collector::segmentize(const Trip* t, const LINE& shape,
   if (t->getStopTimes().size() < 2) return ret;
 
   POLYLINE pl(shape);
-  std::vector<std::pair<POINT, double> > cuts;
+  std::vector<std::pair<POINT, double>> cuts;
 
   size_t i = 0;
   for (auto st : t->getStopTimes()) {
@@ -213,7 +222,17 @@ std::vector<LINE> Collector::segmentize(const Trip* t, const LINE& shape,
 
     auto curLp = beforePl.projectOnAfter(cuts[i].first, lastLp.lastIndex);
 
-    ret.push_back(pl.getSegment(lastLp, curLp).getLine());
+    auto curL = pl.getSegment(lastLp, curLp).getLine();
+
+    double dist =
+        util::geo::haversine(t->getStopTimes()[i - 1].getStop()->getLat(),
+                             t->getStopTimes()[i - 1].getStop()->getLng(),
+                             t->getStopTimes()[i].getStop()->getLat(),
+                             t->getStopTimes()[i].getStop()->getLng());
+    double len = util::geo::webMercLen(curL);
+    lenDist.push_back({dist, len});
+
+    ret.push_back(curL);
     lastLp = curLp;
   }
 
@@ -365,13 +384,27 @@ void Collector::printStats(std::ostream* os) const {
 }
 
 // _____________________________________________________________________________
-util::json::Dict Collector::getJSONStats() const {
-  util::json::Dict stats = {};
+std::map<string, double> Collector::getStats() {
+  std::map<string, double> stats;
+
+  if (_distDiffs.size()) {
+    auto i = _distDiffs.begin() + _distDiffs.size() / 2;
+    std::nth_element(_distDiffs.begin(), i, _distDiffs.end());
+
+    stats["median-dist-diff"] = *i;
+  } else {
+    stats["median-dist-diff"] = -1;
+  }
 
   stats["num-trips"] = _trips;
   stats["num-trips-matched"] = _results.size();
   stats["num-trips-wo-shapes"] = _noOrigShp;
   stats["avg-fr"] = getAvgDist();
+  if (_results.size()) {
+    stats["max-avg-frech-dist"] = (--_results.end())->getDist();
+  } else {
+    stats["max-avg-frech-dist"] = -1;
+  }
   stats["an-0"] =
       (static_cast<double>(_an0) / static_cast<double>(_results.size())) * 100;
   stats["an-5"] =

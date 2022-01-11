@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
     exit(static_cast<int>(RetCode::MOT_CFG_PARSE_ERR));
   }
 
-  if (cfg.osmPath.empty() && !cfg.writeOverpass) {
+  if (cfg.osmPath.empty() && !cfg.writeOverpass && !cfg.writeOsmfilter) {
     std::cerr << "No OSM input file specified (-x), see --help." << std::endl;
     exit(static_cast<int>(RetCode::NO_OSM_INPUT));
   }
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
   if (cfg.feedPaths.size() == 1) {
     if (cfg.inPlace) cfg.outputPath = cfg.feedPaths[0];
-    if (!cfg.writeOverpass)
+    if (!cfg.writeOverpass && !cfg.writeOsmfilter)
       LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[0] << " ...";
     try {
       ad::cppgtfs::Parser p;
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
     }
   } else if (cfg.writeOsm.size() || cfg.writeOverpass) {
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
-      if (!cfg.writeOverpass)
+      if (!cfg.writeOverpass && !cfg.writeOsmfilter)
         LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[i] << " ...";
       ad::cppgtfs::Parser p;
       try {
@@ -217,6 +217,18 @@ int main(int argc, char** argv) {
       }
     }
     osmBuilder.overpassQryWrite(&std::cout, opts, box);
+    exit(static_cast<int>(RetCode::SUCCESS));
+  } else if (cfg.writeOsmfilter) {
+    BBoxIdx box(BOX_PADDING);
+    OsmBuilder osmBuilder;
+    std::vector<pfaedle::osm::OsmReadOpts> opts;
+    for (const auto& o : motCfgReader.getConfigs()) {
+      if (std::find_first_of(o.mots.begin(), o.mots.end(), cmdCfgMots.begin(),
+                             cmdCfgMots.end()) != o.mots.end()) {
+        opts.push_back(o.osmBuildOpts);
+      }
+    }
+    osmBuilder.osmfilterRuleWrite(&std::cout, opts, box);
     exit(static_cast<int>(RetCode::SUCCESS));
   } else if (!cfg.feedPaths.size()) {
     std::cout << "No input feed specified, see --help" << std::endl;

@@ -237,8 +237,6 @@ double DistDiffTransWeight::weight(uint32_t c, double d, double t0, double d0,
                                    const RoutingOpts& rOpts) {
   UNUSED(t0);
   UNUSED(c);
-  // double mean = 250;  // expectation value of 250 meters for buses
-  // double lambda = 1.0 / mean;
 
   double w = fabs(d - d0);
 

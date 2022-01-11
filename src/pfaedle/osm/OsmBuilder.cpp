@@ -219,6 +219,7 @@ void OsmBuilder::osmfilterRuleWrite(std::ostream* out,
   *out << "\n";
 
   *out << "--keep-tags=\n";
+  *out << "all\n";
 
   for (const auto& keys : attrKeys) {
     for (auto val : keys) {

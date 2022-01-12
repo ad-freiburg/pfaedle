@@ -24,6 +24,22 @@ using ad::cppgtfs::gtfs::Trip;
 namespace pfaedle {
 namespace eval {
 
+struct lineCmp {
+  bool operator()(const LINE& a, const LINE& b) const {
+    if (a.size() != b.size()) {
+      return a.size() < b.size();
+    }
+
+    for (size_t i = 0; i < a.size(); i++) {
+      if (util::geo::dist(a[i], b[i]) > .1) {
+        return (a[i].getX() < b[i].getX()) || (a[i].getX() == b[i].getX() && a[i].getY() < b[i].getY());;
+      }
+    }
+
+    return false;
+  }
+};
+
 /*
  * Collects routing results for evaluation
  */
@@ -73,9 +89,9 @@ class Collector {
 
  private:
   std::set<Result> _results;
-  std::map<const Shape*, std::map<std::string, double> > _dCache;
-  std::map<const Shape*, std::map<std::string, std::pair<size_t, double> > >
-      _dACache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _dCache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _dACache;
+
   size_t _trips;
   size_t _noOrigShp;
 
@@ -95,12 +111,12 @@ class Collector {
 
   std::ostream* _reportOut;
 
-  static std::pair<size_t, double> getDa(const std::vector<LINE>& a,
+  std::pair<size_t, double> getDa(const std::vector<LINE>& a,
                                          const std::vector<LINE>& b);
 
-  static std::vector<LINE> segmentize(const Trip* t, const LINE& shape,
-                                      const std::vector<double>& dists,
-                                      std::vector<std::pair<double, double>>& lenDist);
+  static std::vector<LINE> segmentize(
+      const Trip* t, const LINE& shape, const std::vector<double>& dists,
+      std::vector<std::pair<double, double>>& lenDist);
 
   static std::vector<double> getBins(double mind, double maxd, size_t steps);
 };

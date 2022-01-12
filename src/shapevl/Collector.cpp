@@ -96,23 +96,23 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
 
   double SEGL = 10;
 
-  if (_dCache.count(oldS) && _dCache.find(oldS)->second.count(newS->getId())) {
-    fd = _dCache[oldS][newS->getId()];
+  auto old = _dCache.find(oldLCut);
+  if (old != _dCache.end()) {
+    auto match = old->second.find(newLCut);
+    if (match != old->second.end()) {
+      fd = match->second;
+    } else {
+      fd = util::geo::accFrechetDistC(oldLCut, newLCut, SEGL / fac) * fac;
+      _dCache[oldLCut][newLCut] = fd;
+    }
   } else {
     fd = util::geo::accFrechetDistC(oldLCut, newLCut, SEGL / fac) * fac;
-    _dCache[oldS][newS->getId()] = fd;
+    _dCache[oldLCut][newLCut] = fd;
   }
 
-  if (_dACache.count(oldS) &&
-      _dACache.find(oldS)->second.count(newS->getId())) {
-    unmatchedSegments = _dACache[oldS][newS->getId()].first;
-    unmatchedSegmentsLength = _dACache[oldS][newS->getId()].second;
-  } else {
-    auto dA = getDa(oldSegs, newSegs);
-    _dACache[oldS][newS->getId()] = dA;
-    unmatchedSegments = dA.first;
-    unmatchedSegmentsLength = dA.second;
-  }
+  auto dA = getDa(oldSegs, newSegs);
+  unmatchedSegments = dA.first;
+  unmatchedSegmentsLength = dA.second;
 
   double totL = 0;
   for (auto l : oldSegs) totL += util::geo::len(l) * fac;
@@ -161,31 +161,6 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
 std::vector<LINE> Collector::segmentize(
     const Trip* t, const LINE& shape, const std::vector<double>& dists,
     std::vector<std::pair<double, double>>& lenDist) {
-  // The straightforward way to segmentize the shape would be to just cut it at
-  // the exact measurements in stop_times.txt. We have tried that, but found
-  // that it produces misleading results for the following reason:
-  //
-  // 1) The measurement specifies an exact position on the shape.
-  // 2) Even if we consider correct rail or bus tracks, the "right" position
-  //    where a vehicle may come to a halt is not a point - its a line segment,
-  //    basically the entire track in railroad term
-  // 3) The position point on the shape in real-world feeds may be either a) the
-  //    position where a train comes to a halt, b) the position where a carriage
-  //    comes to a halt, c) the beginning of the tracks line segment, d) the end
-  //    of the tracks line segment, e) the center of the tracks line segment, f)
-  //    ... (any position on the tracks line segment.
-  // 4) The "correct" position is NOT well-defined.
-  // 5) As tracks are often longer than 20 meters, this will dillute our AN
-  //    measure, although the shape is CORRECT (because the ground truth uses
-  //    a different position philosophy than the test data)
-  // 6) To normalize this, we use the following approach:
-  //      a) Get the exact progression of the measurment on the shape
-  //      b) Extract a segment of 200 meters, with the measurement progress in
-  //      the middle c) Project the GROUND TRUTH station coordinate to this
-  //      segment d) The result is the cutting point
-  // 7) If a completely wrong track was chosen, the frechet distance will still
-  //    be greater than 20 meters and AN will measure an unmatch.
-  // 8) TODO: implement this, explain this in diss
   std::vector<LINE> ret;
 
   if (t->getStopTimes().size() < 2) return ret;
@@ -218,9 +193,9 @@ std::vector<LINE> Collector::segmentize(
           dists.begin();
     }
 
-    POLYLINE beforePl(LINE(shape.begin(), shape.begin() + before));
+    POLYLINE afterPl(LINE(shape.begin(), shape.begin() + before));
 
-    auto curLp = beforePl.projectOnAfter(cuts[i].first, lastLp.lastIndex);
+    auto curLp = afterPl.projectOnAfter(cuts[i].first, lastLp.lastIndex);
 
     auto curL = pl.getSegment(lastLp, curLp).getLine();
 
@@ -431,16 +406,30 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
 
   // euclidean distance on web mercator is in meters on equator,
   // and proportional to cos(lat) in both y directions
-  double fac =
-      cos(2 * atan(exp((a.front().front().getY() + a.back().back().getY()) /
-                       6378137.0)) -
-          1.5707965);
+
+  double fac = webMercDistFactor(a.front().front());
+
+  double SEGL = 10;
 
   for (size_t i = 0; i < a.size(); i++) {
-    double fd = util::geo::frechetDist(a[i], b[i], 3 / fac) * fac;
-    if (fd >= 20) {
+    double fd = 0;
+    auto old = _dACache.find(a[i]);
+    if (old != _dACache.end()) {
+      auto match = old->second.find(b[i]);
+      if (match != old->second.end()) {
+        fd = match->second;
+      } else {
+        fd = util::geo::frechetDist(a[i], b[i], SEGL / fac) * fac;
+        _dACache[a[i]][b[i]] = fd;
+      }
+    } else {
+        fd = util::geo::frechetDist(a[i], b[i], SEGL / fac) * fac;
+        _dACache[a[i]][b[i]] = fd;
+    }
+
+    if (fd >= 50) {
       ret.first++;
-      ret.second += util::geo::len(a[i]) * fac;
+      ret.second += util::geo::webMercLen(a[i]) * 100;
     }
   }
 

@@ -56,7 +56,9 @@ void eval(const std::vector<std::string>* paths,
     }
 
     LOG(DEBUG) << "Evaluating " << path << "...";
+    size_t i = 0;
     for (const auto& oldTrip : evalFeed->getTrips()) {
+      LOG(DEBUG) << "@ " << ++i << "/" << evalFeed->getTrips().size();
       if (!mots->count(oldTrip.second->getRoute()->getType())) continue;
       auto newTrip = feed.getTrips().get(oldTrip.first);
       if (!newTrip) {

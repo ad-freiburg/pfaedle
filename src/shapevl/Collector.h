@@ -31,8 +31,10 @@ struct lineCmp {
     }
 
     for (size_t i = 0; i < a.size(); i++) {
-      if (util::geo::dist(a[i], b[i]) > .1) {
-        return (a[i].getX() < b[i].getX()) || (a[i].getX() == b[i].getX() && a[i].getY() < b[i].getY());;
+      if (util::geo::dist(a[i], b[i]) > .000001) {
+        return (a[i].getX() < b[i].getX()) ||
+               (a[i].getX() == b[i].getX() && a[i].getY() < b[i].getY());
+        ;
       }
     }
 
@@ -83,7 +85,7 @@ class Collector {
   // Return the averaged average frechet distance
   double getAvgDist() const;
 
-  static LINE getWebMercLine(const Shape* s, std::vector<double>* dists);
+  static LINE getLine(const Shape* s, std::vector<double>* dists);
 
   double getAcc() const;
 
@@ -112,13 +114,11 @@ class Collector {
   std::ostream* _reportOut;
 
   std::pair<size_t, double> getDa(const std::vector<LINE>& a,
-                                         const std::vector<LINE>& b);
+                                  const std::vector<LINE>& b);
 
   static std::vector<LINE> segmentize(
       const Trip* t, const LINE& shape, const std::vector<double>& dists,
       std::vector<std::pair<double, double>>& lenDist);
-
-  static std::vector<double> getBins(double mind, double maxd, size_t steps);
 };
 
 }  // namespace eval

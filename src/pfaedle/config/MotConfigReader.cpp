@@ -152,9 +152,9 @@ void MotConfigReader::parse(const std::vector<std::string>& paths,
       }
     }
 
-    if (p.hasKey(secStr, "osm_filter_turning_cycle")) {
+    if (p.hasKey(secStr, "osm_filter_turning_circle")) {
       for (const auto& kvs :
-           p.getStrArr(sec.first, "osm_filter_turning_cycle", ' ')) {
+           p.getStrArr(sec.first, "osm_filter_turning_circle", ' ')) {
         auto fRule = getFRule(kvs);
         cfg.osmBuildOpts.turnCycleFilter[fRule.kv.first].insert(
             osm::AttrFlagPair(fRule.kv.second, getFlags(fRule.flags)));

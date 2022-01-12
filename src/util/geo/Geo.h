@@ -56,7 +56,6 @@ const static double AVERAGING_STEP = 20;
 
 const static double M_PER_DEG = 111319.4;
 
-
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> pad(const Box<T>& box, double padding) {
@@ -1780,6 +1779,29 @@ inline RotatedBox<T> getOrientedEnvelopeAvg(MultiLine<T> ml) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline double haversine(T lat1, T lon1, T lat2, T lon2) {
+  lat1 *= RAD;
+  lat2 *= RAD;
+
+  const double dLat = lat2 - lat1;
+  const double dLon = (lon2 - lon1) * RAD;
+
+  const double sDLat = sin(dLat / 2);
+  const double sDLon = sin(dLon / 2);
+
+  const double a = (sDLat * sDLat) + (sDLon * sDLon) * cos(lat1) * cos(lat2);
+  return 6378137.0 * 2.0 * asin(sqrt(a));
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double haversine(const Point<T>& a, const Point<T>& b) {
+  return haversine(a.getY(), a.getX(), b.getY(), b.getX());
+}
+
+
+// _____________________________________________________________________________
+template <typename T>
 inline Line<T> densify(const Line<T>& l, double d) {
   if (!l.size()) return l;
 
@@ -1880,6 +1902,81 @@ inline double accFrechetDistC(const Line<T>& a, const Line<T>& b, double d) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline double frechetDistCHav(size_t i, size_t j, const Line<T>& p,
+                              const Line<T>& q, std::vector<float>& ca) {
+  // based on Eiter / Mannila
+  // http://www.kr.tuwien.ac.at/staff/eiter/et-archive/cdtr9464.pdf
+
+  if (ca[i * q.size() + j] > -1)
+    return ca[i * q.size() + j];
+  else if (i == 0 && j == 0)
+    ca[i * q.size() + j] = haversine(p[0], q[0]);
+  else if (i > 0 && j == 0)
+    ca[i * q.size() + j] =
+        std::max(frechetDistCHav(i - 1, 0, p, q, ca), haversine(p[i], q[0]));
+  else if (i == 0 && j > 0)
+    ca[i * q.size() + j] =
+        std::max(frechetDistCHav(0, j - 1, p, q, ca), haversine(p[0], q[j]));
+  else if (i > 0 && j > 0)
+    ca[i * q.size() + j] =
+        std::max(std::min(std::min(frechetDistCHav(i - 1, j, p, q, ca),
+                                   frechetDistCHav(i - 1, j - 1, p, q, ca)),
+                          frechetDistCHav(i, j - 1, p, q, ca)),
+                 haversine(p[i], q[j]));
+  else
+    ca[i * q.size() + j] = std::numeric_limits<float>::infinity();
+
+  return ca[i * q.size() + j];
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double frechetDistHav(const Line<T>& a, const Line<T>& b, double d) {
+  // based on Eiter / Mannila
+  // http://www.kr.tuwien.ac.at/staff/eiter/et-archive/cdtr9464.pdf
+
+  auto p = densify(a, d);
+  auto q = densify(b, d);
+
+  std::vector<float> ca(p.size() * q.size(), -1.0);
+  double fd = frechetDistCHav(p.size() - 1, q.size() - 1, p, q, ca);
+
+  return fd;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double accFrechetDistCHav(const Line<T>& a, const Line<T>& b, double d) {
+  auto p = densify(a, d);
+  auto q = densify(b, d);
+
+  assert(p.size());
+  assert(q.size());
+
+  std::vector<float> ca(p.size() * q.size(), 0);
+
+  for (size_t i = 0; i < p.size(); i++)
+    ca[i * q.size() + 0] = std::numeric_limits<float>::infinity();
+  for (size_t j = 0; j < q.size(); j++)
+    ca[j] = std::numeric_limits<float>::infinity();
+  ca[0] = 0;
+
+  for (size_t i = 1; i < p.size(); i++) {
+    for (size_t j = 1; j < q.size(); j++) {
+      float d =
+          util::geo::haversine(p[i], q[j]) * util::geo::dist(p[i], p[i - 1]);
+      ca[i * q.size() + j] =
+          d + std::min(ca[(i - 1) * q.size() + j],
+                       std::min(ca[i * q.size() + (j - 1)],
+                                ca[(i - 1) * q.size() + (j - 1)]));
+    }
+  }
+
+  return ca[p.size() * q.size() - 1];
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline Point<T> latLngToWebMerc(double lat, double lng) {
   double x = 6378137.0 * lng * 0.017453292519943295;
   double a = lat * 0.017453292519943295;
@@ -1890,7 +1987,7 @@ inline Point<T> latLngToWebMerc(double lat, double lng) {
 
 // _____________________________________________________________________________
 template <typename T>
-//TODO: rename to lngLat
+// TODO: rename to lngLat
 inline Point<T> latLngToWebMerc(Point<T> lngLat) {
   return latLngToWebMerc<T>(lngLat.getY(), lngLat.getX());
 }
@@ -1902,28 +1999,6 @@ inline Point<T> webMercToLatLng(double x, double y) {
       (1.5707963267948966 - (2.0 * atan(exp(-y / 6378137.0)))) * IRAD;
   const double lon = x / 111319.4907932735677;
   return Point<T>(lon, lat);
-}
-
-// _____________________________________________________________________________
-template <typename T>
-inline double haversine(T lat1, T lon1, T lat2, T lon2) {
-  lat1 *= RAD;
-  lat2 *= RAD;
-
-  const double dLat = lat2 - lat1;
-  const double dLon = (lon2 - lon1) * RAD;
-
-  const double sDLat = sin(dLat / 2);
-  const double sDLon = sin(dLon / 2);
-
-  const double a = (sDLat * sDLat) + (sDLon * sDLon) * cos(lat1) * cos(lat2);
-  return 6378137.0 * 2.0 * asin(sqrt(a));
-}
-
-// _____________________________________________________________________________
-template <typename T>
-inline double haversine(const Point<T>& a, const Point<T>& b) {
-  return haversine(a.getY(), a.getX(), b.getY(), b.getX());
 }
 
 // _____________________________________________________________________________
@@ -1958,6 +2033,15 @@ inline double webMercLen(const Line<T>& g) {
   for (size_t i = 1; i < g.size(); i++) ret += webMercMeterDist(g[i - 1], g[i]);
   return ret;
 }
+
+// _____________________________________________________________________________
+template <typename T>
+inline double latLngLen(const Line<T>& g) {
+  double ret = 0;
+  for (size_t i = 1; i < g.size(); i++) ret += haversine(g[i - 1], g[i]);
+  return ret;
+}
+
 
 // _____________________________________________________________________________
 template <typename G>

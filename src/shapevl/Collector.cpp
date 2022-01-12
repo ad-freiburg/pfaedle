@@ -62,10 +62,10 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   double unmatchedSegmentsLength;  // total _an. length of unmatched segments
 
   std::vector<double> oldDists;
-  LINE oldL = getWebMercLine(oldS, &oldDists);
+  LINE oldL = getLine(oldS, &oldDists);
 
   std::vector<double> newDists;
-  LINE newL = getWebMercLine(newS, &newDists);
+  LINE newL = getLine(newS, &newDists);
 
   std::vector<std::pair<double, double>> newLenDists;
   std::vector<std::pair<double, double>> oldLenDists;
@@ -88,13 +88,8 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     newLCut.insert(newLCut.end(), newL.begin(), newL.end());
   }
 
-  // determine the scale factor between the distance in projected
-  // coordinates and the real-world distance in meters
-  auto avgY =
-      (oldSegs.front().front().getY() + oldSegs.back().back().getY()) / 2;
-  double fac = cos(2 * atan(exp(avgY / 6378137.0)) - 1.5707965);
-
-  double SEGL = 10;
+  // convert (roughly) to degrees
+  double SEGL = 15.0 / util::geo::M_PER_DEG;
 
   auto old = _dCache.find(oldLCut);
   if (old != _dCache.end()) {
@@ -102,11 +97,11 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     if (match != old->second.end()) {
       fd = match->second;
     } else {
-      fd = util::geo::accFrechetDistC(oldLCut, newLCut, SEGL / fac) * fac;
+      fd = util::geo::accFrechetDistCHav(oldLCut, newLCut, SEGL);
       _dCache[oldLCut][newLCut] = fd;
     }
   } else {
-    fd = util::geo::accFrechetDistC(oldLCut, newLCut, SEGL / fac) * fac;
+    fd = util::geo::accFrechetDistCHav(oldLCut, newLCut, SEGL);
     _dCache[oldLCut][newLCut] = fd;
   }
 
@@ -115,7 +110,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   unmatchedSegmentsLength = dA.second;
 
   double totL = 0;
-  for (auto l : oldSegs) totL += util::geo::len(l) * fac;
+  for (auto l : oldSegs) totL += util::geo::latLngLen(l);
 
   // filter out shapes with a length of under 5 meters - they are most likely
   // artifacts
@@ -171,8 +166,8 @@ std::vector<LINE> Collector::segmentize(
   size_t i = 0;
   for (auto st : t->getStopTimes()) {
     cuts.push_back(std::pair<POINT, double>(
-        util::geo::latLngToWebMerc<PFDL_PREC>(st.getStop()->getLat(),
-                                              st.getStop()->getLng()),
+          {st.getStop()->getLng(),
+                                              st.getStop()->getLat()},
         st.getShapeDistanceTravelled()));
     i++;
   }
@@ -204,7 +199,7 @@ std::vector<LINE> Collector::segmentize(
                              t->getStopTimes()[i - 1].getStop()->getLng(),
                              t->getStopTimes()[i].getStop()->getLat(),
                              t->getStopTimes()[i].getStop()->getLng());
-    double len = util::geo::webMercLen(curL);
+    double len = util::geo::latLngLen(curL);
     lenDist.push_back({dist, len});
 
     ret.push_back(curL);
@@ -215,12 +210,11 @@ std::vector<LINE> Collector::segmentize(
 }
 
 // _____________________________________________________________________________
-LINE Collector::getWebMercLine(const Shape* s, std::vector<double>* dists) {
+LINE Collector::getLine(const Shape* s, std::vector<double>* dists) {
   LINE ret;
 
   for (size_t i = 0; i < s->getPoints().size(); i++) {
-    ret.push_back(util::geo::latLngToWebMerc<PFDL_PREC>(s->getPoints()[i].lat,
-                                                        s->getPoints()[i].lng));
+    ret.push_back({s->getPoints()[i].lng, s->getPoints()[i].lat});
     (*dists).push_back(s->getPoints()[i].travelDist);
   }
 
@@ -232,19 +226,6 @@ const std::set<Result>& Collector::getResults() const { return _results; }
 
 // _____________________________________________________________________________
 double Collector::getAvgDist() const { return _fdSum / _results.size(); }
-
-// _____________________________________________________________________________
-std::vector<double> Collector::getBins(double mind, double maxd, size_t steps) {
-  double bin = (maxd - mind) / steps;
-  double curE = mind + bin;
-
-  std::vector<double> ret;
-  while (curE <= maxd) {
-    ret.push_back(curE);
-    curE += bin;
-  }
-  return ret;
-}
 
 // _____________________________________________________________________________
 void Collector::printCsv(std::ostream* os,
@@ -404,32 +385,28 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
   assert(a.size() == b.size());
   std::pair<size_t, double> ret{0, 0};
 
-  // euclidean distance on web mercator is in meters on equator,
-  // and proportional to cos(lat) in both y directions
-
-  double fac = webMercDistFactor(a.front().front());
-
-  double SEGL = 10;
+  // convert (roughly) to degrees
+  double SEGL = 15.0 / util::geo::M_PER_DEG;
 
   for (size_t i = 0; i < a.size(); i++) {
-    double fd = 0;
+    double fdMeter = 0;
     auto old = _dACache.find(a[i]);
     if (old != _dACache.end()) {
       auto match = old->second.find(b[i]);
       if (match != old->second.end()) {
-        fd = match->second;
+        fdMeter = match->second;
       } else {
-        fd = util::geo::frechetDist(a[i], b[i], SEGL / fac) * fac;
-        _dACache[a[i]][b[i]] = fd;
+        fdMeter = util::geo::frechetDistHav(a[i], b[i], SEGL);
+        _dACache[a[i]][b[i]] = fdMeter;
       }
     } else {
-        fd = util::geo::frechetDist(a[i], b[i], SEGL / fac) * fac;
-        _dACache[a[i]][b[i]] = fd;
+        fdMeter = util::geo::frechetDistHav(a[i], b[i], SEGL);
+        _dACache[a[i]][b[i]] = fdMeter;
     }
 
-    if (fd >= 50) {
+    if (fdMeter >= 50) {
       ret.first++;
-      ret.second += util::geo::webMercLen(a[i]) * 100;
+      ret.second += util::geo::latLngLen(a[i]);
     }
   }
 

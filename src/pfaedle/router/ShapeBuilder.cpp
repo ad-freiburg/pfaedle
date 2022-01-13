@@ -47,7 +47,6 @@ using pfaedle::router::ShapeBuilder;
 using pfaedle::router::Stats;
 using pfaedle::router::TripForests;
 using pfaedle::router::TripTrie;
-using pfaedle::statsimiclassifier::JaccardClassifier;
 using pfaedle::trgraph::EdgeGrid;
 using pfaedle::trgraph::NodeGrid;
 using util::geo::latLngToWebMerc;

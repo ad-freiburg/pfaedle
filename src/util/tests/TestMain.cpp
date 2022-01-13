@@ -57,6 +57,28 @@ int main(int argc, char** argv) {
 
   // ___________________________________________________________________________
   {
+    TEST(util::btsSimi("", ""), ==, approx(1));
+    TEST(util::btsSimi("Hallo", "Test"), ==, approx(0));
+    TEST(util::btsSimi("Test", "Hallo"), ==, approx(0));
+    TEST(util::btsSimi("Test", "Test"), ==, approx(1));
+    TEST(util::btsSimi("Milner Road / Wandlee Road", "Wandlee Road"), ==, approx(1));
+    TEST(util::btsSimi("bla blubb blob", "blubb blib"), ==, approx(0.9));
+    TEST(util::btsSimi("St Pancras International", "London St Pancras"), ==, approx(0.588235));
+    TEST(util::btsSimi("Reiterstraße", "Reiterstraße Freiburg im Breisgau"), ==, approx(1));
+    TEST(util::btsSimi("Reiterstraße", "Reiter Freiburg im Breisgau"), ==, approx(.466666666));
+    TEST(util::btsSimi("AA", "Reiterstraße, Freiburg im Breisgau"), ==, approx(0));
+    TEST(util::btsSimi("blibb blabbel bla blubb blob", "blubb blib blabb"), ==, approx(0.875));
+    TEST(util::btsSimi("blibb blabbel bla blubb blobo", "blubb blib blabb blabo"), ==, approx(0.84));
+    TEST(util::btsSimi("blubb blib blabb", "blibb blabbel bla blubb blob"), ==, approx(0.875));
+    TEST(util::btsSimi("blubbb blib blabb blobo", "blibb blabbel bla blubb blobo"), ==, approx(0.84));
+    TEST(util::btsSimi("Reiter Freiburg im Breisgau", "Reiter Frei burg im Brei sgau"), ==, approx(0.931034));
+    // fallback to jaccard
+    TEST(util::btsSimi("Freiburg im Breisgau, Germany, Main Railway Station", "Main Railway Station Freiburg im Breisgau, Germany"), ==, approx(1));
+
+  }
+
+  // ___________________________________________________________________________
+  {
     std::string test = u8"Zürich, Hauptbahnhof (Nord)";
     auto tokens = util::tokenize(test);
 

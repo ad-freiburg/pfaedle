@@ -62,6 +62,7 @@ struct RoutingOpts {
   double transitionPen;
   std::string transPenMethod;
   std::string emPenMethod;
+  std::string statsimiMethod;
 };
 
 // _____________________________________________________________________________
@@ -82,6 +83,7 @@ inline bool operator==(const RoutingOpts& a, const RoutingOpts& b) {
          fabs(a.nonStationPen - b.nonStationPen) < 0.01 &&
          a.transPenMethod == b.transPenMethod &&
          a.emPenMethod == b.emPenMethod &&
+         a.statsimiMethod == b.statsimiMethod &&
          a.useStations == b.useStations && a.popReachEdge == b.popReachEdge &&
          a.noSelfHops == b.noSelfHops;
 }

@@ -14,6 +14,7 @@ namespace statsimiclassifier {
 
 class StatsimiClassifier {
  public:
+  virtual ~StatsimiClassifier() {}
   virtual bool similar(const std::string& nameA, const POINT& posA,
                        const std::string& nameB, const POINT& posB) const = 0;
 
@@ -22,6 +23,30 @@ class StatsimiClassifier {
 };
 
 class JaccardClassifier : public StatsimiClassifier {
+ public:
+  virtual bool similar(const std::string& nameA, const POINT& posA,
+                       const std::string& nameB, const POINT& posB) const;
+  virtual bool similar(const std::string& nameA,
+                       const std::string& nameB) const;
+};
+
+class BTSClassifier : public StatsimiClassifier {
+ public:
+  virtual bool similar(const std::string& nameA, const POINT& posA,
+                       const std::string& nameB, const POINT& posB) const;
+  virtual bool similar(const std::string& nameA,
+                       const std::string& nameB) const;
+};
+
+class EDClassifier : public StatsimiClassifier {
+ public:
+  virtual bool similar(const std::string& nameA, const POINT& posA,
+                       const std::string& nameB, const POINT& posB) const;
+  virtual bool similar(const std::string& nameA,
+                       const std::string& nameB) const;
+};
+
+class PEDClassifier : public StatsimiClassifier {
  public:
   virtual bool similar(const std::string& nameA, const POINT& posA,
                        const std::string& nameB, const POINT& posB) const;

@@ -61,6 +61,10 @@ using pfaedle::router::RouterImpl;
 using pfaedle::router::ShapeBuilder;
 using pfaedle::router::Stats;
 using pfaedle::statsimiclassifier::JaccardClassifier;
+using pfaedle::statsimiclassifier::StatsimiClassifier;
+using pfaedle::statsimiclassifier::BTSClassifier;
+using pfaedle::statsimiclassifier::EDClassifier;
+using pfaedle::statsimiclassifier::PEDClassifier;
 
 enum class RetCode {
   SUCCESS = 0,
@@ -277,7 +281,21 @@ int main(int argc, char** argv) {
         graphDimensions[filePost].second += nd->getAdjListOut().size();
       }
 
-      JaccardClassifier statsimiClassifier;
+      StatsimiClassifier* statsimiClassifier;
+
+      if (motCfg.routingOpts.statsimiMethod == "bts") {
+        statsimiClassifier = new BTSClassifier();
+      } else if (motCfg.routingOpts.statsimiMethod == "jaccard") {
+        statsimiClassifier = new JaccardClassifier();
+      } else if (motCfg.routingOpts.statsimiMethod == "ed") {
+        statsimiClassifier = new EDClassifier();
+      } else if (motCfg.routingOpts.statsimiMethod == "ped") {
+        statsimiClassifier = new PEDClassifier();
+      } else {
+        LOG(ERROR) << "Unknown station similarity classifier "
+                   << motCfg.routingOpts.statsimiMethod;
+        exit(1);
+      }
 
       Router* router = 0;
 
@@ -303,7 +321,7 @@ int main(int argc, char** argv) {
       }
 
       ShapeBuilder shapeBuilder(&gtfs[0], usedMots, motCfg, &graph, &fStops,
-                                &restr, &statsimiClassifier, router, cfg);
+                                &restr, statsimiClassifier, router, cfg);
 
       pfaedle::netgraph::Graph ng;
 
@@ -326,6 +344,7 @@ int main(int argc, char** argv) {
       }
 
       if (router) delete router;
+      if (statsimiClassifier) delete statsimiClassifier;
 
       if (cfg.writeGraph) {
         LOG(INFO) << "Outputting graph.json...";

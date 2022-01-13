@@ -61,6 +61,13 @@ void MotConfigReader::parse(const std::vector<std::string>& paths,
       cfg.routingOpts.transPenMethod = "exp";
     }
 
+    if (p.hasKey(secStr, "station_similarity_classification_method")) {
+      cfg.routingOpts.statsimiMethod =
+          p.getStr(secStr, "station_similarity_classification_method");
+    } else {
+      cfg.routingOpts.statsimiMethod = "bts";
+    }
+
     if (p.hasKey(secStr, "routing_use_stations")) {
       cfg.routingOpts.useStations = p.getBool(secStr, "routing_use_stations");
     } else {

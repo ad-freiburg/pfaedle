@@ -394,7 +394,6 @@ int main(int argc, char** argv) {
          util::json::Dict{
              {"gtfs_num_stations", gtfs[0].getStops().size()},
              {"gtfs_num_trips", gtfs[0].getTrips().size()},
-             {"gtfs_has_shapes", gtfs[0].getShapes().size() > 1},
              {"graph_dimension", graphSizes},
              {"num_nodes_tot", numNodesTot},
              {"num_edges_tot", numEdgesTot},

@@ -36,6 +36,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     return 0;
   }
 
+
   for (auto st : oldT->getStopTimes()) {
     if (st.getShapeDistanceTravelled() < 0) {
       // we cannot safely compare trips without shape dist travelled
@@ -67,6 +68,21 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   std::vector<double> newDists;
   LINE newL = getLine(newS, &newDists);
 
+  // check dist between anchor points
+
+  if ((util::geo::latLngLen(oldL) * 1.0) / (oldL.size() * 1.0) > 1000) {
+    // most likely input with a degenerated shape - dont compare
+    _noOrigShp++;
+    return 0;
+  }
+
+  if ((util::geo::latLngLen(newL) * 1.0) / (newL.size() * 1.0) > 1000) {
+    // most likely input with a degenerated shape - dont compare
+    _noOrigShp++;
+    return 0;
+  }
+
+
   std::vector<std::pair<double, double>> newLenDists;
   std::vector<std::pair<double, double>> oldLenDists;
 
@@ -90,20 +106,26 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   }
 
   // convert (roughly) to degrees
-  double SEGL = 15.0 / util::geo::M_PER_DEG;
+  double SEGL = 25.0 / util::geo::M_PER_DEG;
 
-  auto old = _dCache.find(oldLCut);
+  double f = util::geo::webMercDistFactor(oldLCut.front());
+
+  // roughly half a meter
+  auto oldLCutS = util::geo::simplify(oldLCut, f * (0.5 / util::geo::M_PER_DEG));
+  auto newLCutS = util::geo::simplify(newLCut, f * (0.5 / util::geo::M_PER_DEG));
+
+  auto old = _dCache.find(oldLCutS);
   if (old != _dCache.end()) {
-    auto match = old->second.find(newLCut);
+    auto match = old->second.find(newLCutS);
     if (match != old->second.end()) {
       fd = match->second;
     } else {
-      fd = util::geo::accFrechetDistCHav(oldLCut, newLCut, SEGL);
-      _dCache[oldLCut][newLCut] = fd;
+      fd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, SEGL);
+      _dCache[oldLCutS][newLCutS] = fd;
     }
   } else {
-    fd = util::geo::accFrechetDistCHav(oldLCut, newLCut, SEGL);
-    _dCache[oldLCut][newLCut] = fd;
+    fd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, SEGL);
+    _dCache[oldLCutS][newLCutS] = fd;
   }
 
   auto dA = getDa(oldSegs, newSegs);
@@ -218,7 +240,6 @@ LINE Collector::getLine(const Shape* s, std::vector<double>* dists) {
     ret.push_back({s->getPoints()[i].lng, s->getPoints()[i].lat});
     (*dists).push_back(s->getPoints()[i].travelDist);
   }
-
   return ret;
 }
 
@@ -396,30 +417,36 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
   std::pair<size_t, double> ret{0, 0};
 
   // convert (roughly) to degrees
-  double SEGL = 15 / util::geo::M_PER_DEG;
+  double SEGL = 25 / util::geo::M_PER_DEG;
 
   double MAX = 50;
 
   for (size_t i = 0; i < a.size(); i++) {
     double fdMeter = 0;
 
-    auto old = _dACache.find(a[i]);
+    double f = util::geo::webMercDistFactor(a[i].front());
+
+    // roughly half a meter
+    auto aSimpl = util::geo::simplify(a[i], f * (0.5 / util::geo::M_PER_DEG));
+    auto bSimpl = util::geo::simplify(b[i], f * (0.5 / util::geo::M_PER_DEG));
+
+    auto old = _dACache.find(aSimpl);
     if (old != _dACache.end()) {
-      auto match = old->second.find(b[i]);
+      auto match = old->second.find(bSimpl);
       if (match != old->second.end()) {
         fdMeter = match->second;
       } else {
-        fdMeter = util::geo::frechetDistHav(a[i], b[i], SEGL);
-        _dACache[a[i]][b[i]] = fdMeter;
+        fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
+        _dACache[aSimpl][bSimpl] = fdMeter;
       }
     } else {
-        fdMeter = util::geo::frechetDistHav(a[i], b[i], SEGL);
-        _dACache[a[i]][b[i]] = fdMeter;
+        fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
+        _dACache[aSimpl][bSimpl] = fdMeter;
     }
 
     if (fdMeter >= MAX) {
       ret.first++;
-      ret.second += util::geo::latLngLen(a[i]);
+      ret.second += util::geo::latLngLen(aSimpl);
     }
   }
 

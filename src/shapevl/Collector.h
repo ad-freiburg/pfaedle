@@ -31,7 +31,7 @@ struct lineCmp {
     }
 
     for (size_t i = 0; i < a.size(); i++) {
-      if (util::geo::dist(a[i], b[i]) > .000001) {
+      if (util::geo::dist(a[i], b[i]) > .00001) {
         return (a[i].getX() < b[i].getX()) ||
                (a[i].getX() == b[i].getX() && a[i].getY() < b[i].getY());
         ;

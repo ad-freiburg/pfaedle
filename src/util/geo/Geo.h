@@ -1964,7 +1964,7 @@ inline double accFrechetDistCHav(const Line<T>& a, const Line<T>& b, double d) {
   for (size_t i = 1; i < p.size(); i++) {
     for (size_t j = 1; j < q.size(); j++) {
       float d =
-          util::geo::haversine(p[i], q[j]) * util::geo::dist(p[i], p[i - 1]);
+          util::geo::haversine(p[i], q[j]) * util::geo::haversine(p[i], p[i - 1]);
       ca[i * q.size() + j] =
           d + std::min(ca[(i - 1) * q.size() + j],
                        std::min(ca[i * q.size() + (j - 1)],

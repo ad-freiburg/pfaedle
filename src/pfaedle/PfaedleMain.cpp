@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
 
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box, maxSpeed);
+                               &box, maxSpeed, 0);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box, maxSpeed);
+                               &box, maxSpeed, 0);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -242,6 +242,7 @@ int main(int argc, char** argv) {
   Stats stats;
   double tOsmBuild = 0;
   std::map<std::string, std::pair<size_t, size_t>> graphDimensions;
+  std::vector<double> hopDists;
 
   for (const auto& motCfg : motCfgReader.getConfigs()) {
     std::string filePost;
@@ -266,7 +267,7 @@ int main(int argc, char** argv) {
       pfaedle::osm::BBoxIdx box(BOX_PADDING);
       ShapeBuilder::getGtfsBox(&gtfs[0], usedMots, cfg.shapeTripId,
                                cfg.dropShapes, &box,
-                               motCfg.osmBuildOpts.maxSpeed);
+                               motCfg.osmBuildOpts.maxSpeed, &hopDists);
 
       T_START(osmBuild);
 
@@ -389,11 +390,15 @@ int main(int argc, char** argv) {
       graphSizes[gd.first] = a;
     }
 
+    double hopDistSum = 0;
+    for (auto d : hopDists) hopDistSum += d;
+
     util::json::Dict jsonStats = {
         {"statistics",
          util::json::Dict{
              {"gtfs_num_stations", gtfs[0].getStops().size()},
              {"gtfs_num_trips", gtfs[0].getTrips().size()},
+             {"gtfs_avg_hop_dist", hopDistSum / (hopDists.size() * 1.0)},
              {"graph_dimension", graphSizes},
              {"num_nodes_tot", numNodesTot},
              {"num_edges_tot", numEdgesTot},

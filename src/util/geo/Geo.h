@@ -1861,8 +1861,8 @@ inline double frechetDist(const Line<T>& a, const Line<T>& b, double d) {
   // based on Eiter / Mannila
   // http://www.kr.tuwien.ac.at/staff/eiter/et-archive/cdtr9464.pdf
 
-  auto p = densify(a, d);
-  auto q = densify(b, d);
+  const auto& p = densify(a, d);
+  const auto& q = densify(b, d);
 
   std::vector<float> ca(p.size() * q.size(), -1.0);
   double fd = frechetDistC(p.size() - 1, q.size() - 1, p, q, ca);
@@ -1873,8 +1873,8 @@ inline double frechetDist(const Line<T>& a, const Line<T>& b, double d) {
 // _____________________________________________________________________________
 template <typename T>
 inline double accFrechetDistC(const Line<T>& a, const Line<T>& b, double d) {
-  auto p = densify(a, d);
-  auto q = densify(b, d);
+  const auto& p = densify(a, d);
+  const auto& q = densify(b, d);
 
   assert(p.size());
   assert(q.size());
@@ -1935,8 +1935,8 @@ inline double frechetDistHav(const Line<T>& a, const Line<T>& b, double d) {
   // based on Eiter / Mannila
   // http://www.kr.tuwien.ac.at/staff/eiter/et-archive/cdtr9464.pdf
 
-  auto p = densify(a, d);
-  auto q = densify(b, d);
+  const auto& p = densify(a, d);
+  const auto& q = densify(b, d);
 
   std::vector<float> ca(p.size() * q.size(), -1.0);
   double fd = frechetDistCHav(p.size() - 1, q.size() - 1, p, q, ca);
@@ -1947,8 +1947,8 @@ inline double frechetDistHav(const Line<T>& a, const Line<T>& b, double d) {
 // _____________________________________________________________________________
 template <typename T>
 inline double accFrechetDistCHav(const Line<T>& a, const Line<T>& b, double d) {
-  auto p = densify(a, d);
-  auto q = densify(b, d);
+  const auto& p = densify(a, d);
+  const auto& q = densify(b, d);
 
   assert(p.size());
   assert(q.size());

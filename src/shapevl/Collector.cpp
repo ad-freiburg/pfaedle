@@ -75,6 +75,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
 
   for (const auto& p : oldLenDists) {
     _distDiffs.push_back(fabs(p.first - p.second));
+    _hopDists.push_back(p.first);
   }
 
   // new lines build from cleaned-up shapes
@@ -352,6 +353,15 @@ std::map<string, double> Collector::getStats() {
     stats["median-dist-diff"] = -1;
   }
 
+  if (_hopDists.size()) {
+    double s = 0;
+    for (auto d : _hopDists) s += d;
+
+    stats["avg-hop-dist"] = s / (_hopDists.size() * 1.0);
+  } else {
+    stats["avg-hop-dist"] = -1;
+  }
+
   stats["num-trips"] = _trips;
   stats["num-trips-matched"] = _results.size();
   stats["num-trips-wo-shapes"] = _noOrigShp;
@@ -386,10 +396,13 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
   std::pair<size_t, double> ret{0, 0};
 
   // convert (roughly) to degrees
-  double SEGL = 15.0 / util::geo::M_PER_DEG;
+  double SEGL = 15 / util::geo::M_PER_DEG;
+
+  double MAX = 50;
 
   for (size_t i = 0; i < a.size(); i++) {
     double fdMeter = 0;
+
     auto old = _dACache.find(a[i]);
     if (old != _dACache.end()) {
       auto match = old->second.find(b[i]);
@@ -404,7 +417,7 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
         _dACache[a[i]][b[i]] = fdMeter;
     }
 
-    if (fdMeter >= 50) {
+    if (fdMeter >= MAX) {
       ret.first++;
       ret.second += util::geo::latLngLen(a[i]);
     }

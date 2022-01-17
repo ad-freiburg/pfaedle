@@ -8,6 +8,8 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <sys/resource.h>
+#include <stdio.h>
 #include <vector>
 #include "ad/cppgtfs/Parser.h"
 #include "shapevl/Collector.h"
@@ -42,8 +44,7 @@ void eval(const std::vector<std::string>* paths,
     int myFeed = count-- - 1;
     if (myFeed < 0) return;
     std::string path = (*paths)[myFeed];
-    LOG(DEBUG) << "Reading eval feed " << path << " "
-               << " ...";
+    LOG(DEBUG) << "Reading eval feed " << path << " ...";
     ad::cppgtfs::gtfs::Feed feed;
     ad::cppgtfs::Parser p;
 
@@ -79,6 +80,13 @@ int main(int argc, char** argv) {
 
   // initialize randomness
   srand(time(NULL) + rand());  // NOLINT
+
+  // increase max stack size for frechet distance calc
+
+  struct rlimit rl;
+  getrlimit(RLIMIT_STACK, &rl);
+
+  std::cout << rl.rlim_max << std::endl;
 
   std::string groundTruthFeedPath, motStr;
   motStr = "all";

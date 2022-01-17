@@ -5,11 +5,11 @@
 #ifndef PFAEDLE_ROUTER_SHAPEBUILDER_H_
 #define PFAEDLE_ROUTER_SHAPEBUILDER_H_
 
+#include <map>
 #include <mutex>
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <map>
 #include <utility>
 #include <vector>
 #include "ad/cppgtfs/gtfs/Feed.h"
@@ -72,7 +72,8 @@ class ShapeBuilder {
 
   static void getGtfsBox(const pfaedle::gtfs::Feed* feed, const MOTs& mots,
                          const std::string& tid, bool dropShapes,
-                         osm::BBoxIdx* box, double maxSpeed);
+                         osm::BBoxIdx* box, double maxSpeed,
+                         std::vector<double>* hopDists);
 
  private:
   pfaedle::gtfs::Feed* _feed;

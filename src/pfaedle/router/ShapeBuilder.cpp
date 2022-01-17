@@ -72,7 +72,7 @@ ShapeBuilder::ShapeBuilder(
       _router(router) {
   pfaedle::osm::BBoxIdx box(BOX_PADDING);
   ShapeBuilder::getGtfsBox(feed, mots, cfg.shapeTripId, cfg.dropShapes, &box,
-                           _motCfg.osmBuildOpts.maxSpeed);
+                           _motCfg.osmBuildOpts.maxSpeed, 0);
 
   _eGrid = EdgeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
   _nGrid = NodeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
@@ -647,7 +647,8 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) const {
 // _____________________________________________________________________________
 void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
                               const std::string& tid, bool dropShapes,
-                              osm::BBoxIdx* box, double maxSpeed) {
+                              osm::BBoxIdx* box, double maxSpeed,
+                              std::vector<double>* hopDists) {
   for (const auto& t : feed->getTrips()) {
     if (!tid.empty() && t.getId() != tid) continue;
     if (tid.empty() && !t.getShape().empty() && !dropShapes) continue;
@@ -671,6 +672,7 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
           toD = util::geo::haversine(
               st.getStop()->getLat(), st.getStop()->getLng(),
               stPrev.getStop()->getLat(), stPrev.getStop()->getLng());
+          if (hopDists) hopDists->push_back(toD);
         }
 
         if (i < t.getStopTimes().size() - 1) {

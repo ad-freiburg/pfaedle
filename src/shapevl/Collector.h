@@ -98,6 +98,7 @@ class Collector {
   size_t _noOrigShp;
 
   std::vector<double> _distDiffs;
+  std::vector<double> _hopDists;
 
   double _fdSum;
   size_t _unmatchedSegSum;

@@ -8,8 +8,6 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <sys/resource.h>
-#include <stdio.h>
 #include <vector>
 #include "ad/cppgtfs/Parser.h"
 #include "shapevl/Collector.h"
@@ -80,13 +78,6 @@ int main(int argc, char** argv) {
 
   // initialize randomness
   srand(time(NULL) + rand());  // NOLINT
-
-  // increase max stack size for frechet distance calc
-
-  struct rlimit rl;
-  getrlimit(RLIMIT_STACK, &rl);
-
-  std::cout << rl.rlim_max << std::endl;
 
   std::string groundTruthFeedPath, motStr;
   motStr = "all";

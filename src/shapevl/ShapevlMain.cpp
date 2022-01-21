@@ -10,10 +10,13 @@
 #include <thread>
 #include <vector>
 #include "ad/cppgtfs/Parser.h"
+#include "pfaedle/router/TripTrie.h"
 #include "shapevl/Collector.h"
 #include "util/Misc.h"
 #include "util/json/Writer.h"
 #include "util/log/Log.h"
+
+using pfaedle::router::TripTrie;
 
 std::atomic<int> count(0);
 
@@ -37,7 +40,7 @@ void printHelp(int argc, char** argv) {
 void eval(const std::vector<std::string>* paths,
           std::vector<pfaedle::eval::Collector>* colls,
           const std::set<Route::TYPE>* mots,
-          const ad::cppgtfs::gtfs::Feed* evalFeed) {
+          const ad::cppgtfs::gtfs::Feed* evalFeed, bool unique) {
   while (1) {
     int myFeed = count-- - 1;
     if (myFeed < 0) return;
@@ -54,18 +57,59 @@ void eval(const std::vector<std::string>* paths,
       exit(1);
     }
 
+    std::vector<ad::cppgtfs::gtfs::Trip*> trips;
+
+    if (unique) {
+      std::map<const ad::cppgtfs::gtfs::Route*,
+               std::vector<TripTrie<ad::cppgtfs::gtfs::Trip>>>
+          forest;
+      for (auto t : evalFeed->getTrips()) {
+        auto& subForest = forest[t.second->getRoute()];
+        bool ins = false;
+        for (auto& trie : subForest) {
+          if (trie.addTrip(t.second,
+                           pfaedle::router::RoutingAttrs{
+                               t.second->getRoute()->getId(), "", ""},
+                           false, false)) {
+            ins = true;
+            break;
+          }
+        }
+
+        if (!ins) {
+          subForest.resize(subForest.size() + 1);
+          subForest.back().addTrip(t.second,
+                                   pfaedle::router::RoutingAttrs{
+                                       t.second->getRoute()->getId(), "", ""},
+                                   false, false);
+        }
+      }
+      for (auto f : forest) {
+        for (auto sf : f.second) {
+          for (auto leaf : sf.getNdTrips()) {
+            // only one reference node
+            trips.push_back(leaf.second.front());
+          }
+        }
+      }
+    } else {
+      for (auto t : evalFeed->getTrips()) {
+        trips.push_back(t.second);
+      }
+    }
+
     LOG(DEBUG) << "Evaluating " << path << "...";
     size_t i = 0;
-    for (const auto& oldTrip : evalFeed->getTrips()) {
-      LOG(DEBUG) << "@ " << ++i << "/" << evalFeed->getTrips().size();
-      if (!mots->count(oldTrip.second->getRoute()->getType())) continue;
-      auto newTrip = feed.getTrips().get(oldTrip.first);
+    for (const auto& oldTrip : trips) {
+      LOG(DEBUG) << "@ " << ++i << "/" << trips.size();
+      if (!mots->count(oldTrip->getRoute()->getType())) continue;
+      auto newTrip = feed.getTrips().get(oldTrip->getId());
       if (!newTrip) {
-        LOG(ERROR) << "Trip #" << oldTrip.first << " not present in " << path
+        LOG(ERROR) << "Trip #" << oldTrip->getId() << " not present in " << path
                    << ", skipping...";
         continue;
       }
-      (*colls)[myFeed].add(oldTrip.second, oldTrip.second->getShape(), newTrip,
+      (*colls)[myFeed].add(oldTrip, oldTrip->getShape(), newTrip,
                            newTrip->getShape());
     }
   }
@@ -90,6 +134,7 @@ int main(int argc, char** argv) {
   bool summarize = false;
   bool json = false;
   bool avg = false;
+  bool unique = false;
 
   for (int i = 1; i < argc; i++) {
     std::string cur = argv[i];
@@ -106,6 +151,8 @@ int main(int argc, char** argv) {
       summarize = true;
     } else if (cur == "--json") {
       json = true;
+    } else if (cur == "--unique") {
+      unique = true;
     } else if (cur == "--avg") {
       avg = true;
     } else if (cur == "-f") {
@@ -169,8 +216,8 @@ int main(int argc, char** argv) {
 
   std::vector<std::thread> thrds(THREADS);
   for (auto& thr : thrds)
-    thr =
-        std::thread(&eval, &evlFeedPaths, &evalColls, &mots, &groundTruthFeed);
+    thr = std::thread(&eval, &evlFeedPaths, &evalColls, &mots, &groundTruthFeed,
+                      unique);
 
   for (auto& thr : thrds) thr.join();
 
@@ -188,9 +235,7 @@ int main(int argc, char** argv) {
     util::json::Dict jsonStats;
 
     if (evalColls.size() == 1) {
-      jsonStats = {
-          {"statistics", stats[evlFeedPaths[0]]
-      }};
+      jsonStats = {{"statistics", stats[evlFeedPaths[0]]}};
     } else {
       if (avg) {
         double count = evalColls.size();
@@ -206,13 +251,9 @@ int main(int argc, char** argv) {
           }
           avgStats[k] = sum / count;
         }
-        jsonStats = {
-            {"statistics", avgStats
-        }};
+        jsonStats = {{"statistics", avgStats}};
       } else {
-        jsonStats = {
-            {"statistics", stats
-        }};
+        jsonStats = {{"statistics", stats}};
       }
     }
 

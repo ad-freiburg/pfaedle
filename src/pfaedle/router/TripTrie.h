@@ -31,26 +31,27 @@ struct TripTrieNd {
   RoutingAttrs rAttrs;
 };
 
+template <typename TRIP>
 class TripTrie {
  public:
   // init node 0, this is the first decision node
   TripTrie() : _nds(1) {}
-  bool addTrip(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs,
+  bool addTrip(TRIP* trip, const RoutingAttrs& rAttrs,
                bool timeEx, bool degen);
 
   const std::vector<TripTrieNd>& getNds() const;
   const TripTrieNd& getNd(size_t nid) const;
 
   void toDot(std::ostream& os, const std::string& rootName, size_t gid) const;
-  const std::map<size_t, std::vector<pfaedle::gtfs::Trip*>>& getNdTrips() const;
+  const std::map<size_t, std::vector<TRIP*>>& getNdTrips() const;
 
  private:
   std::vector<TripTrieNd> _nds;
-  std::map<pfaedle::gtfs::Trip*, size_t> _tripNds;
-  std::map<size_t, std::vector<pfaedle::gtfs::Trip*>> _ndTrips;
+  std::map<TRIP*, size_t> _tripNds;
+  std::map<size_t, std::vector<TRIP*>> _ndTrips;
 
-  bool add(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs, bool timeEx);
-  size_t get(pfaedle::gtfs::Trip* trip, bool timeEx);
+  bool add(TRIP* trip, const RoutingAttrs& rAttrs, bool timeEx);
+  size_t get(TRIP* trip, bool timeEx);
 
   size_t getMatchChild(size_t parentNid, const std::string& stopName,
                        const std::string& platform, POINT pos, int time,
@@ -59,6 +60,7 @@ class TripTrie {
                 const POINT& pos, int time, bool arr, size_t parent);
 };
 
+#include "pfaedle/router/TripTrie.tpp"
 }  // namespace router
 }  // namespace pfaedle
 

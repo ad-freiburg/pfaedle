@@ -6,11 +6,11 @@
 #define PFAEDLE_ROUTER_ROUTER_H_
 
 #include <limits>
+#include <map>
 #include <set>
 #include <stack>
 #include <string>
 #include <unordered_map>
-#include <map>
 #include <utility>
 #include <vector>
 #include "pfaedle/Def.h"
@@ -52,12 +52,10 @@ typedef std::vector<std::pair<std::pair<size_t, size_t>, uint32_t>> CostMatrix;
 class Router {
  public:
   virtual ~Router() = default;
-  virtual std::map<size_t, EdgeListHops> route(const TripTrie* trie,
-                                               const EdgeCandMap& ecm,
-                                               const RoutingOpts& rOpts,
-                                               const osm::Restrictor& rest,
-                                               HopCache* hopCache,
-                                               bool noFastHops) const = 0;
+  virtual std::map<size_t, EdgeListHops> route(
+      const TripTrie<pfaedle::gtfs::Trip>* trie, const EdgeCandMap& ecm,
+      const RoutingOpts& rOpts, const osm::Restrictor& rest, HopCache* hopCache,
+      bool noFastHops) const = 0;
 };
 
 /*
@@ -69,8 +67,9 @@ class RouterImpl : public Router {
  public:
   // Find the most likely path through the graph for a trip trie.
   virtual std::map<size_t, EdgeListHops> route(
-      const TripTrie* trie, const EdgeCandMap& ecm, const RoutingOpts& rOpts,
-      const osm::Restrictor& rest, HopCache* hopCache, bool noFastHops) const;
+      const TripTrie<pfaedle::gtfs::Trip>* trie, const EdgeCandMap& ecm,
+      const RoutingOpts& rOpts, const osm::Restrictor& rest, HopCache* hopCache,
+      bool noFastHops) const;
 
  private:
   void hops(const EdgeCandGroup& from, const EdgeCandGroup& to,

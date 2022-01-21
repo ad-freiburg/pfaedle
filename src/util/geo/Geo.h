@@ -933,7 +933,7 @@ inline Line<T> lineFromWKT(std::string wkt) {
 template <typename T>
 inline std::string getWKT(const Point<T>& p) {
   std::stringstream ss;
-  ss << "POINT (" << p.getX() << " " << p.getY() << ")";
+  ss << std::fixed << std::setprecision(6) << "POINT (" << p.getX() << " " << p.getY() << ")";
   return ss.str();
 }
 
@@ -941,7 +941,7 @@ inline std::string getWKT(const Point<T>& p) {
 template <typename T>
 inline std::string getWKT(const std::vector<Point<T>>& p) {
   std::stringstream ss;
-  ss << "MULTIPOINT (";
+  ss << std::fixed << std::setprecision(6) << "MULTIPOINT (";
   for (size_t i = 0; i < p.size(); i++) {
     if (i) ss << ", ";
     ss << "(" << p[i].getX() << " " << p[i].getY() << ")";
@@ -954,7 +954,7 @@ inline std::string getWKT(const std::vector<Point<T>>& p) {
 template <typename T>
 inline std::string getWKT(const Line<T>& l) {
   std::stringstream ss;
-  ss << "LINESTRING (";
+  ss << std::fixed << std::setprecision(6) << "LINESTRING (";
   for (size_t i = 0; i < l.size(); i++) {
     if (i) ss << ", ";
     ss << l[i].getX() << " " << l[i].getY();
@@ -967,7 +967,7 @@ inline std::string getWKT(const Line<T>& l) {
 template <typename T>
 inline std::string getWKT(const std::vector<Line<T>>& ls) {
   std::stringstream ss;
-  ss << "MULTILINESTRING (";
+  ss << std::fixed << std::setprecision(6) << "MULTILINESTRING (";
 
   for (size_t j = 0; j < ls.size(); j++) {
     if (j) ss << ", ";

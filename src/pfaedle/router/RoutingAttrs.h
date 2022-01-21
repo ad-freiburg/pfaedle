@@ -5,9 +5,9 @@
 #ifndef PFAEDLE_ROUTER_ROUTINGATTRS_H_
 #define PFAEDLE_ROUTER_ROUTINGATTRS_H_
 
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
 #include "pfaedle/statsimi-classifier/StatsimiClassifier.h"
 #include "pfaedle/trgraph/EdgePL.h"
 
@@ -30,6 +30,13 @@ inline bool operator<(const LineSimilarity& a, const LineSimilarity& b) {
 struct RoutingAttrs {
   RoutingAttrs()
       : lineFrom(""), lineTo(), shortName(""), classifier(0), _simiCache() {}
+  RoutingAttrs(const std::string& shortName, const std::string& lineFrom,
+               const std::string& lineTo)
+      : lineFrom(lineFrom),
+        lineTo({lineTo}),
+        shortName(shortName),
+        classifier(0),
+        _simiCache() {}
   std::string lineFrom;
   std::vector<std::string> lineTo;
   std::string shortName;

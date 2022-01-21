@@ -9,21 +9,22 @@
 #define omp_get_num_procs() 1
 #endif
 
-#include <unordered_map>
-#include <map>
-#include <vector>
-#include <utility>
-#include <set>
 #include <limits>
+#include <map>
+#include <set>
 #include <stack>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 using util::graph::EDijkstra;
 
 // _____________________________________________________________________________
 template <typename TW>
 std::map<size_t, EdgeListHops> RouterImpl<TW>::route(
-    const TripTrie* trie, const EdgeCandMap& ecm, const RoutingOpts& rOpts,
-    const osm::Restrictor& rest, HopCache* hopCache, bool noFastHops) const {
+    const TripTrie<pfaedle::gtfs::Trip>* trie, const EdgeCandMap& ecm,
+    const RoutingOpts& rOpts, const osm::Restrictor& rest, HopCache* hopCache,
+    bool noFastHops) const {
   std::map<size_t, EdgeListHops> ret;
 
   // the current node costs in our DAG

@@ -27,6 +27,7 @@ using util::geo::output::GeoJsonOutput;
 double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
                       const Shape* newS) {
   // This adds a new trip with a new shape to our evaluation.
+  // if (oldT->getId() != "pse-a779ac00") return 0;
 
   _trips++;
 
@@ -35,7 +36,6 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     _noOrigShp++;
     return 0;
   }
-
 
   for (auto st : oldT->getStopTimes()) {
     if (st.getShapeDistanceTravelled() < 0) {
@@ -82,7 +82,6 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     return 0;
   }
 
-
   std::vector<std::pair<double, double>> newLenDists;
   std::vector<std::pair<double, double>> oldLenDists;
 
@@ -111,8 +110,10 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   double f = util::geo::webMercDistFactor(oldLCut.front());
 
   // roughly half a meter
-  auto oldLCutS = util::geo::simplify(oldLCut, f * (0.5 / util::geo::M_PER_DEG));
-  auto newLCutS = util::geo::simplify(newLCut, f * (0.5 / util::geo::M_PER_DEG));
+  auto oldLCutS =
+      util::geo::simplify(oldLCut, f * (0.5 / util::geo::M_PER_DEG));
+  auto newLCutS =
+      util::geo::simplify(newLCut, f * (0.5 / util::geo::M_PER_DEG));
 
   auto old = _dCache.find(oldLCutS);
   if (old != _dCache.end()) {
@@ -156,6 +157,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   if (AN <= 0.0001) _an0++;
   if (AN <= 0.05) _an5++;
   if (AN <= 0.1) _an10++;
+  if (AN <= 0.2) _an20++;
   if (AN <= 0.3) _an30++;
   if (AN <= 0.5) _an50++;
   if (AN <= 0.7) _an70++;
@@ -167,9 +169,17 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
               << totL << " = " << AL << " d_f = " << avgFd;
 
   if (_reportOut) {
+    (*_reportOut) << std::fixed << std::setprecision(6);
     (*_reportOut) << oldT->getId() << "\t" << AN << "\t" << AL << "\t" << avgFd
                   << "\t" << util::geo::getWKT(oldSegs) << "\t"
-                  << util::geo::getWKT(newSegs) << "\n";
+                  << util::geo::getWKT(newSegs) << "\t" << oldT->getRoute()->getShortName() << "\t";
+
+    for (const auto& st : oldT->getStopTimes()) {
+      (*_reportOut) << st.getStop()->getName() << "\t"
+                    << st.getStop()->getLat() << "\t"
+                    << st.getStop()->getLng() << "\t";
+    }
+(*_reportOut) << "\n";
   }
 
   return avgFd;
@@ -189,33 +199,32 @@ std::vector<LINE> Collector::segmentize(
   size_t i = 0;
   for (auto st : t->getStopTimes()) {
     cuts.push_back(std::pair<POINT, double>(
-          {st.getStop()->getLng(),
-                                              st.getStop()->getLat()},
+        {st.getStop()->getLng(), st.getStop()->getLat()},
         st.getShapeDistanceTravelled()));
     i++;
   }
 
-  // get first half of geometry, and search for start point there!
-  size_t before = std::upper_bound(dists.begin(), dists.end(), cuts[1].second) -
+
+  size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[0].second) -
                   dists.begin();
-  if (before + 1 > shape.size()) before = shape.size() - 1;
-  assert(shape.begin() + before + 1 <= shape.end());
-  POLYLINE l(LINE(shape.begin(), shape.begin() + before + 1));
-  auto lastLp = l.projectOn(cuts.front().first);
+  if (to >= dists.size()) to = dists.size() - 1;
+  double progr = (cuts[0].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
+  auto lastP = shape[to - 1];
+  lastP.setX(lastP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
+  lastP.setY(lastP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
 
   for (size_t i = 1; i < cuts.size(); i++) {
-    size_t before = shape.size();
-    if (i < cuts.size() - 1 && cuts[i + 1].second > -0.5) {
-      before =
-          std::upper_bound(dists.begin(), dists.end(), cuts[i + 1].second) -
-          dists.begin();
-    }
 
-    POLYLINE afterPl(LINE(shape.begin(), shape.begin() + before));
+    size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[i].second) -
+                    dists.begin();
+  if (to >= dists.size()) to = dists.size() - 1;
+    double progr = (cuts[i].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
+    // std::cout << t->getId() << ": " << dists[to] << " vs " << cuts[i].second << ", " << dists[to - 1] << " (" << progr << ")" << std::endl;
+    auto curP = shape[to - 1];
+    curP.setX(curP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
+    curP.setY(curP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
 
-    auto curLp = afterPl.projectOnAfter(cuts[i].first, lastLp.lastIndex);
-
-    auto curL = pl.getSegment(lastLp, curLp).getLine();
+    auto curL = pl.getSegment(lastP, curP).getLine();
 
     double dist =
         util::geo::haversine(t->getStopTimes()[i - 1].getStop()->getLat(),
@@ -226,7 +235,7 @@ std::vector<LINE> Collector::segmentize(
     lenDist.push_back({dist, len});
 
     ret.push_back(curL);
-    lastLp = curLp;
+    lastP = curP;
   }
 
   return ret;
@@ -272,6 +281,10 @@ void Collector::printShortStats(std::ostream* os) const {
                  100
           << ",";
     (*os) << (static_cast<double>(_an10) /
+              static_cast<double>(_results.size())) *
+                 100
+          << ",";
+    (*os) << (static_cast<double>(_an20) /
               static_cast<double>(_results.size())) *
                  100
           << ",";
@@ -328,6 +341,12 @@ void Collector::printStats(std::ostream* os) const {
           << "\n";
     (*os) << "  an-10: "
           << (static_cast<double>(_an10) /
+              static_cast<double>(_results.size())) *
+                 100
+          << " %"
+          << "\n";
+    (*os) << "  an-20: "
+          << (static_cast<double>(_an20) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
@@ -398,6 +417,8 @@ std::map<string, double> Collector::getStats() {
       (static_cast<double>(_an5) / static_cast<double>(_results.size())) * 100;
   stats["an-10"] =
       (static_cast<double>(_an10) / static_cast<double>(_results.size())) * 100;
+  stats["an-20"] =
+      (static_cast<double>(_an20) / static_cast<double>(_results.size())) * 100;
   stats["an-30"] =
       (static_cast<double>(_an30) / static_cast<double>(_results.size())) * 100;
   stats["an-50"] =
@@ -419,7 +440,7 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
   // convert (roughly) to degrees
   double SEGL = 25 / util::geo::M_PER_DEG;
 
-  double MAX = 50;
+  double MAX = 100;
 
   for (size_t i = 0; i < a.size(); i++) {
     double fdMeter = 0;
@@ -440,8 +461,8 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
         _dACache[aSimpl][bSimpl] = fdMeter;
       }
     } else {
-        fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
-        _dACache[aSimpl][bSimpl] = fdMeter;
+      fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
+      _dACache[aSimpl][bSimpl] = fdMeter;
     }
 
     if (fdMeter >= MAX) {

@@ -30,7 +30,7 @@
 namespace pfaedle {
 namespace router {
 
-typedef std::vector<TripTrie> TripForest;
+typedef std::vector<TripTrie<pfaedle::gtfs::Trip>> TripForest;
 typedef std::map<router::RoutingAttrs, TripForest> TripForests;
 typedef std::pair<const ad::cppgtfs::gtfs::Stop*,
                   const ad::cppgtfs::gtfs::Stop*>
@@ -64,8 +64,8 @@ class ShapeBuilder {
   // shape single trip
   std::pair<std::vector<LINE>, Stats> shapeL(pfaedle::gtfs::Trip* trip);
 
-  std::map<size_t, EdgeListHops> shapeify(const TripTrie* trie,
-                                          HopCache* hopCache) const;
+  std::map<size_t, EdgeListHops> shapeify(
+      const TripTrie<pfaedle::gtfs::Trip>* trie, HopCache* hopCache) const;
   EdgeListHops shapeify(pfaedle::gtfs::Trip* trip);
 
   const trgraph::Graph* getGraph() const;
@@ -112,14 +112,14 @@ class ShapeBuilder {
 
   EdgeCandGroup getEdgCands(const ad::cppgtfs::gtfs::Stop* s) const;
 
-  router::EdgeCandMap getECM(const TripTrie* trie) const;
+  router::EdgeCandMap getECM(const TripTrie<pfaedle::gtfs::Trip>* trie) const;
   std::vector<double> getTransTimes(pfaedle::gtfs::Trip* trip) const;
   std::vector<double> getTransDists(pfaedle::gtfs::Trip* trip) const;
   const router::RoutingAttrs& getRAttrs(const pfaedle::gtfs::Trip* trip) const;
   const router::RoutingAttrs& getRAttrs(const pfaedle::gtfs::Trip* trip);
-  std::map<size_t, router::EdgeListHops> route(const TripTrie* trie,
-                                               const EdgeCandMap& ecm,
-                                               HopCache* hopCache) const;
+  std::map<size_t, router::EdgeListHops> route(
+      const TripTrie<pfaedle::gtfs::Trip>* trie, const EdgeCandMap& ecm,
+      HopCache* hopCache) const;
   double emWeight(double mDist) const;
 
   void buildCandCache(const TripForests& clusters);

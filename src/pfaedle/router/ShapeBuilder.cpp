@@ -328,14 +328,15 @@ std::pair<std::vector<LINE>, Stats> ShapeBuilder::shapeL(Trip* trip) {
 
 // _____________________________________________________________________________
 std::map<size_t, pfaedle::router::EdgeListHops> ShapeBuilder::route(
-    const TripTrie* trie, const EdgeCandMap& ecm, HopCache* hopCache) const {
+    const TripTrie<pfaedle::gtfs::Trip>* trie, const EdgeCandMap& ecm,
+    HopCache* hopCache) const {
   return _router->route(trie, ecm, _motCfg.routingOpts, *_restr, hopCache,
                         _cfg.noFastHops);
 }
 
 // _____________________________________________________________________________
 std::map<size_t, EdgeListHops> ShapeBuilder::shapeify(
-    const TripTrie* trie, HopCache* hopCache) const {
+    const TripTrie<pfaedle::gtfs::Trip>* trie, HopCache* hopCache) const {
   LOG(VDEBUG) << "Map-matching trie " << trie;
 
   // TODO(patrick): assumes the trie is not empty, check this!
@@ -362,7 +363,7 @@ EdgeListHops ShapeBuilder::shapeify(Trip* trip) {
               << trip->getRoute()->getType() << "(sn=" << trip->getShortname()
               << ", rsn=" << trip->getRoute()->getShortName()
               << ", rln=" << trip->getRoute()->getLongName() << ")";
-  TripTrie trie;
+  TripTrie<pfaedle::gtfs::Trip> trie;
   trie.addTrip(trip, getRAttrs(trip),
                _motCfg.routingOpts.transPenMethod == "timenorm", false);
   const auto& routes = route(&trie, getECM(&trie), 0);
@@ -748,7 +749,8 @@ std::vector<double> ShapeBuilder::getTransDists(Trip* trip) const {
 }
 
 // _____________________________________________________________________________
-EdgeCandMap ShapeBuilder::getECM(const TripTrie* trie) const {
+EdgeCandMap ShapeBuilder::getECM(
+    const TripTrie<pfaedle::gtfs::Trip>* trie) const {
   EdgeCandMap ecm(trie->getNds().size());
 
   for (size_t nid = 1; nid < trie->getNds().size(); nid++) {
@@ -1146,7 +1148,7 @@ void ShapeBuilder::shapeWorker(
     if (!_cfg.noHopCache) hopCache = &hopCacheLoc;
 
     for (size_t i = 0; i < forest.size(); i++) {
-      const TripTrie* trie = &(forest[i]);
+      const TripTrie<pfaedle::gtfs::Trip>* trie = &(forest[i]);
       const auto& hops = shapeify(trie, hopCache);
 
       for (const auto& leaf : trie->getNdTrips()) {

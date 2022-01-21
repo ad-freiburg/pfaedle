@@ -9,13 +9,13 @@
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/gtfs/Feed.h"
 #include "pfaedle/gtfs/StopTime.h"
-#include "pfaedle/router/TripTrie.h"
 
 using pfaedle::gtfs::Trip;
 using pfaedle::router::TripTrie;
 
 // _____________________________________________________________________________
-bool TripTrie::addTrip(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs,
+template <typename TRIP>
+bool TripTrie<TRIP>::addTrip(TRIP* trip, const RoutingAttrs& rAttrs,
                        bool timeEx, bool degen) {
   if (!degen) return add(trip, rAttrs, timeEx);
 
@@ -31,7 +31,8 @@ bool TripTrie::addTrip(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs,
 }
 
 // _____________________________________________________________________________
-bool TripTrie::add(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs,
+template <typename TRIP>
+bool TripTrie<TRIP>::add(TRIP* trip, const RoutingAttrs& rAttrs,
                    bool timeEx) {
   if (trip->getStopTimes().size() == 0) return false;
 
@@ -92,7 +93,8 @@ bool TripTrie::add(pfaedle::gtfs::Trip* trip, const RoutingAttrs& rAttrs,
 }
 
 // _____________________________________________________________________________
-size_t TripTrie::get(pfaedle::gtfs::Trip* trip, bool timeEx) {
+template <typename TRIP>
+size_t TripTrie<TRIP>::get(TRIP* trip, bool timeEx) {
   if (trip->getStopTimes().size() == 0) return false;
 
   int startSecs = trip->getStopTimes().front().getDepartureTime().seconds();
@@ -137,7 +139,8 @@ size_t TripTrie::get(pfaedle::gtfs::Trip* trip, bool timeEx) {
 }
 
 // _____________________________________________________________________________
-size_t TripTrie::insert(const ad::cppgtfs::gtfs::Stop* stop,
+template <typename TRIP>
+size_t TripTrie<TRIP>::insert(const ad::cppgtfs::gtfs::Stop* stop,
                         const RoutingAttrs& rAttrs, const POINT& pos, int time,
                         bool arr, size_t parent) {
   _nds.emplace_back(TripTrieNd{stop,
@@ -158,12 +161,14 @@ size_t TripTrie::insert(const ad::cppgtfs::gtfs::Stop* stop,
 }
 
 // _____________________________________________________________________________
-const std::vector<pfaedle::router::TripTrieNd>& TripTrie::getNds() const {
+template <typename TRIP>
+const std::vector<pfaedle::router::TripTrieNd>& TripTrie<TRIP>::getNds() const {
   return _nds;
 }
 
 // _____________________________________________________________________________
-size_t TripTrie::getMatchChild(size_t parentNid, const std::string& stopName,
+template <typename TRIP>
+size_t TripTrie<TRIP>::getMatchChild(size_t parentNid, const std::string& stopName,
                                const std::string& platform, POINT pos, int time,
                                bool timeEx) const {
   for (size_t child : _nds[parentNid].childs) {
@@ -179,7 +184,8 @@ size_t TripTrie::getMatchChild(size_t parentNid, const std::string& stopName,
 }
 
 // _____________________________________________________________________________
-void TripTrie::toDot(std::ostream& os, const std::string& rootName,
+template <typename TRIP>
+void TripTrie<TRIP>::toDot(std::ostream& os, const std::string& rootName,
                      size_t gid) const {
   os << "digraph triptrie" << gid << " {";
 
@@ -208,12 +214,14 @@ void TripTrie::toDot(std::ostream& os, const std::string& rootName,
 }
 
 // _____________________________________________________________________________
-const std::map<size_t, std::vector<pfaedle::gtfs::Trip*>>&
-TripTrie::getNdTrips() const {
+template <typename TRIP>
+const std::map<size_t, std::vector<TRIP*>>&
+TripTrie<TRIP>::getNdTrips() const {
   return _ndTrips;
 }
 
 // _____________________________________________________________________________
-const pfaedle::router::TripTrieNd& TripTrie::getNd(size_t nid) const {
+template <typename TRIP>
+const pfaedle::router::TripTrieNd& TripTrie<TRIP>::getNd(size_t nid) const {
   return _nds[nid];
 }

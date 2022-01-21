@@ -207,22 +207,34 @@ std::vector<LINE> Collector::segmentize(
 
   size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[0].second) -
                   dists.begin();
-  if (to >= dists.size()) to = dists.size() - 1;
-  double progr = (cuts[0].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
-  auto lastP = shape[to - 1];
-  lastP.setX(lastP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
-  lastP.setY(lastP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+
+  POINT lastP;
+  if (to >= dists.size()) {
+    lastP = shape.back();
+  } else if (to == 0) {
+    lastP = shape.front();
+  } else {
+    double progr = (cuts[0].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
+    auto lastP = shape[to - 1];
+    lastP.setX(lastP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
+    lastP.setY(lastP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+  }
 
   for (size_t i = 1; i < cuts.size(); i++) {
-
     size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[i].second) -
                     dists.begin();
-  if (to >= dists.size()) to = dists.size() - 1;
-    double progr = (cuts[i].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
-    // std::cout << t->getId() << ": " << dists[to] << " vs " << cuts[i].second << ", " << dists[to - 1] << " (" << progr << ")" << std::endl;
-    auto curP = shape[to - 1];
-    curP.setX(curP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
-    curP.setY(curP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+
+    POINT curP;
+    if (to >= dists.size()) {
+      curP = shape.back();
+    } else if (to == 0) {
+      curP = shape.front();
+    } else {
+      curP = shape[to - 1];
+      double progr = (cuts[i].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
+      curP.setX(curP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
+      curP.setY(curP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+    }
 
     auto curL = pl.getSegment(lastP, curP).getLine();
 

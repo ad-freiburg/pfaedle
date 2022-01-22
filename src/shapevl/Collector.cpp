@@ -286,6 +286,10 @@ void Collector::printShortStats(std::ostream* os) const {
               static_cast<double>(_results.size())) *
                  100
           << ",";
+    (*os) << (static_cast<double>(_an5) /
+              static_cast<double>(_results.size())) *
+                 100
+          << ",";
     (*os) << (static_cast<double>(_an10) /
               static_cast<double>(_results.size())) *
                  100
@@ -335,6 +339,12 @@ void Collector::printStats(std::ostream* os) const {
     (*os) << "\n";
     (*os) << "  an-0: "
           << (static_cast<double>(_an0) /
+              static_cast<double>(_results.size())) *
+                 100
+          << " %"
+          << "\n";
+    (*os) << "  an-5: "
+          << (static_cast<double>(_an5) /
               static_cast<double>(_results.size())) *
                  100
           << " %"
@@ -413,6 +423,8 @@ std::map<string, double> Collector::getStats() {
   }
   stats["an-0"] =
       (static_cast<double>(_an0) / static_cast<double>(_results.size())) * 100;
+  stats["an-5"] =
+      (static_cast<double>(_an5) / static_cast<double>(_results.size())) * 100;
   stats["an-10"] =
       (static_cast<double>(_an10) / static_cast<double>(_results.size())) * 100;
   stats["an-20"] =

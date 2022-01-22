@@ -27,8 +27,6 @@ using util::geo::output::GeoJsonOutput;
 double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
                       const Shape* newS) {
   // This adds a new trip with a new shape to our evaluation.
-  // if (oldT->getId() != "pse-a779ac00") return 0;
-
   _trips++;
 
   if (!oldS) {
@@ -213,7 +211,7 @@ std::vector<LINE> Collector::segmentize(
     lastP = shape.front();
   } else {
     double progr = (cuts[0] - dists[to - 1]) / (dists[to] - dists[to - 1]);
-    auto lastP = shape[to - 1];
+    lastP = shape[to - 1];
     lastP.setX(lastP.getX() + progr * (shape[to].getX() - shape[to-1].getX()));
     lastP.setY(lastP.getY() + progr * (shape[to].getY() - shape[to-1].getY()));
   }

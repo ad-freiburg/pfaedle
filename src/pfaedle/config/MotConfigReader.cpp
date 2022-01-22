@@ -267,12 +267,9 @@ void MotConfigReader::parse(const std::vector<std::string>& paths,
 
     if (p.hasKey(secStr, "osm_max_osm_station_distance")) {
       double ref = p.getDouble(secStr, "osm_max_osm_station_distance");
-      cfg.osmBuildOpts.maxOsmStationDistances.push_back(fmin(5, ref));
-      for (double i = 10; i < ref + 1; i += 10) {
-        cfg.osmBuildOpts.maxOsmStationDistances.push_back(i);
-      }
+      cfg.osmBuildOpts.maxOsmStationDistances.push_back(ref);
     } else {
-      cfg.osmBuildOpts.maxOsmStationDistances.push_back(5);
+      cfg.osmBuildOpts.maxOsmStationDistances.push_back(10);
     }
 
     if (p.hasKey(secStr, "osm_max_node_block_distance")) {

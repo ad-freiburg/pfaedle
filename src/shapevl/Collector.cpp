@@ -194,18 +194,16 @@ std::vector<LINE> Collector::segmentize(
   if (t->getStopTimes().size() < 2) return ret;
 
   POLYLINE pl(shape);
-  std::vector<std::pair<POINT, double>> cuts;
+  std::vector<double> cuts;
 
   size_t i = 0;
-  for (auto st : t->getStopTimes()) {
-    cuts.push_back(std::pair<POINT, double>(
-        {st.getStop()->getLng(), st.getStop()->getLat()},
-        st.getShapeDistanceTravelled()));
+  for (const auto& st : t->getStopTimes()) {
+    cuts.push_back(st.getShapeDistanceTravelled());
     i++;
   }
 
 
-  size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[0].second) -
+  size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[0]) -
                   dists.begin();
 
   POINT lastP;
@@ -214,14 +212,14 @@ std::vector<LINE> Collector::segmentize(
   } else if (to == 0) {
     lastP = shape.front();
   } else {
-    double progr = (cuts[0].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
+    double progr = (cuts[0] - dists[to - 1]) / (dists[to] - dists[to - 1]);
     auto lastP = shape[to - 1];
-    lastP.setX(lastP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
-    lastP.setY(lastP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+    lastP.setX(lastP.getX() + progr * (shape[to].getX() - shape[to-1].getX()));
+    lastP.setY(lastP.getY() + progr * (shape[to].getY() - shape[to-1].getY()));
   }
 
   for (size_t i = 1; i < cuts.size(); i++) {
-    size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[i].second) -
+    size_t to = std::upper_bound(dists.begin(), dists.end(), cuts[i]) -
                     dists.begin();
 
     POINT curP;
@@ -231,9 +229,9 @@ std::vector<LINE> Collector::segmentize(
       curP = shape.front();
     } else {
       curP = shape[to - 1];
-      double progr = (cuts[i].second - dists[to - 1]) / (dists[to] - dists[to - 1]);
-      curP.setX(curP.getX() + progr * util::geo::dist(shape[to-1], shape[to]));
-      curP.setY(curP.getY() + progr * util::geo::dist(shape[to-1], shape[to]));
+      double progr = (cuts[i] - dists[to - 1]) / (dists[to] - dists[to - 1]);
+      curP.setX(curP.getX() + progr * (shape[to].getX() - shape[to-1].getX()));
+      curP.setY(curP.getY() + progr * (shape[to].getY() - shape[to-1].getY()));
     }
 
     auto curL = pl.getSegment(lastP, curP).getLine();

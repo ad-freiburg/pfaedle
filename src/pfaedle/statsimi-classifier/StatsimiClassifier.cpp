@@ -12,7 +12,34 @@
 using pfaedle::statsimiclassifier::BTSClassifier;
 using pfaedle::statsimiclassifier::EDClassifier;
 using pfaedle::statsimiclassifier::JaccardClassifier;
+using pfaedle::statsimiclassifier::JaccardGeodistClassifier;
 using pfaedle::statsimiclassifier::PEDClassifier;
+
+// _____________________________________________________________________________
+bool JaccardGeodistClassifier::similar(const std::string& nameA,
+                                       const POINT& posA,
+                                       const std::string& nameB,
+                                       const POINT& posB) const {
+  const double THRES_M =
+      0.00815467271246994481;    // ln 2/85 from statsimi evaluation
+  const double THRES_JACC = .5;  // from statsimi evaluation
+
+  const double m = exp(-THRES_M * util::geo::haversine(posA, posB));
+  double jacc = util::jaccardSimi(nameA, nameB);
+
+  if (jacc > THRES_JACC)
+    jacc = .5 + (jacc - THRES_JACC) / (2.0 * (1.0 - THRES_JACC));
+  else
+    jacc = jacc / (2.0 * THRES_JACC);
+
+  return (m + jacc) / 2.0;
+}
+
+// _____________________________________________________________________________
+bool JaccardGeodistClassifier::similar(const std::string& nameA,
+                                       const std::string& nameB) const {
+  return util::jaccardSimi(nameA, nameB) > 0.45;  // 0.45 from statsimi paper
+}
 
 // _____________________________________________________________________________
 bool JaccardClassifier::similar(const std::string& nameA, const POINT& posA,

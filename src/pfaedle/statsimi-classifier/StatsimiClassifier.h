@@ -30,6 +30,14 @@ class JaccardClassifier : public StatsimiClassifier {
                        const std::string& nameB) const;
 };
 
+class JaccardGeodistClassifier : public StatsimiClassifier {
+ public:
+  virtual bool similar(const std::string& nameA, const POINT& posA,
+                       const std::string& nameB, const POINT& posB) const;
+  virtual bool similar(const std::string& nameA,
+                       const std::string& nameB) const;
+};
+
 class BTSClassifier : public StatsimiClassifier {
  public:
   virtual bool similar(const std::string& nameA, const POINT& posA,

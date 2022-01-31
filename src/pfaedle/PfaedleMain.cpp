@@ -61,6 +61,7 @@ using pfaedle::router::RouterImpl;
 using pfaedle::router::ShapeBuilder;
 using pfaedle::router::Stats;
 using pfaedle::statsimiclassifier::JaccardClassifier;
+using pfaedle::statsimiclassifier::JaccardGeodistClassifier;
 using pfaedle::statsimiclassifier::StatsimiClassifier;
 using pfaedle::statsimiclassifier::BTSClassifier;
 using pfaedle::statsimiclassifier::EDClassifier;
@@ -288,6 +289,8 @@ int main(int argc, char** argv) {
         statsimiClassifier = new BTSClassifier();
       } else if (motCfg.routingOpts.statsimiMethod == "jaccard") {
         statsimiClassifier = new JaccardClassifier();
+      } else if (motCfg.routingOpts.statsimiMethod == "jaccard-geodist") {
+        statsimiClassifier = new JaccardGeodistClassifier();
       } else if (motCfg.routingOpts.statsimiMethod == "ed") {
         statsimiClassifier = new EDClassifier();
       } else if (motCfg.routingOpts.statsimiMethod == "ped") {

@@ -65,7 +65,7 @@ void MotConfigReader::parse(const std::vector<std::string>& paths,
       cfg.routingOpts.statsimiMethod =
           p.getStr(secStr, "station_similarity_classification_method");
     } else {
-      cfg.routingOpts.statsimiMethod = "bts";
+      cfg.routingOpts.statsimiMethod = "jaccard-geodist";
     }
 
     if (p.hasKey(secStr, "routing_use_stations")) {

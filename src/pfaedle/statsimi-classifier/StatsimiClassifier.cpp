@@ -32,7 +32,7 @@ bool JaccardGeodistClassifier::similar(const std::string& nameA,
   else
     jacc = jacc / (2.0 * THRES_JACC);
 
-  return (m + jacc) / 2.0;
+  return ((m + jacc) / 2.0) > 0.5;
 }
 
 // _____________________________________________________________________________

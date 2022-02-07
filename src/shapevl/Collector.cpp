@@ -394,6 +394,8 @@ std::map<string, double> Collector::getStats() {
 
   if (_distDiffs.size()) {
     auto i = _distDiffs.begin() + _distDiffs.size() / 2;
+
+    // std::nth_element makes a partial sort of the first n elements
     std::nth_element(_distDiffs.begin(), i, _distDiffs.end());
 
     stats["median-dist-diff"] = *i;

@@ -14,7 +14,7 @@ Precise OpenStreetMap (OSM) map-matching for public transit schedules ([GTFS](ht
 ## Requirements
 
  * `cmake`
- * `gcc >= 4.9` (or `clang >= 3.9`)
+ * `gcc >= 5` (or `clang >= 3.9`)
 
 ## Building and Installation
 

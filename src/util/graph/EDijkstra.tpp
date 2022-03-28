@@ -47,7 +47,30 @@ C EDijkstra::shortestPathImpl(Edge<N, E>* from, const std::set<Node<N, E>*>& to,
 
 // _____________________________________________________________________________
 template <typename N, typename E, typename C>
-C EDijkstra::shortestPathImpl(const std::set<Edge<N, E>*> from,
+C EDijkstra::shortestPathImpl(const std::set<Node<N, E>*>& from,
+                              const std::set<Node<N, E>*>& to,
+                              const util::graph::CostFunc<N, E, C>& costFunc,
+                              const util::graph::HeurFunc<N, E, C>& heurFunc,
+                              EList<N, E>* resEdges, NList<N, E>* resNodes) {
+  std::set<Edge<N, E>*> frEs;
+  std::set<Edge<N, E>*> toEs;
+
+  for (auto n : from) {
+    frEs.insert(n->getAdjListIn().begin(), n->getAdjListIn().end());
+  }
+
+  for (auto n : to) {
+    toEs.insert(n->getAdjListIn().begin(), n->getAdjListIn().end());
+  }
+
+  C cost = shortestPathImpl(frEs, toEs, costFunc, heurFunc, resEdges, resNodes);
+
+  return cost;
+}
+
+// _____________________________________________________________________________
+template <typename N, typename E, typename C>
+C EDijkstra::shortestPathImpl(const std::set<Edge<N, E>*>& from,
                               const std::set<Edge<N, E>*>& to,
                               const util::graph::CostFunc<N, E, C>& costFunc,
                               const util::graph::HeurFunc<N, E, C>& heurFunc,

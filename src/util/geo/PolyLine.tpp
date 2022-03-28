@@ -188,9 +188,9 @@ PolyLine<T> PolyLine<T>::getSegment(const LinePoint<T>& start,
   ret << end.p;
 
   // find a more performant way to clear the result of above
-  // ret.simplify(0);
+  ret.simplify(0);
 
-  // assert(ret.getLine().size());
+  assert(ret.getLine().size());
 
   return ret;
 }
@@ -476,120 +476,6 @@ void PolyLine<T>::move(double vx, double vy) {
     _line[i].setX(_line[i].getX() + vx);
     _line[i].setY(_line[i].getY() + vy);
   }
-}
-
-// _____________________________________________________________________________
-template <typename T>
-SharedSegments<T> PolyLine<T>::getSharedSegments(const PolyLine<T>& pl,
-                                                 double dmax) const {
-  /**
-   * Returns the segments this polyline share with pl
-   * atm, this is a very simple distance-based algorithm
-   */
-  double STEP_SIZE = 2;
-  double MAX_SKIPS = 4;
-  double MIN_SEG_LENGTH = 0.1;  // dmax / 2;  // make this configurable!
-
-  SharedSegments<T> ret;
-
-  if (distTo(pl) > dmax) return ret;
-
-  bool in = false, single = true;
-  double curDist = 0;
-  double curTotalSegDist = 0;
-  size_t skips;
-
-  LinePoint<T> curStartCand, curEndCand, curStartCandCmp, curEndCandCmp;
-
-  double comp = 0, curSegDist = 0;
-  double length = getLength(), plLength = pl.getLength();
-
-  for (size_t i = 1; i < _line.size(); ++i) {
-    const Point<T>& s = _line[i - 1];
-    const Point<T>& e = _line[i];
-
-    bool lastRound = false;
-
-    double totalDist = dist(s, e);
-    while (curSegDist <= totalDist) {
-      const auto& curPointer = interpolate(s, e, curSegDist);
-
-      if (pl.distTo(curPointer) <= dmax) {
-        LinePoint<T> curCmpPointer = pl.projectOn(curPointer);
-        LinePoint<T> curBackProjectedPointer = projectOn(curCmpPointer.p);
-
-        skips = 0;
-
-        if (in) {
-          curEndCand = curBackProjectedPointer;
-          curEndCandCmp = curCmpPointer;
-
-          if (curEndCand.totalPos < curStartCand.totalPos) {
-            curEndCand = curStartCand;
-          }
-
-          single = false;
-
-          comp = fabs(curStartCand.totalPos * length -
-                      curEndCand.totalPos * length) /
-                 fabs(curStartCandCmp.totalPos * plLength -
-                      curEndCandCmp.totalPos * plLength);
-        } else {
-          in = true;
-          curStartCand = curBackProjectedPointer;
-          curStartCandCmp = curCmpPointer;
-        }
-      } else {
-        if (in) {
-          skips++;
-          if (skips > MAX_SKIPS) {  // TODO: make configurable
-            if (comp > 0.8 && comp < 1.2 && !single &&
-                (fabs(curStartCand.totalPos * length -
-                      curEndCand.totalPos * length) > MIN_SEG_LENGTH &&
-                 fabs(curStartCandCmp.totalPos * plLength -
-                      curEndCandCmp.totalPos * plLength) > MIN_SEG_LENGTH)) {
-              ret.segments.push_back(
-                  SharedSegment<T>(std::pair<LinePoint<T>, LinePoint<T>>(
-                                       curStartCand, curStartCandCmp),
-                                   std::pair<LinePoint<T>, LinePoint<T>>(
-                                       curEndCand, curEndCandCmp)));
-
-              // TODO: only return the FIRST one, make this configuralbe
-              return ret;
-            }
-
-            in = false;
-            single = true;
-          }
-        }
-      }
-
-      if (curSegDist + STEP_SIZE > totalDist && !lastRound) {
-        lastRound = true;
-        double finalStep = totalDist - curSegDist - 0.0005;
-        curSegDist += finalStep;
-        curDist += finalStep;
-      } else {
-        curSegDist += STEP_SIZE;
-        curDist += STEP_SIZE;
-      }
-    }
-
-    curSegDist = curSegDist - totalDist;
-    curTotalSegDist += totalDist;
-  }
-
-  if (comp > 0.8 && comp < 1.2 && in && !single &&
-      (fabs(curStartCand.totalPos * length - curEndCand.totalPos * length) >
-           MIN_SEG_LENGTH &&
-       fabs(curStartCandCmp.totalPos * plLength -
-            curEndCandCmp.totalPos * plLength) > MIN_SEG_LENGTH)) {
-    ret.segments.push_back(SharedSegment<T>(
-        std::pair<LinePoint<T>, LinePoint<T>>(curStartCand, curStartCandCmp),
-        std::pair<LinePoint<T>, LinePoint<T>>(curEndCand, curEndCandCmp)));
-  }
-
-  return ret;
 }
 
 // _____________________________________________________________________________

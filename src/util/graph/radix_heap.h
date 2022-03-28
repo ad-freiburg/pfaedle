@@ -128,7 +128,7 @@ class pair_radix_heap {
   void push(key_type key, const value_type &value) {
     unsigned_key_type x = encoder_type::encode(key);
     if (last_ > x) {
-      std::cerr << "Not monotone: " << last_ << " vs " << x << std::endl;
+      std::cerr << "PQ: not monotone: " << last_ << " vs " << x << std::endl;
       x = last_;
     }
     ++size_;
@@ -140,7 +140,7 @@ class pair_radix_heap {
   void push(key_type key, value_type &&value) {
     unsigned_key_type x = encoder_type::encode(key);
     if (last_ > x) {
-      std::cerr << "Not monotone: " << last_ << " vs " << x << std::endl;
+      std::cerr << "PQ: not monotone: " << last_ << " vs " << x << std::endl;
       x = last_;
     }
     ++size_;

@@ -71,8 +71,6 @@ class PolyLine {
   double distTo(const PolyLine<T>& g) const;
   double distTo(const Point<T>& p) const;
 
-  SharedSegments<T> getSharedSegments(const PolyLine<T>& pl, double dmax) const;
-
   double getLength() const;
 
   // return point at dist

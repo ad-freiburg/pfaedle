@@ -1843,7 +1843,6 @@ int main(int argc, char** argv) {
   TEST(geo::getWKT(geo::segment(DLine{{0, 0}, {0, 1}, {0, 2}}, 0.5, 1)), ==, "LINESTRING (0 1, 0 2)");
 }
 
-
   // inversion count
   std::vector<int> test = {2, 1};
   TEST(inversions(test), ==, 1);
@@ -1880,4 +1879,13 @@ int main(int argc, char** argv) {
 
   test = {9, 8, 7, 6, 5, 4, 3, 2, 1};
   TEST(inversions(test), ==, 8 + 7 + 6 + 5 + 4 + 3 + 2 + 1);
+
+  // nice float formatting
+	TEST(formatFloat(15.564, 3), ==, "15.564");
+	TEST(formatFloat(15.564, 0), ==, "16");
+	TEST(formatFloat(15.0000, 10), ==, "15");
+	TEST(formatFloat(15.0100, 10), ==, "15.01");
+	TEST(formatFloat(0.0000, 10), ==, "0");
+	TEST(formatFloat(-1.0000, 10), ==, "-1");
+	TEST(formatFloat(-15.000001, 10), ==, "-15.000001");
 }

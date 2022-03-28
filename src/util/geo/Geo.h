@@ -10,6 +10,7 @@
 #include <math.h>
 #include <algorithm>
 #include <cassert>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -743,6 +744,19 @@ inline double angBetween(const Point<T>& p1, const Point<T>& q1) {
 }
 
 // _____________________________________________________________________________
+template <typename T>
+inline double angBetween(const Point<T>& p1, const MultiPoint<T>& points) {
+  double sinSum = 0;
+  double cosSum = 0;
+  for (auto q1 : points) {
+    double a = angBetween(p1.getX(), p1.getY(), q1.getX(), q1.getY());
+    sinSum += sin(a);
+    cosSum += cos(a);
+  }
+  return atan2(sinSum / points.size(), cosSum / points.size());
+}
+
+// _____________________________________________________________________________
 inline double dist(double x1, double y1, double x2, double y2) {
   return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
@@ -932,19 +946,19 @@ inline Line<T> lineFromWKT(std::string wkt) {
 // _____________________________________________________________________________
 template <typename T>
 inline std::string getWKT(const Point<T>& p) {
-  std::stringstream ss;
-  ss << std::fixed << std::setprecision(6) << "POINT (" << p.getX() << " " << p.getY() << ")";
-  return ss.str();
+  return std::string("POINT (") + formatFloat(p.getX(), 6) + " " +
+         formatFloat(p.getY(), 6) + ")";
 }
 
 // _____________________________________________________________________________
 template <typename T>
 inline std::string getWKT(const std::vector<Point<T>>& p) {
   std::stringstream ss;
-  ss << std::fixed << std::setprecision(6) << "MULTIPOINT (";
+  ss << "MULTIPOINT (";
   for (size_t i = 0; i < p.size(); i++) {
     if (i) ss << ", ";
-    ss << "(" << p[i].getX() << " " << p[i].getY() << ")";
+    ss << "(" << formatFloat(p.getX(), 6) << " " << formatFloat(p.getY(), 6)
+       << ")";
   }
   ss << ")";
   return ss.str();
@@ -954,10 +968,10 @@ inline std::string getWKT(const std::vector<Point<T>>& p) {
 template <typename T>
 inline std::string getWKT(const Line<T>& l) {
   std::stringstream ss;
-  ss << std::fixed << std::setprecision(6) << "LINESTRING (";
+  ss << "LINESTRING (";
   for (size_t i = 0; i < l.size(); i++) {
     if (i) ss << ", ";
-    ss << l[i].getX() << " " << l[i].getY();
+    ss << formatFloat(l[i].getX(), 6) << " " << formatFloat(l[i].getY(), 6);
   }
   ss << ")";
   return ss.str();
@@ -967,14 +981,15 @@ inline std::string getWKT(const Line<T>& l) {
 template <typename T>
 inline std::string getWKT(const std::vector<Line<T>>& ls) {
   std::stringstream ss;
-  ss << std::fixed << std::setprecision(6) << "MULTILINESTRING (";
+  ss << "MULTILINESTRING (";
 
   for (size_t j = 0; j < ls.size(); j++) {
     if (j) ss << ", ";
     ss << "(";
     for (size_t i = 0; i < ls[j].size(); i++) {
       if (i) ss << ", ";
-      ss << ls[j][i].getX() << " " << ls[j][i].getY();
+      ss << formatFloat(ls[j][i].getX(), 6) << " "
+         << formatFloat(ls[j][i].getY(), 6);
     }
     ss << ")";
   }
@@ -994,11 +1009,16 @@ template <typename T>
 inline std::string getWKT(const Box<T>& l) {
   std::stringstream ss;
   ss << "POLYGON ((";
-  ss << l.getLowerLeft().getX() << " " << l.getLowerLeft().getY();
-  ss << ", " << l.getUpperRight().getX() << " " << l.getLowerLeft().getY();
-  ss << ", " << l.getUpperRight().getX() << " " << l.getUpperRight().getY();
-  ss << ", " << l.getLowerLeft().getX() << " " << l.getUpperRight().getY();
-  ss << ", " << l.getLowerLeft().getX() << " " << l.getLowerLeft().getY();
+  ss << formatFloat(l.getLowerLeft().getX(), 6) << " "
+     << formatFloat(l.getLowerLeft().getY(), 6);
+  ss << ", " << formatFloat(l.getUpperRight().getX(), 6) << " "
+     << formatFloat(l.getLowerLeft().getY(), 6);
+  ss << ", " << formatFloat(l.getUpperRight().getX(), 6) << " "
+     << formatFloat(l.getUpperRight().getY(), 6);
+  ss << ", " << formatFloat(l.getLowerLeft().getX(), 6) << " "
+     << formatFloat(l.getUpperRight().getY(), 6);
+  ss << ", " << formatFloat(l.getLowerLeft().getX(), 6) << " "
+     << formatFloat(l.getLowerLeft().getY(), 6);
   ss << "))";
   return ss.str();
 }
@@ -1009,9 +1029,11 @@ inline std::string getWKT(const Polygon<T>& p) {
   std::stringstream ss;
   ss << "POLYGON ((";
   for (size_t i = 0; i < p.getOuter().size(); i++) {
-    ss << p.getOuter()[i].getX() << " " << p.getOuter()[i].getY() << ", ";
+    ss << formatFloat(p.getOuter()[i].getX(), 6) << " "
+       << formatFloat(p.getOuter()[i].getY(), 6) << ", ";
   }
-  ss << p.getOuter().front().getX() << " " << p.getOuter().front().getY();
+  ss << formatFloat(p.getOuter().front().getX(), 6) << " "
+     << formatFloat(p.getOuter().front().getY(), 6);
   ss << "))";
   return ss.str();
 }
@@ -1026,11 +1048,11 @@ inline std::string getWKT(const std::vector<Polygon<T>>& ls) {
     if (j) ss << ", ";
     ss << "((";
     for (size_t i = 0; i < ls[j].getOuter().size(); i++) {
-      ss << ls[j].getOuter()[i].getX() << " " << ls[j].getOuter()[i].getY()
-         << ", ";
+      ss << formatFloat(ls[j].getOuter()[i].getX(), 6) << " "
+         << formatFloat(ls[j].getOuter()[i].getY(), 6) << ", ";
     }
-    ss << ls[j].getOuter().front().getX() << " "
-       << ls[j].getOuter().front().getY();
+    ss << formatFloat(ls[j].getOuter().front().getX(), 6) << " "
+       << formatFloat(ls[j].getOuter().front().getY(), 6);
     ss << "))";
   }
 
@@ -1224,7 +1246,8 @@ inline double parallelity(const Box<T>& box, const MultiLine<T>& multiline) {
 
 // _____________________________________________________________________________
 template <template <typename> class Geometry, typename T>
-inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
+inline RotatedBox<T> getOrientedEnvelope(std::vector<Geometry<T>> pol,
+                                         double step) {
   // TODO: implement this nicer, works for now, but inefficient
   // see
   // https://geidav.wordpress.com/tag/gift-wrapping/#fn-1057-FreemanShapira1975
@@ -1235,8 +1258,8 @@ inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
   double rotateDeg = 0;
 
   // rotate in 1 deg steps
-  for (int i = 1; i < 360; i += 1) {
-    pol = rotate(pol, 1, center);
+  for (double i = step; i < 360; i += step) {
+    pol = rotate(pol, step, center);
     Box<T> e = getBoundingBox(pol);
     if (area(tmpBox) > area(e)) {
       tmpBox = e;
@@ -1245,6 +1268,50 @@ inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
   }
 
   return RotatedBox<T>(tmpBox, -rotateDeg, center);
+}
+
+// _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline RotatedBox<T> getOrientedEnvelope(std::vector<Geometry<T>> pol) {
+  return getOrientedEnvelope(pol, 1);
+}
+
+// _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol, double step) {
+  std::vector<Geometry<T>> mult{pol};
+  return getOrientedEnvelope(mult, step);
+}
+
+// _____________________________________________________________________________
+template <template <typename> class Geometry, typename T>
+inline RotatedBox<T> getOrientedEnvelope(Geometry<T> pol) {
+  std::vector<Geometry<T>> mult{pol};
+  return getOrientedEnvelope(mult, 1);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Polygon<T> buffer(const Line<T>& line, double d, size_t points) {
+  // so far only works correctly if the input polygon is convex
+  MultiPoint<T> pSet;
+  for (const auto& p : line) {
+    Point<T> anchor{p.getX() + d, p.getY()};
+    double deg = 0;
+    pSet.push_back(p);
+    for (size_t i = 0; i < points; i++) {
+      pSet.push_back(rotate(anchor, deg, p));
+      deg += 360 / (1.0 * points);
+    }
+  }
+
+  return convexHull(pSet);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Polygon<T> buffer(const Polygon<T>& pol, double d, size_t points) {
+  return buffer(pol.getOuter(), d, points);
 }
 
 // _____________________________________________________________________________
@@ -1799,7 +1866,6 @@ inline double haversine(const Point<T>& a, const Point<T>& b) {
   return haversine(a.getY(), a.getX(), b.getY(), b.getX());
 }
 
-
 // _____________________________________________________________________________
 template <typename T>
 inline Line<T> densify(const Line<T>& l, double d) {
@@ -1963,8 +2029,8 @@ inline double accFrechetDistCHav(const Line<T>& a, const Line<T>& b, double d) {
 
   for (size_t i = 1; i < p.size(); i++) {
     for (size_t j = 1; j < q.size(); j++) {
-      float d =
-          util::geo::haversine(p[i], q[j]) * util::geo::haversine(p[i], p[i - 1]);
+      float d = util::geo::haversine(p[i], q[j]) *
+                util::geo::haversine(p[i], p[i - 1]);
       ca[i * q.size() + j] =
           d + std::min(ca[(i - 1) * q.size() + j],
                        std::min(ca[i * q.size() + (j - 1)],
@@ -2041,7 +2107,6 @@ inline double latLngLen(const Line<T>& g) {
   for (size_t i = 1; i < g.size(); i++) ret += haversine(g[i - 1], g[i]);
   return ret;
 }
-
 
 // _____________________________________________________________________________
 template <typename G>

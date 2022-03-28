@@ -9,8 +9,10 @@
 #include <cstring>
 #include <chrono>
 #include <sstream>
+#include <iomanip>
 #include <immintrin.h>
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <unistd.h>
 #include <sys/types.h>
@@ -112,6 +114,21 @@ inline bool isFloatingPoint(const std::string& str) {
   double f;
   ss >> std::noskipws >> f;
   return ss.eof() && ! ss.fail();
+}
+
+// _____________________________________________________________________________
+inline std::string formatFloat(double f, size_t digits) {
+  std::stringstream ss;
+  ss << std::fixed << std::setprecision(digits) << f;
+	std::string ret = ss.str();
+
+  if (ret.find('.') != std::string::npos) {
+		auto p = ret.find_last_not_of('0');
+    if (ret[p] == '.') return ret.substr(0, p);
+    return ret.substr(0, p + 1);
+  }
+
+  return ret;
 }
 
 // _____________________________________________________________________________

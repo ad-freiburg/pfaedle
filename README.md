@@ -10,11 +10,14 @@ Status](https://travis-ci.org/ad-freiburg/pfaedle.svg?branch=master)](https://tr
 # pfaedle
 
 Precise OpenStreetMap (OSM) map-matching for public transit schedules ([GTFS](https://developers.google.com/transit/gtfs/reference/) data).
+First described in [this 2018 SIGSPATIAL paper](http://ad-publications.informatik.uni-freiburg.de/SIGSPATIAL_Sparse%20map%20matching%202018.pdf). 
+
+For a quick visual inspection of the shape quality, see for example the schedule data for Germany or Switzerland in our tool [TRAVIC](https://travic.app/?z=7&x=1261608.6&y=6430601.6).
 
 ## Requirements
 
  * `cmake`
- * `gcc >= 5` (or `clang >= 3.9`)
+ * `gcc >= 5.0` (or `clang >= 3.9`)
 
 ## Building and Installation
 

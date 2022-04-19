@@ -88,7 +88,7 @@ docker run -i --rm \
 	# mount GTFS data
 	--volume /path/to/gtfs/data:/gtfs \
 	# tell pfaedle where to find the data
-	pfaedle -x /osm/osm-data.xml -i /gtfs
+	adfreiburg/pfaedle -x /osm/osm-data.xml -i /gtfs
 ```
 
 ## Debugging

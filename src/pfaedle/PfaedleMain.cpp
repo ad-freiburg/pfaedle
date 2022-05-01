@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
   srand(time(NULL) + rand());  // NOLINT
 
   // use utf8 locale
-  std::setlocale(LC_ALL, "en_US.utf8");
+  setlocale(LC_ALL, "en_US.utf8");
 
   T_START(total);
 

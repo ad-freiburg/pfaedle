@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
 	UNUSED(argc);
 	UNUSED(argv);
 
-  std::setlocale(LC_ALL, "en_US.utf8");
+  setlocale(LC_ALL, "en_US.utf8");
 
   QuadTreeTest quadTreeTest;
   quadTreeTest.run();

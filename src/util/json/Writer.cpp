@@ -111,7 +111,7 @@ void Writer::val(const Val& v) {
       val(Null());
       return;
     case Val::UINT:
-      val(v.ui);
+      val((int)v.ui);
       return;
     case Val::INT:
       val(v.i);

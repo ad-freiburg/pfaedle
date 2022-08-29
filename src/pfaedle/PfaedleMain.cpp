@@ -9,10 +9,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <clocale>
 #include <fstream>
 #include <map>
 #include <string>
 #include <vector>
+
 #include "ad/cppgtfs/Parser.h"
 #include "ad/cppgtfs/Writer.h"
 #include "pfaedle/config/ConfigReader.h"
@@ -60,12 +63,12 @@ using pfaedle::router::Router;
 using pfaedle::router::RouterImpl;
 using pfaedle::router::ShapeBuilder;
 using pfaedle::router::Stats;
-using pfaedle::statsimiclassifier::JaccardClassifier;
-using pfaedle::statsimiclassifier::JaccardGeodistClassifier;
-using pfaedle::statsimiclassifier::StatsimiClassifier;
 using pfaedle::statsimiclassifier::BTSClassifier;
 using pfaedle::statsimiclassifier::EDClassifier;
+using pfaedle::statsimiclassifier::JaccardClassifier;
+using pfaedle::statsimiclassifier::JaccardGeodistClassifier;
 using pfaedle::statsimiclassifier::PEDClassifier;
+using pfaedle::statsimiclassifier::StatsimiClassifier;
 
 enum class RetCode {
   SUCCESS = 0,

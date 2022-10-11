@@ -194,6 +194,23 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       }
     }
 
+    csvp = ip.getCsvParser("pathways.txt");
+    if (csvp->isGood()) {
+      curFile = getTmpFName(gtfsPath, ".pfaedle-tmp", "pathways.txt");
+      curFileTg = gtfsPath + "/pathways.txt";
+      fs.open(curFile.c_str());
+      if (!fs.good()) cannotWrite(curFile, curFileTg);
+      writePathways(sourceFeed, &fs);
+      fs.close();
+
+      if (toZip) {
+        moveIntoZip(za, curFile, "pathways.txt");
+      } else {
+        if (std::rename(curFile.c_str(), curFileTg.c_str()))
+          cannotWrite(curFileTg);
+      }
+    }
+
     csvp = ip.getCsvParser("levels.txt");
     if (csvp->isGood()) {
       curFile = getTmpFName(gtfsPath, ".pfaedle-tmp", "levels.txt");
@@ -318,6 +335,23 @@ void Writer::writeFeedInfo(gtfs::Feed* f, std::ostream* os) const {
     csvw->skip();
   csvw->writeString(f->getVersion());
   csvw->flushLine();
+}
+
+// ____________________________________________________________________________
+void Writer::writePathways(gtfs::Feed* sourceFeed, std::ostream* os) const {
+  Parser p(sourceFeed->getPath());
+  auto csvp = p.getCsvParser("pathways.txt");
+  ad::cppgtfs::Writer w;
+
+  auto csvw = ad::cppgtfs::Writer::getPathwayCsvw(os);
+  csvw->flushLine();
+
+  ad::cppgtfs::gtfs::flat::Pathway fa;
+  auto flds = Parser::getPathwayFlds(csvp.get());
+
+  while (p.nextPathway(csvp.get(), &fa, flds)) {
+    w.writePathway(fa, csvw.get());
+  }
 }
 
 // ____________________________________________________________________________

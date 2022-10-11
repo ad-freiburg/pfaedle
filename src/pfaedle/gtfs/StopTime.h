@@ -26,12 +26,15 @@ class StopTime {
            typename StopT::Ref s, uint32_t seq, const std::string& hs,
            ad::cppgtfs::gtfs::flat::StopTime::PU_DO_TYPE put,
            ad::cppgtfs::gtfs::flat::StopTime::PU_DO_TYPE dot, float distTrav,
-           bool isTp)
+           bool isTp, uint8_t continuousDropOff,
+           uint8_t continuousPickup)
       : _s(s), _sequence(seq), _dist(distTrav), _at(at), _dt(dt), _isTp(isTp) {
     UNUSED(hs);
     UNUSED(put);
     UNUSED(dot);
     UNUSED(distTrav);
+    UNUSED(continuousDropOff);
+    UNUSED(continuousPickup);
   }
 
   const typename StopT::Ref getStop() const { return _s; }

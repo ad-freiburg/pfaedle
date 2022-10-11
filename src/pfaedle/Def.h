@@ -31,33 +31,4 @@
 
 #define BOX_PADDING 2500
 
-namespace pfaedle {
-
-// _____________________________________________________________________________
-inline std::string getTmpFName(std::string dir, std::string postf) {
-  if (postf.size()) postf = "-" + postf;
-  if (!dir.size()) dir = util::getTmpDir();
-  if (dir.size() && dir.back() != '/') dir = dir + "/";
-
-  std::string f = dir + ".pfaedle-tmp" + postf;
-
-  size_t c = 0;
-
-  while (access(f.c_str(), F_OK) != -1) {
-    c++;
-    if (c > 10000) {
-      // giving up...
-      LOG(ERROR) << "Could not find temporary file name!";
-      exit(1);
-    }
-    std::stringstream ss;
-    ss << dir << ".pfaedle-tmp" << postf << "-" << std::rand();
-    f = ss.str().c_str();
-  }
-
-  return f;
-}
-
-}  // namespace pfaedle
-
 #endif  // PFAEDLE_DEF_H_

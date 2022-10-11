@@ -135,8 +135,8 @@ int main(int argc, char** argv) {
     if (!cfg.writeOverpass && !cfg.writeOsmfilter)
       LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[0] << " ...";
     try {
-      ad::cppgtfs::Parser p;
-      p.parse(&gtfs[0], cfg.feedPaths[0]);
+      ad::cppgtfs::Parser p(cfg.feedPaths[0]);
+      p.parse(&gtfs[0]);
     } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
       std::cerr << ex.what() << std::endl;
@@ -146,9 +146,9 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       if (!cfg.writeOverpass && !cfg.writeOsmfilter)
         LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[i] << " ...";
-      ad::cppgtfs::Parser p;
       try {
-        p.parse(&gtfs[i], cfg.feedPaths[i]);
+        ad::cppgtfs::Parser p(cfg.feedPaths[i]);
+        p.parse(&gtfs[i]);
       } catch (const ad::cppgtfs::ParserException& ex) {
         LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
         std::cerr << ex.what() << std::endl;
@@ -427,7 +427,6 @@ int main(int argc, char** argv) {
 
   if (cfg.feedPaths.size()) {
     try {
-      mkdir(cfg.outputPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       LOG(INFO) << "Writing output GTFS to " << cfg.outputPath << " ...";
       pfaedle::gtfs::Writer w;
       w.write(&gtfs[0], cfg.outputPath);

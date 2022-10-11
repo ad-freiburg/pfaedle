@@ -8,7 +8,7 @@
 // ____________________________________________________________________________
 template <typename T>
 ShapeContainer<T>::ShapeContainer() : _lastBuff(0) {
-  std::string f = pfaedle::getTmpFName("", "");
+  std::string f = util::getTmpFName("<tmp>", ".pfaedle-tmp", "");
   _storage.open(f, std::fstream::in | std::fstream::out | std::fstream::trunc);
 
   // immediately unlink

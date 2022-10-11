@@ -306,7 +306,7 @@ uint32_t OsmIdSet::jenkins(uint32_t in) const {
 
 // _____________________________________________________________________________
 int OsmIdSet::openTmpFile() const {
-  const std::string& fname = getTmpFName("", "");
+  const std::string& fname = util::getTmpFName("<tmp>", ".pfaedle-tmp", "");
   int file = open(fname.c_str(), O_RDWR | O_CREAT, 0666);
 
   // immediately unlink

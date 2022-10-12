@@ -6,6 +6,8 @@ list(REMOVE_ITEM pfaedle_SRC ${pfaedle_main})
 
 include_directories(
 	${PFAEDLE_INCLUDE_DIR}
+	SYSTEM ${LIBZIP_INCLUDE_DIR}
+	SYSTEM ${LIBZIP_CONF_INCLUDE_DIR}
 )
 
 configure_file (

@@ -7,6 +7,9 @@
 
 #include <memory>
 #include <string>
+#ifdef LIBZIP_FOUND
+#include <zip.h>
+#endif
 
 #include "Feed.h"
 #include "ad/cppgtfs/Parser.h"
@@ -41,8 +44,10 @@ class Writer {
   static void cannotWrite(const std::string& file, const std::string& file2);
   static void cannotWrite(const std::string& file);
 
+#ifdef LIBZIP_FOUND
   static void moveIntoZip(zip* za, const std::string& sourcePath,
                           const std::string& targetPath);
+#endif
 
   mutable std::ifstream _ifs;
 };

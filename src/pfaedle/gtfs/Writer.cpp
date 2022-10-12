@@ -3,7 +3,10 @@
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
 #include <stdio.h>
+
+#ifdef LIBZIP_FOUND
 #include <zip.h>
+#endif
 
 #include <cstdio>
 #include <fstream>
@@ -20,7 +23,9 @@
 
 using ad::cppgtfs::Parser;
 using ad::util::CsvWriter;
+#ifdef LIBZIP_FOUND
 using ad::util::ZipCsvParser;
+#endif
 using pfaedle::gtfs::Writer;
 using util::getTmpFName;
 
@@ -39,6 +44,7 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
 
   if (gtfsPath.size() == 0) gtfsPath = ".";
 
+#ifdef LIBZIP_FOUND
   zip* za = 0;
 
   if (toZip) {
@@ -65,6 +71,11 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
          << ") Could not open ZIP file, reason was: " << errBuf;
       throw ad::cppgtfs::WriterException(ss.str(), tmpZip);
     }
+#else
+  if (toZip) {
+    throw ad::cppgtfs::WriterException(
+        "Could not output ZIP file, pfaedle was compiled without libzip", path);
+#endif
   } else {
     mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   }
@@ -80,7 +91,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "agency.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -94,7 +107,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "stops.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -108,7 +123,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "routes.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -123,7 +140,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       writeCalendar(sourceFeed, &fs);
       fs.close();
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "calendar.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -139,7 +158,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       writeCalendarDates(sourceFeed, &fs);
       fs.close();
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "calendar_dates.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -155,7 +176,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       writeTransfers(sourceFeed, &fs);
       fs.close();
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "transfers.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -171,7 +194,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       writeFares(sourceFeed, &fs);
       fs.close();
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "fare_attributes.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -187,7 +212,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       writeFareRules(sourceFeed, &fs);
       fs.close();
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "fare_rules.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -204,7 +231,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       fs.close();
 
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "pathways.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -221,7 +250,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       fs.close();
 
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "levels.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -236,7 +267,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "shapes.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -250,7 +283,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "trips.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -266,7 +301,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       fs.close();
 
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "frequencies.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
@@ -282,7 +319,9 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     fs.close();
 
     if (toZip) {
+#ifdef LIBZIP_FOUND
       moveIntoZip(za, curFile, "stop_times.txt");
+#endif
     } else {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
@@ -298,23 +337,29 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       fs.close();
 
       if (toZip) {
+#ifdef LIBZIP_FOUND
         moveIntoZip(za, curFile, "feed_info.txt");
+#endif
       } else {
         if (std::rename(curFile.c_str(), curFileTg.c_str()))
           cannotWrite(curFileTg);
       }
     }
   } catch (...) {
+#ifdef LIBZIP_FOUND
     zip_discard(za);
+#endif
     throw;
   }
 
   if (toZip) {
+#ifdef LIBZIP_FOUND
     std::string targetZipPath = gtfsPath + "/" + zipFileName;
     if (!za) cannotWrite(targetZipPath);
     zip_close(za);
     if (std::rename(tmpZip.c_str(), targetZipPath.c_str()))
       cannotWrite(targetZipPath);
+#endif
   }
 }
 
@@ -334,6 +379,9 @@ void Writer::writeFeedInfo(gtfs::Feed* f, std::ostream* os) const {
   else
     csvw->skip();
   csvw->writeString(f->getVersion());
+  csvw->writeString(f->getContactEmail());
+  csvw->writeString(f->getContactUrl());
+  csvw->writeString(f->getDefaultLang());
   csvw->flushLine();
 }
 
@@ -619,6 +667,7 @@ void Writer::cannotWrite(const std::string& file, const std::string& file2) {
 }
 
 // ___________________________________________________________________________
+#ifdef LIBZIP_FOUND
 void Writer::moveIntoZip(zip* za, const std::string& sourcePath,
                          const std::string& targetPath) {
   zip_source_t* s;
@@ -638,3 +687,4 @@ void Writer::moveIntoZip(zip* za, const std::string& sourcePath,
     cannotWrite(targetPath);
   }
 }
+#endif

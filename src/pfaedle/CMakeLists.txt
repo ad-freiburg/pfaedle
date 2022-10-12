@@ -17,6 +17,6 @@ add_executable(pfaedle ${pfaedle_main})
 add_library(pfaedle_dep ${pfaedle_SRC})
 
 include_directories(pfaedle_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
-target_link_libraries(pfaedle pfaedle_dep util configparser ad_cppgtfs -lpthread)
+target_link_libraries(pfaedle pfaedle_dep util configparser ad_cppgtfs -lpthread ${LIBZIP_LIBRARY})
 
 add_subdirectory(tests)

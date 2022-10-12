@@ -47,10 +47,10 @@ void eval(const std::vector<std::string>* paths,
     std::string path = (*paths)[myFeed];
     LOG(DEBUG) << "Reading eval feed " << path << " ...";
     ad::cppgtfs::gtfs::Feed feed;
-    ad::cppgtfs::Parser p;
 
     try {
-      p.parse(&feed, path);
+      ad::cppgtfs::Parser p(path);
+      p.parse(&feed);
     } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse GTFS feed " << path << ", reason was:";
       std::cerr << ex.what() << std::endl;
@@ -204,8 +204,8 @@ int main(int argc, char** argv) {
 
   try {
     LOG(DEBUG) << "Reading ground truth feed" << groundTruthFeedPath << " ...";
-    ad::cppgtfs::Parser p;
-    p.parse(&groundTruthFeed, groundTruthFeedPath);
+    ad::cppgtfs::Parser p(groundTruthFeedPath);
+    p.parse(&groundTruthFeed);
   } catch (const ad::cppgtfs::ParserException& ex) {
     LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
     std::cerr << ex.what() << std::endl;

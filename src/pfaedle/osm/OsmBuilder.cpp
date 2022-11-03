@@ -3,6 +3,7 @@
 // Authors: Patrick Brosi <brosi@informatik.uni-freiburg.de>
 
 #include <float.h>
+
 #include <algorithm>
 #include <exception>
 #include <iostream>
@@ -12,7 +13,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+
 #include "pfaedle/Def.h"
+#include "pfaedle/_config.h"
 #include "pfaedle/osm/BBoxIdx.h"
 #include "pfaedle/osm/Osm.h"
 #include "pfaedle/osm/OsmBuilder.h"
@@ -185,8 +188,8 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
 // _____________________________________________________________________________
 void OsmBuilder::osmfilterRuleWrite(std::ostream* out,
-                                  const std::vector<OsmReadOpts>& opts,
-                                  const BBoxIdx& latLngBox) const {
+                                    const std::vector<OsmReadOpts>& opts,
+                                    const BBoxIdx& latLngBox) const {
   UNUSED(latLngBox);
   OsmIdSet bboxNodes, noHupNodes;
   MultAttrMap emptyF;
@@ -313,7 +316,7 @@ void OsmBuilder::overpassQryWrite(std::ostream* out,
 // _____________________________________________________________________________
 void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
                              const std::vector<OsmReadOpts>& opts,
-                             const BBoxIdx& latLngBox) {
+                             const BBoxIdx& box) {
   OsmIdSet bboxNodes, noHupNodes;
   MultAttrMap emptyF;
 
@@ -333,10 +336,56 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
   std::ofstream outstr;
   outstr.open(out);
 
+  BBoxIdx latLngBox = box;
+
+  if (latLngBox.size() == 0) {
+    skipUntil(&xml, "bounds");
+
+    const pfxml::tag& cur = xml.get();
+
+    if (strcmp(cur.name, "bounds") != 0) {
+      throw pfxml::parse_exc(
+          std::string("Could not find required <bounds> tag"), in, 0, 0, 0);
+    }
+
+    if (!cur.attr("minlat")) {
+      throw pfxml::parse_exc(
+          std::string(
+              "Could not find required attribute \"minlat\" for  <bounds> tag"),
+          in, 0, 0, 0);
+    }
+    if (!cur.attr("minlon")) {
+      throw pfxml::parse_exc(
+          std::string(
+              "Could not find required attribute \"minlon\" for  <bounds> tag"),
+          in, 0, 0, 0);
+    }
+    if (!cur.attr("maxlat")) {
+      throw pfxml::parse_exc(
+          std::string(
+              "Could not find required attribute \"maxlat\" for  <bounds> tag"),
+          in, 0, 0, 0);
+    }
+    if (!cur.attr("maxlon")) {
+      throw pfxml::parse_exc(
+          std::string(
+              "Could not find required attribute \"maxlon\" for  <bounds> tag"),
+          in, 0, 0, 0);
+    }
+
+    double minlat = atof(cur.attr("minlat"));
+    double minlon = atof(cur.attr("minlon"));
+    double maxlat = atof(cur.attr("maxlat"));
+    double maxlon = atof(cur.attr("maxlon"));
+
+    latLngBox.add(Box<double>({minlon, minlat}, {maxlon, maxlat}));
+  }
+
   util::xml::XmlWriter wr(&outstr, true, 4);
 
   outstr << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-  wr.openTag("osm");
+  wr.openTag("osm", {{"version", "0.6"},
+                     {"generator", std::string("pfaedle/") + VERSION_FULL}});
   wr.openTag(
       "bounds",
       {{"minlat", std::to_string(latLngBox.getFullBox().getLowerLeft().getY())},

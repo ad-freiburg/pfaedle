@@ -351,25 +351,25 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
     if (!cur.attr("minlat")) {
       throw pfxml::parse_exc(
           std::string(
-              "Could not find required attribute \"minlat\" for  <bounds> tag"),
+              "Could not find required attribute \"minlat\" for <bounds> tag"),
           in, 0, 0, 0);
     }
     if (!cur.attr("minlon")) {
       throw pfxml::parse_exc(
           std::string(
-              "Could not find required attribute \"minlon\" for  <bounds> tag"),
+              "Could not find required attribute \"minlon\" for <bounds> tag"),
           in, 0, 0, 0);
     }
     if (!cur.attr("maxlat")) {
       throw pfxml::parse_exc(
           std::string(
-              "Could not find required attribute \"maxlat\" for  <bounds> tag"),
+              "Could not find required attribute \"maxlat\" for <bounds> tag"),
           in, 0, 0, 0);
     }
     if (!cur.attr("maxlon")) {
       throw pfxml::parse_exc(
           std::string(
-              "Could not find required attribute \"maxlon\" for  <bounds> tag"),
+              "Could not find required attribute \"maxlon\" for <bounds> tag"),
           in, 0, 0, 0);
     }
 

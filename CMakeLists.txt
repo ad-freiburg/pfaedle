@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 project (pfaedle)
+include(cmake/pkg.cmake)
 
 if (CMAKE_BUILD_TYPE)
 	string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)

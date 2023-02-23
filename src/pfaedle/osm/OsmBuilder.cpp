@@ -24,7 +24,7 @@
 #include "util/Misc.h"
 #include "util/Nullable.h"
 #include "util/log/Log.h"
-#include "xml/pfxml.h"
+#include "pfxml/pfxml.h"
 
 using ad::cppgtfs::gtfs::Stop;
 using pfaedle::osm::BlockSearch;

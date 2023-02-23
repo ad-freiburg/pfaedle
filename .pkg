@@ -1,0 +1,9 @@
+[cppgtfs]
+    url=git@github.com:vesavlad/cppgtfs.git
+    branch=add-propper-cmake-project-definition
+    commit=69dcdbf392b30777dbfc943c6ca512f33df8eac6
+
+[pfxml]
+    url=git@github.com:patrickbr/pfxml.git
+    branch=master
+    commit=c7202d1435b6a4d460fc38b59ca131620b204c4f

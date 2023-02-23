@@ -25,7 +25,7 @@
 #include "util/Nullable.h"
 #include "util/geo/Geo.h"
 #include "util/xml/XmlWriter.h"
-#include "xml/pfxml.h"
+#include "pfxml/pfxml.h"
 
 namespace pfaedle {
 namespace osm {

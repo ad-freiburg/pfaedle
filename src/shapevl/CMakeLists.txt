@@ -12,6 +12,7 @@ include_directories(
 
 add_executable(shapevl ${shapevl_main})
 add_library(shapevl_dep ${shapevl_SRC})
+target_link_libraries(shapevl_dep PUBLIC ad_cppgtfs)
 
 include_directories(shapevl_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
-target_link_libraries(shapevl shapevl_dep util ad_cppgtfs -lpthread ${LIBZIP_LIBRARY})
+target_link_libraries(shapevl shapevl_dep util -lpthread ${LIBZIP_LIBRARY})

@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 project (pfaedle)
+include(cmake/pkg.cmake)
 
 if (CMAKE_BUILD_TYPE)
 	string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
@@ -61,14 +62,6 @@ if ("${VERSION_GIT_IS_DIRTY}" STREQUAL "")
 	set(VERSION_GIT_FULL "${VERSION_GIT}")
 else()
 	set(VERSION_GIT_FULL "${VERSION_GIT}-${VERSION_GIT_IS_DIRTY}")
-endif()
-
-# Download submodules if needed
-
-if(NOT EXISTS ${CMAKE_SOURCE_DIR}/src/configparser/.git OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/cppgtfs/.git OR NOT EXISTS ${CMAKE_SOURCE_DIR}/src/xml/.git)
-    execute_process(
-        COMMAND git submodule update --init --recursive
-    )
 endif()
 
 add_subdirectory(src)

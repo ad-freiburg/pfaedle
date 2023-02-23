@@ -1,9 +1,0 @@
-[submodule "src/cppgtfs"]
-	path = src/cppgtfs
-	url = https://github.com/ad-freiburg/cppgtfs.git
-[submodule "src/xml"]
-	path = src/xml
-	url = https://github.com/patrickbr/pfxml.git
-[submodule "src/configparser"]
-	path = src/configparser
-	url = https://git.patrickbrosi.de/patrick/configparser

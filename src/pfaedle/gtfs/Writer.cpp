@@ -18,7 +18,7 @@
 #include "ad/cppgtfs/Parser.h"
 #include "ad/cppgtfs/Writer.h"
 #include "ad/cppgtfs/gtfs/flat/Agency.h"
-#include "ad/util/CsvWriter.h"
+#include "ad/cppgtfs/util/CsvWriter.h"
 #include "pfaedle/gtfs/Writer.h"
 
 using ad::cppgtfs::Parser;

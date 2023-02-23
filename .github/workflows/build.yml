@@ -7,8 +7,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake g++-5 gcc-5
       - name: cmake
@@ -26,8 +24,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake gcc g++
       - name: cmake
@@ -41,8 +37,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake gcc g++
       - name: cmake
@@ -56,8 +50,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake clang-3.9
       - name: cmake
@@ -75,8 +67,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake clang
       - name: cmake
@@ -94,8 +84,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: sudo apt install -y cmake clang
       - name: cmake
@@ -113,8 +101,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: brew install cmake
       - name: cmake
@@ -128,8 +114,6 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
-      - name: Checkout submodules
-        run: git submodule update --init --recursive
       - name: install dependencies
         run: brew install cmake
       - name: cmake

@@ -10,5 +10,4 @@ include_directories(
 
 add_subdirectory(util)
 add_subdirectory(pfaedle)
-add_subdirectory(configparser)
 add_subdirectory(shapevl)

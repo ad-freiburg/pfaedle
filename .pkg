@@ -3,6 +3,11 @@
     branch=add-propper-cmake-project-definition
     commit=69dcdbf392b30777dbfc943c6ca512f33df8eac6
 
+[config-parser]
+    url=git@github.com:vesavlad/config-parser.git
+    branch=master
+    commit=f96586a5522312fc4d1d8aa67cc5b7ec9039a825
+
 [pfxml]
     url=git@github.com:patrickbr/pfxml.git
     branch=master

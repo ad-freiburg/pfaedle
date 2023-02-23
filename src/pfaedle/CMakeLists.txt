@@ -17,7 +17,7 @@ configure_file (
 
 add_executable(pfaedle ${pfaedle_main})
 add_library(pfaedle_dep ${pfaedle_SRC})
-target_link_libraries(pfaedle_dep PRIVATE ad_cppgtfs pfxml)
+target_link_libraries(pfaedle_dep PRIVATE ad_cppgtfs pfxml configparser)
 
 include_directories(pfaedle_dep PUBLIC ${PROJECT_SOURCE_DIR}/src/cppgtfs/src)
 target_link_libraries(pfaedle pfaedle_dep util configparser -lpthread ${LIBZIP_LIBRARY})

@@ -1,3 +1,0 @@
-[submodule "src/configparser"]
-	path = src/configparser
-	url = https://git.patrickbrosi.de/patrick/configparser

@@ -442,8 +442,25 @@ int main(int argc, char** argv) {
 
 // _____________________________________________________________________________
 std::string getFileNameMotStr(const MOTs& mots) {
+  MOTs tmp = mots;
   std::string motStr;
-  for (const auto& mot : mots) {
+
+  std::string names[11] = {"tram",  "subway",     "rail",    "bus",
+                           "ferry", "cablecar",   "gondola", "funicular",
+                           "coach", "trolleybus", "monorail"};
+
+  for (const auto& n : names) {
+    const auto& types = ad::cppgtfs::gtfs::flat::Route::getTypesFromString(n);
+    const auto& isect = pfaedle::router::motISect(tmp, types);
+
+    if (isect.size() == types.size()) {
+      if (motStr.size()) motStr += "-";
+      motStr += n;
+      for (const auto& mot : isect) tmp.erase(mot);
+    }
+  }
+
+  for (const auto& mot : tmp) {
     if (motStr.size()) motStr += "-";
     motStr += ad::cppgtfs::gtfs::flat::Route::getTypeString(mot);
   }

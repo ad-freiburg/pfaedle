@@ -63,7 +63,7 @@ $ pfaedle -D -x freiburg-regbez-latest.osm VAGFR.zip
 
 To generate shapes for a specific mot only, use the `-m` option. Possible
 values are either `tram`, `bus`, `coach`, `rail`, `subway`, `ferry`, `funicular`,
-`gondola`, `all` (default) or GTFS vehicle type codes (0, 1, 2, 3, 4, 5, 6, 7).
+`gondola`, `all` (default) or GTFS route type codes (0, 1, 2, 3, 4, 5, 6, 7, or [extended route types](https://developers.google.com/transit/gtfs/reference/extended-route-types)). Integer codes will only match the specific route type, while string codes will match classes of route types. For example, `-m 101` will only match routes with `route_type` `101` (high speed rail), while `-m rail` will match any rail service encoded via a standard `route_type` `2` or an extended `route_type` describing a rail service (e.g. `100`, `101`, `102`, ...).
 
 Multiple values can be specified (comma separated).
 

@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <vector>
+
 #include "TripTrie.h"
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/gtfs/Feed.h"
@@ -16,7 +17,7 @@ using pfaedle::router::TripTrie;
 // _____________________________________________________________________________
 template <typename TRIP>
 bool TripTrie<TRIP>::addTrip(TRIP* trip, const RoutingAttrs& rAttrs,
-                       bool timeEx, bool degen) {
+                             bool timeEx, bool degen) {
   if (!degen) return add(trip, rAttrs, timeEx);
 
   // check if trip is already fully and uniquely contained, if not, fail
@@ -32,11 +33,14 @@ bool TripTrie<TRIP>::addTrip(TRIP* trip, const RoutingAttrs& rAttrs,
 
 // _____________________________________________________________________________
 template <typename TRIP>
-bool TripTrie<TRIP>::add(TRIP* trip, const RoutingAttrs& rAttrs,
-                   bool timeEx) {
+bool TripTrie<TRIP>::add(TRIP* trip, const RoutingAttrs& rAttrs, bool timeEx) {
   if (trip->getStopTimes().size() == 0) return false;
 
-  int startSecs = trip->getStopTimes().front().getDepartureTime().seconds();
+  int startSecs = 0;
+
+  if (!trip->getStopTimes().front().getDepartureTime().empty()) {
+    startSecs = trip->getStopTimes().front().getDepartureTime().seconds();
+  }
 
   size_t curNdId = 0;
   for (size_t stId = 0; stId < trip->getStopTimes().size(); stId++) {
@@ -48,7 +52,11 @@ bool TripTrie<TRIP>::add(TRIP* trip, const RoutingAttrs& rAttrs,
                                                       st.getStop()->getLng());
 
     if (stId > 0) {
-      int arrTime = st.getArrivalTime().seconds() - startSecs;
+      int arrTime = startSecs;
+
+      if (!st.getArrivalTime().empty()) {
+        arrTime = st.getArrivalTime().seconds() - startSecs;
+      }
 
       size_t arrChild =
           getMatchChild(curNdId, name, platform, pos, arrTime, timeEx);
@@ -66,7 +74,11 @@ bool TripTrie<TRIP>::add(TRIP* trip, const RoutingAttrs& rAttrs,
     }
 
     if (stId < trip->getStopTimes().size() - 1) {
-      int depTime = st.getDepartureTime().seconds() - startSecs;
+      int depTime = startSecs;
+
+      if (!st.getDepartureTime().empty()) {
+        depTime = st.getDepartureTime().seconds() - startSecs;
+      }
 
       size_t depChild =
           getMatchChild(curNdId, name, platform, pos, depTime, timeEx);
@@ -109,7 +121,11 @@ size_t TripTrie<TRIP>::get(TRIP* trip, bool timeEx) {
                                                       st.getStop()->getLng());
 
     if (stId > 0) {
-      int arrTime = st.getArrivalTime().seconds() - startSecs;
+      int arrTime = startSecs;
+
+      if (!st.getArrivalTime().empty()) {
+        arrTime = st.getArrivalTime().seconds() - startSecs;
+      }
 
       size_t arrChild =
           getMatchChild(curNdId, name, platform, pos, arrTime, timeEx);
@@ -122,7 +138,11 @@ size_t TripTrie<TRIP>::get(TRIP* trip, bool timeEx) {
     }
 
     if (stId < trip->getStopTimes().size() - 1) {
-      int depTime = st.getDepartureTime().seconds() - startSecs;
+      int depTime = startSecs;
+
+      if (!st.getDepartureTime().empty()) {
+        depTime = st.getDepartureTime().seconds() - startSecs;
+      }
 
       size_t depChild =
           getMatchChild(curNdId, name, platform, pos, depTime, timeEx);
@@ -141,8 +161,8 @@ size_t TripTrie<TRIP>::get(TRIP* trip, bool timeEx) {
 // _____________________________________________________________________________
 template <typename TRIP>
 size_t TripTrie<TRIP>::insert(const ad::cppgtfs::gtfs::Stop* stop,
-                        const RoutingAttrs& rAttrs, const POINT& pos, int time,
-                        bool arr, size_t parent) {
+                              const RoutingAttrs& rAttrs, const POINT& pos,
+                              int time, bool arr, size_t parent) {
   _nds.emplace_back(TripTrieNd{stop,
                                stop->getName(),
                                stop->getPlatformCode(),
@@ -168,9 +188,10 @@ const std::vector<pfaedle::router::TripTrieNd>& TripTrie<TRIP>::getNds() const {
 
 // _____________________________________________________________________________
 template <typename TRIP>
-size_t TripTrie<TRIP>::getMatchChild(size_t parentNid, const std::string& stopName,
-                               const std::string& platform, POINT pos, int time,
-                               bool timeEx) const {
+size_t TripTrie<TRIP>::getMatchChild(size_t parentNid,
+                                     const std::string& stopName,
+                                     const std::string& platform, POINT pos,
+                                     int time, bool timeEx) const {
   for (size_t child : _nds[parentNid].childs) {
     // TODO(patrick): use similarity classification here?
     if (_nds[child].stopName == stopName && _nds[child].platform == platform &&
@@ -186,7 +207,7 @@ size_t TripTrie<TRIP>::getMatchChild(size_t parentNid, const std::string& stopNa
 // _____________________________________________________________________________
 template <typename TRIP>
 void TripTrie<TRIP>::toDot(std::ostream& os, const std::string& rootName,
-                     size_t gid) const {
+                           size_t gid) const {
   os << "digraph triptrie" << gid << " {";
 
   for (size_t nid = 0; nid < _nds.size(); nid++) {
@@ -215,8 +236,7 @@ void TripTrie<TRIP>::toDot(std::ostream& os, const std::string& rootName,
 
 // _____________________________________________________________________________
 template <typename TRIP>
-const std::map<size_t, std::vector<TRIP*>>&
-TripTrie<TRIP>::getNdTrips() const {
+const std::map<size_t, std::vector<TRIP*>>& TripTrie<TRIP>::getNdTrips() const {
   return _ndTrips;
 }
 

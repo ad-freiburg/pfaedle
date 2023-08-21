@@ -776,6 +776,7 @@ EdgeCandMap ShapeBuilder::getECM(
         double avgChildT = 0;
         if (chldTrNd.trips) avgChildT = chldTrNd.accTime / chldTrNd.trips;
 
+
         double timeDiff = avgChildT - avgT;
         if (timeDiff < 0) timeDiff = 0;
 
@@ -812,7 +813,7 @@ double ShapeBuilder::timePen(int candTime, int schedTime) const {
 
   int diff = abs(candTime - schedTime);
 
-  double cNorm = (diff) / standarddev;
+  double cNorm = diff / standarddev;
   return cNorm * cNorm;
 }
 

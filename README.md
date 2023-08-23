@@ -18,6 +18,7 @@ For a quick visual inspection of the shape quality, see for example the schedule
  * `cmake`
  * `gcc >= 5.0` (or `clang >= 3.9`)
  * `libzip` (optional, for ZIP support)
+ * `zlib` (optional, for gzip support)
 
 ## Building and Installation
 

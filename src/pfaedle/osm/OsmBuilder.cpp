@@ -24,7 +24,7 @@
 #include "util/Misc.h"
 #include "util/Nullable.h"
 #include "util/log/Log.h"
-#include "xml/pfxml.h"
+#include "pfxml/pfxml.h"
 
 using ad::cppgtfs::gtfs::Stop;
 using pfaedle::osm::BlockSearch;
@@ -333,8 +333,6 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
   NIdMultMap multNodes;
 
   pfxml::file xml(in);
-  std::ofstream outstr;
-  outstr.open(out);
 
   BBoxIdx latLngBox = box;
 
@@ -381,9 +379,9 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
     latLngBox.add(Box<double>({minlon, minlat}, {maxlon, maxlat}));
   }
 
-  util::xml::XmlWriter wr(&outstr, true, 4);
+  util::xml::XmlWriter wr(out, true, 4);
 
-  outstr << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+  wr.put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
   wr.openTag("osm", {{"version", "0.6"},
                      {"generator", std::string("pfaedle/") + VERSION_FULL}});
   wr.openTag(

@@ -57,8 +57,8 @@ For example, you may generate (and replace existing, see -D parameter) shapes fo
 
 ```
 $ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip
-$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2 && bunzip2 freiburg-regbez-latest.osm.bz2
-$ pfaedle -D -x freiburg-regbez-latest.osm VAGFR.zip
+$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2
+$ pfaedle -D -x freiburg-regbez-latest.osm.bz2 VAGFR.zip
 ```
 
 ## Generating shapes for a specific MOT

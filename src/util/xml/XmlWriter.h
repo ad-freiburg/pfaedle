@@ -8,6 +8,9 @@
 #ifdef ZLIB_FOUND
 #include <zlib.h>
 #endif
+#ifdef BZLIB_FOUND
+#include <bzlib.h>
+#endif
 #include <map>
 #include <ostream>
 #include <fstream>
@@ -16,6 +19,8 @@
 
 namespace util {
 namespace xml {
+
+static const size_t BUFFER_S = 32 * 1024 * 1024;
 
 class XmlWriterException : public std::exception {
  public:
@@ -41,6 +46,13 @@ class XmlWriter {
   ~XmlWriter(){
 #ifdef ZLIB_FOUND
     if (_gzfile) gzclose(_gzfile);
+#endif
+#ifdef BZLIB_FOUND
+    int err;
+    if (_bzfile) {
+      flushBzip();
+      BZ2_bzWriteClose(&err, _bzfile, 0, 0, 0);
+    }
 #endif
   };
 
@@ -83,6 +95,8 @@ class XmlWriter {
     bool hanging;
   };
 
+  void flushBzip();
+
   std::ostream* _out;
   std::ofstream _outs;
   std::stack<XmlNode> _nstack;
@@ -94,6 +108,14 @@ class XmlWriter {
   gzFile _gzfile;
 #else
   int _gzfile;
+#endif
+
+  char* _bzbuf;
+  size_t _bzbufpos = 0;
+#ifdef BZLIB_FOUND
+  BZFILE* _bzfile;
+#else
+  int _bzfile;
 #endif
 
   // handles indentation

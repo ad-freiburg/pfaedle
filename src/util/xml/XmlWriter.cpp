@@ -5,9 +5,13 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <cstring>
 #include <ostream>
 #include <stack>
 #include <string>
+#ifdef BZLIB_FOUND
+#include <bzlib.h>
+#endif
 
 #include "XmlWriter.h"
 
@@ -20,15 +24,15 @@ using std::string;
 
 // _____________________________________________________________________________
 XmlWriter::XmlWriter(std::ostream* out)
-    : _out(out), _pretty(false), _indent(4), _gzfile(0) {}
+    : _out(out), _pretty(false), _indent(4), _gzfile(0), _bzfile(0) {}
 
 // _____________________________________________________________________________
 XmlWriter::XmlWriter(std::ostream* out, bool pret)
-    : _out(out), _pretty(pret), _indent(4), _gzfile(0) {}
+    : _out(out), _pretty(pret), _indent(4), _gzfile(0), _bzfile(0) {}
 
 // _____________________________________________________________________________
 XmlWriter::XmlWriter(std::ostream* out, bool pret, size_t indent)
-    : _out(out), _pretty(pret), _indent(indent), _gzfile(0) {}
+    : _out(out), _pretty(pret), _indent(indent), _gzfile(0), _bzfile(0) {}
 
 // _____________________________________________________________________________
 XmlWriter::XmlWriter(const std::string& file)
@@ -40,7 +44,7 @@ XmlWriter::XmlWriter(const std::string& file, bool pret)
 
 // _____________________________________________________________________________
 XmlWriter::XmlWriter(const std::string& file, bool pret, size_t indent)
-    : _out(0), _pretty(pret), _indent(indent), _gzfile(0) {
+    : _out(0), _pretty(pret), _indent(indent), _gzfile(0), _bzfile(0) {
   if (file.size() > 2 && file[file.size() - 1] == 'z' &&
       file[file.size() - 2] == 'g' && file[file.size() - 3] == '.') {
 #ifdef ZLIB_FOUND
@@ -51,6 +55,26 @@ XmlWriter::XmlWriter(const std::string& file, bool pret, size_t indent)
 #else
     throw std::runtime_error(
         "Could not open gzip file for writing, was compiled without gzip "
+        "support");
+#endif
+  } else if (file.size() > 3 && file[file.size() - 1] == '2' &&
+             file[file.size() - 2] == 'z' && file[file.size() - 3] == 'b' &&
+             file[file.size() - 4] == '.') {
+#ifdef BZLIB_FOUND
+    _bzbuf = new char[BUFFER_S];
+
+    FILE* f = fopen(file.c_str(), "w");
+    int err;
+    if (!f) throw std::runtime_error("Could not open file for writing.");
+
+    _bzfile = BZ2_bzWriteOpen(&err, f, 9, 0, 30);
+
+    if (err != BZ_OK) {
+      throw std::runtime_error("Could not open bzip file for writing.");
+    }
+#else
+    throw std::runtime_error(
+        "Could not open bzip file for writing, was compiled without bzip "
         "support");
 #endif
   } else {
@@ -177,9 +201,29 @@ void XmlWriter::put(const string& str) {
 #ifdef ZLIB_FOUND
     gzwrite(_gzfile, str.c_str(), str.size());
 #endif
+  } else if (_bzfile) {
+#ifdef BZLIB_FOUND
+    if (_bzbufpos == BUFFER_S || _bzbufpos + str.size() > BUFFER_S) flushBzip();
+    memcpy( _bzbuf + _bzbufpos, str.c_str(), str.size());
+    _bzbufpos += str.size();
+#endif
   } else {
     _out->write(str.c_str(), str.size());
   }
+}
+
+// _____________________________________________________________________________
+void XmlWriter::flushBzip() {
+#ifdef BZLIB_FOUND
+    int err = 0;
+    BZ2_bzWrite(&err, _bzfile, _bzbuf, _bzbufpos);
+    if (err == BZ_IO_ERROR) {
+      BZ2_bzWriteClose(&err, _bzfile, 0, 0, 0);
+      throw std::runtime_error("Could not write to file.");
+    }
+
+    _bzbufpos = 0;
+  #endif
 }
 
 // _____________________________________________________________________________
@@ -188,6 +232,11 @@ void XmlWriter::put(const char c) {
 #ifdef ZLIB_FOUND
     gzputc(_gzfile, c);
 
+#endif
+  } else if (_bzfile) {
+#ifdef BZLIB_FOUND
+    _bzbuf[_bzbufpos++] = c;
+    if (_bzbufpos == BUFFER_S) flushBzip();
 #endif
   } else {
     _out->put(c);

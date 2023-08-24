@@ -19,6 +19,7 @@ For a quick visual inspection of the shape quality, see for example the schedule
  * `gcc >= 5.0` (or `clang >= 3.9`)
  * `libzip` (optional, for ZIP support)
  * `zlib` (optional, for gzip support)
+ * `libbz2` (optional, for bzip2 support)
 
 ## Building and Installation
 

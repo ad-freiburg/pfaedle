@@ -379,7 +379,7 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
     latLngBox.add(Box<double>({minlon, minlat}, {maxlon, maxlat}));
   }
 
-  util::xml::XmlWriter wr(out, true, 4);
+  util::xml::XmlWriter wr(out, false, 0);
 
   wr.put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
   wr.openTag("osm", {{"version", "0.6"},

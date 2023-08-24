@@ -17,9 +17,9 @@ For a quick visual inspection of the shape quality, see for example the schedule
 
  * `cmake`
  * `gcc >= 5.0` (or `clang >= 3.9`)
- * `libzip` (optional, for ZIP support)
- * `zlib` (optional, for gzip support)
- * `libbz2` (optional, for bzip2 support)
+ * `libzip` (*optional*, for ZIP support)
+ * `zlib` (*optional*, for gzip support)
+ * `libbz2` (*optional*, for bzip2 support)
 
 ## Building and Installation
 
@@ -53,7 +53,7 @@ A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
 By default, shapes are only calculated for trips that don't have a shape in the
 input feed. To drop all existing shapes, use the `-D` flag.
 
-For example, you may generate (and replace existing, see -D parameter) shapes for the GTFS dataset for Freiburg like this:
+For example, you may generate (and replace existing, see `-D` flag) shapes for the GTFS dataset for Freiburg like this:
 
 ```
 $ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip

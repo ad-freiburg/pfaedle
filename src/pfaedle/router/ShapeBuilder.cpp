@@ -12,6 +12,7 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
+
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/gtfs/Feed.h"
@@ -317,7 +318,8 @@ std::pair<std::vector<LINE>, Stats> ShapeBuilder::shapeL(Trip* trip) {
     stats.totNumTrips = 1;
     stats.dijkstraIters = EDijkstra::ITERS;
     std::map<uint32_t, double> colors;
-    LOG(INFO) << "Matched 1 trip in " << stats.solveTime << " ms.";
+    LOG(INFO) << "Matched 1 trip in " << std::fixed << std::setprecision(2)
+              << stats.solveTime << " ms.";
     // print to line
     return {getGeom(hops, getRAttrs(trip), &colors), stats};
   } catch (const std::runtime_error& e) {
@@ -442,8 +444,8 @@ Stats ShapeBuilder::shapeify(pfaedle::netgraph::Graph* outNg) {
 
   stats.solveTime = TOOK(tStart, TIME());
 
-  LOG(INFO) << "Matched " << stats.totNumTrips << " trips in "
-            << stats.solveTime << " ms.";
+  LOG(INFO) << "Matched " << stats.totNumTrips << " trips in " << std::fixed
+            << std::setprecision(2) << stats.solveTime << " ms.";
 
   // merge colors
   for (auto& cols : colors) {
@@ -775,7 +777,6 @@ EdgeCandMap ShapeBuilder::getECM(
         auto chldTrNd = trie->getNds()[depChildId];
         double avgChildT = 0;
         if (chldTrNd.trips) avgChildT = chldTrNd.accTime / chldTrNd.trips;
-
 
         double timeDiff = avgChildT - avgT;
         if (timeDiff < 0) timeDiff = 0;

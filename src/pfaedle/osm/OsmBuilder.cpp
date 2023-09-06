@@ -1119,7 +1119,7 @@ void OsmBuilder::writeGeoms(Graph* g, const OsmReadOpts& opts) {
         e->pl().addPoint(*e->getTo()->pl().getGeom());
       }
 
-      e->pl().setCost(costToInt(dist(e->getFrom(), e->getTo()) /
+      e->pl().setCost(costToInt(e->pl().getLength() /
                                 opts.levelDefSpeed[e->pl().lvl()]));
     }
   }

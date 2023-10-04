@@ -22,6 +22,7 @@
 #endif
 #include <vector>
 #include "Server.h"
+#include "util/Misc.h"
 #include "util/String.h"
 #include "util/log/Log.h"
 

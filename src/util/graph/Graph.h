@@ -19,11 +19,17 @@ namespace graph {
 template <typename N, typename E>
 class Graph {
  public:
+  Graph() {} ;
+  Graph(const Graph& g) = delete;
+  Graph(Graph& g) = delete;
+  void operator=(const Graph& other) = delete;
+  void operator=(Graph& other) = delete;
   virtual ~Graph();
   virtual Node<N, E>* addNd() = 0;
   virtual Node<N, E>* addNd(const N& pl) = 0;
   Edge<N, E>* addEdg(Node<N, E>* from, Node<N, E>* to);
   virtual Edge<N, E>* addEdg(Node<N, E>* from, Node<N, E>* to, const E& p) = 0;
+  virtual Edge<N, E>* addEdg(Node<N, E>* from, Node<N, E>* to, E&& p) = 0;
   Edge<N, E>* getEdg(Node<N, E>* from, Node<N, E>* to);
   const Edge<N, E>* getEdg(const Node<N, E>* from, const Node<N, E>* to) const;
 

@@ -22,7 +22,6 @@
 #endif
 #include <vector>
 #include "Server.h"
-#include "util/Misc.h"
 #include "util/String.h"
 #include "util/log/Log.h"
 
@@ -110,7 +109,11 @@ void HttpServer::handle() {
     try {
       Req req = getReq(connection);
       answ = _handler->handle(req, connection);
-      answ.gzip = gzipSupport(req);
+      if (answ.raw) {
+        close(connection); // the handle did everything
+        continue;
+      }
+      answ.gzip = req.gzip;
     } catch (const HttpErr& err) {
       answ = Answer(err.what(), err.what());
     } catch (...) {
@@ -277,6 +280,7 @@ Req HttpServer::getReq(int connection) {
     }
   }
 
+  ret.gzip = gzipSupport(ret);
   return ret;
 }
 

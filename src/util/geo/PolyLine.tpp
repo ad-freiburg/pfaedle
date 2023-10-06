@@ -14,6 +14,16 @@ PolyLine<T>::PolyLine(const Point<T>& from, const Point<T>& to) {
 
 // _____________________________________________________________________________
 template <typename T>
+PolyLine<T>::PolyLine(const PolyLine<T>& l) : _line(l._line) {
+}
+
+// _____________________________________________________________________________
+template <typename T>
+PolyLine<T>::PolyLine(PolyLine<T>&& l) : _line(std::move(l._line)) {
+}
+
+// _____________________________________________________________________________
+template <typename T>
 PolyLine<T>::PolyLine(const Line<T>& l) : _line(l) {}
 
 // _____________________________________________________________________________
@@ -52,6 +62,12 @@ const Line<T>& PolyLine<T>::getLine() const {
 
 // _____________________________________________________________________________
 template <typename T>
+Line<T>& PolyLine<T>::getLine() {
+  return _line;
+}
+
+// _____________________________________________________________________________
+template <typename T>
 PolyLine<T> PolyLine<T>::offsetted(double units) const {
   PolyLine p = *this;
   p.offsetPerp(units);
@@ -73,9 +89,10 @@ void PolyLine<T>::offsetPerp(double units) {
   if (_line.size() < 2) return;
 
   Line<T> ret;
+  ret.reserve(_line.size());
   Point<T> lastP = _line.front();
 
-  Point<T> *lastIns = 0, *befLastIns = 0;
+  Point<T>*lastIns = 0, *befLastIns = 0;
 
   for (size_t i = 1; i < _line.size(); i++) {
     Point<T> curP = _line[i];
@@ -99,22 +116,28 @@ void PolyLine<T>::offsetPerp(double units) {
 
     if (lastIns && befLastIns &&
         lineIntersects(*lastIns, *befLastIns, lastP, curP)) {
-      *lastIns = intersection(*lastIns, *befLastIns, lastP, curP);
+      auto iSect = intersection(*lastIns, *befLastIns, lastP, curP);
 
-      double d = dist(lastP, *lastIns);
-      double d2 = distToSegment(*lastIns, *befLastIns, lastP);
+      double d = fmax(dist(lastP, iSect), dist(*lastIns, iSect));
+      double d2 = distToSegment(iSect, *befLastIns, lastP);
 
-      if (d > fabs(units) * 2 && d2 < d - (fabs(units))) {
-        PolyLine pl(*lastIns, *befLastIns);
-        PolyLine pll(*lastIns, curP);
+      if (d > fabs(units) * 2.0 && d2 < d - (fabs(units))) {
+        PolyLine pl(iSect, *befLastIns);
+        PolyLine pll(iSect, curP);
         pl = pl.getSegment(0, (d - (fabs(units))) / pl.getLength());
         pll = pll.getSegment(0, (d - (fabs(units))) / pll.getLength());
 
-        ret.push_back(pll.back());
+        // careful, after push_back() below, lastIns might point to another
+        // point because of reallocation
         *lastIns = pl.back();
 
+        ret.push_back(pll.back());
         ret.push_back(curP);
       } else {
+        // careful, after push_back() below, lastIns might point to another
+        // point because of reallocation
+        *lastIns = iSect;
+
         ret.push_back(curP);
       }
     } else {
@@ -249,8 +272,7 @@ Point<T> PolyLine<T>::interpolate(const Point<T>& a, const Point<T>& b,
   double n = sqrt(n1 * n1 + n2 * n2);
   n1 = n1 / n;
   n2 = n2 / n;
-  return Point<T>(a.getX() + (n1 * p),
-                  a.getY() + (n2 * p));
+  return Point<T>(a.getX() + (n1 * p), a.getY() + (n2 * p));
 }
 
 // _____________________________________________________________________________
@@ -273,9 +295,37 @@ double PolyLine<T>::getLength() const {
 
 // _____________________________________________________________________________
 template <typename T>
+bool PolyLine<T>::shorterThan(double d) const {
+  return util::geo::shorterThan(_line, d);
+}
+
+// _____________________________________________________________________________
+template <typename T>
+bool PolyLine<T>::longerThan(double d) const {
+  return util::geo::longerThan(_line, d);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 PolyLine<T> PolyLine<T>::average(const std::vector<const PolyLine<T>*>& lines,
                                  const std::vector<double>& weights) {
   bool weighted = lines.size() == weights.size();
+
+  if (!weighted && lines.size() == 2 && lines[0]->getLine().size() == 2 &&
+      lines[1]->getLine().size() == 2) {
+    // simple case
+    util::geo::Line<T> avg(2);
+    const auto& a = lines[0]->getLine();
+    const auto& b = lines[1]->getLine();
+
+    avg[0] = {(a[0].getX() + b[0].getX()) / 2.0,
+              (a[0].getY() + b[0].getY()) / 2.0};
+    avg[1] = {(a[1].getX() + b[1].getX()) / 2.0,
+              (a[1].getY() + b[1].getY()) / 2.0};
+
+    return avg;
+  }
+
   double stepSize;
 
   double longestLength = DBL_MIN;  // avoid recalc of length on each comparision
@@ -320,7 +370,7 @@ PolyLine<T> PolyLine<T>::average(const std::vector<const PolyLine<T>*>& lines,
     ret << Point<T>(x / total, y / total);
   }
 
-  ret.simplify(0);
+  ret.simplify(0.0001);
 
   return ret;
 }
@@ -518,6 +568,12 @@ std::set<LinePoint<T>, LinePointCmp<T>> PolyLine<T>::getIntersections(
 
 // _____________________________________________________________________________
 template <typename T>
+PolyLine<T> PolyLine<T>::getOrthoLineAt(double d, double length) const {
+  return getOrthoLineAtDist(getLength() * d, length);
+}
+
+// _____________________________________________________________________________
+template <typename T>
 PolyLine<T> PolyLine<T>::getOrthoLineAtDist(double d, double length) const {
   Point<T> avgP = getPointAtDist(d).p;
 
@@ -610,12 +666,10 @@ void PolyLine<T>::applyChaikinSmooth(size_t depth) {
       Point<T> pA = _line[i - 1];
       Point<T> pB = _line[i];
 
-      smooth.push_back(
-          Point<T>(0.75 * pA.getX() + 0.25 * pB.getX(),
-                   0.75 * pA.getY() + 0.25 * pB.getY()));
-      smooth.push_back(
-          Point<T>(0.25 * pA.getX() + 0.75 * pB.getX(),
-                   0.25 * pA.getY() + 0.75 * pB.getY()));
+      smooth.push_back(Point<T>(0.75 * pA.getX() + 0.25 * pB.getX(),
+                                0.75 * pA.getY() + 0.25 * pB.getY()));
+      smooth.push_back(Point<T>(0.25 * pA.getX() + 0.75 * pB.getX(),
+                                0.25 * pA.getY() + 0.75 * pB.getY()));
     }
 
     smooth.push_back(_line.back());

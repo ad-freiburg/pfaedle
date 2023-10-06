@@ -709,6 +709,55 @@ inline Point<T> intersection(const LineSegment<T>& s1,
 
 // _____________________________________________________________________________
 template <typename T>
+inline std::vector<Point<T>> intersection(const Line<T>& l1,
+                             const Line<T>& l2) {
+
+  std::vector<Point<T>> ret;
+
+  // TODO: better implementation than this naive baseline
+  for (size_t i = 1; i < l1.size(); i++) {
+    for (size_t j = 1; j < l2.size(); j++) {
+      LineSegment<T> a = {l1[i-1], l1[i]};
+      LineSegment<T> b = {l2[j-1], l2[j]};
+      if (intersects(a, b)) ret.push_back(intersection(a, b));
+    }
+  }
+
+  return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Box<T> intersection(const Box<T>& b1, const Box<T>& b2) {
+  if (!intersects(b1, b2)) return Box<T>();
+
+  T llx, lly, urx, ury;
+
+  if (b1.getLowerLeft().getX() > b2.getLowerLeft().getX())
+    llx = b1.getLowerLeft().getX();
+  else
+    llx = b2.getLowerLeft().getX();
+
+  if (b1.getLowerLeft().getY() > b2.getLowerLeft().getY())
+    lly = b1.getLowerLeft().getY();
+  else
+    lly = b2.getLowerLeft().getY();
+
+  if (b1.getUpperRight().getX() < b2.getUpperRight().getX())
+    urx = b1.getUpperRight().getX();
+  else
+    urx = b2.getUpperRight().getX();
+
+  if (b1.getUpperRight().getY() < b2.getUpperRight().getY())
+    ury = b1.getUpperRight().getY();
+  else
+    ury = b2.getUpperRight().getY();
+
+  return Box<T>{{llx, lly}, {urx, ury}};
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline bool lineIntersects(T p1x, T p1y, T q1x, T q1y, T p2x, T p2y, T q2x,
                            T q2y) {
   /*
@@ -900,6 +949,27 @@ inline double crossProd(const Point<T>& p, const LineSegment<T>& ls) {
 
 // _____________________________________________________________________________
 template <typename T>
+inline double dist(const Polygon<T>& poly1, const Polygon<T>& poly2) {
+  if (contains(poly1, poly2) || contains(poly2, poly1)) return 0;
+  return dist(poly1.getOuter(), poly2.getOuter());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Line<T>& l, const Polygon<T>& poly) {
+  if (contains(l, poly)) return 0;
+  return dist(l, poly.getOuter());
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline double dist(const Point<T>& p, const Polygon<T>& poly) {
+  if (contains(p, poly)) return 0;
+  return dist(p, poly.getOuter());
+}
+
+// _____________________________________________________________________________
+template <typename T>
 inline double dist(const Point<T>& p1, const Point<T>& p2) {
   return dist(p1.getX(), p1.getY(), p2.getX(), p2.getY());
 }
@@ -908,6 +978,7 @@ inline double dist(const Point<T>& p1, const Point<T>& p2) {
 template <typename T>
 inline Point<T> pointFromWKT(std::string wkt) {
   wkt = util::normalizeWhiteSpace(util::trim(wkt));
+  for (size_t i = 0; i < 6;i++) wkt[i] = toupper(wkt[i]);
   if (wkt.rfind("POINT") == 0 || wkt.rfind("MPOINT") == 0) {
     size_t b = wkt.find("(") + 1;
     size_t e = wkt.find(")", b);
@@ -925,6 +996,7 @@ inline Point<T> pointFromWKT(std::string wkt) {
 template <typename T>
 inline Line<T> lineFromWKT(std::string wkt) {
   wkt = util::normalizeWhiteSpace(util::trim(wkt));
+  for (size_t i = 0; i < 11;i++) wkt[i] = toupper(wkt[i]);
   if (wkt.rfind("LINESTRING") == 0 || wkt.rfind("MLINESTRING") == 0) {
     Line<T> ret;
     size_t b = wkt.find("(") + 1;
@@ -937,6 +1009,96 @@ inline Line<T> lineFromWKT(std::string wkt) {
       double x = atof(xy[0].c_str());
       double y = atof(xy[1].c_str());
       ret.push_back({x, y});
+    }
+    return ret;
+  }
+  throw std::runtime_error("Could not parse WKT");
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline MultiPolygon<T> multiPolygonFromWKT(std::string wkt) {
+  wkt = util::normalizeWhiteSpace(util::trim(wkt));
+  for (size_t i = 0; i < 13;i++) wkt[i] = toupper(wkt[i]);
+  util::replaceAll(wkt, "))", ")!");
+  util::replaceAll(wkt, ") )", ")!");
+  if (wkt.rfind("MULTIPOLYGON") == 0 || wkt.rfind("MMULTIPOLYGON") == 0) {
+    MultiPolygon<T> ret;
+    size_t b = wkt.find("(") + 1;
+    size_t e = wkt.rfind(")");
+    if (b > e) throw std::runtime_error("Could not parse WKT");
+
+    auto polyPairs = util::split(wkt.substr(b, e - b), '!');
+
+    for (const auto& polyPair : polyPairs) {
+      size_t b = polyPair.find("(") + 1;
+      size_t e = polyPair.rfind(")");
+      auto pairs = util::split(polyPair.substr(b, e - b), ')');
+
+      ret.push_back({});
+
+      for (size_t i = 0; i < pairs.size(); i++) {
+        size_t b = pairs[i].find("(") + 1;
+        size_t e = pairs[i].rfind(")", b);
+        auto pairsLoc = util::split(pairs[i].substr(b, e - b), ',');
+
+        if (i > 0) {
+          ret.back().getInners().push_back({});
+        }
+
+        for (const auto& p : pairsLoc) {
+          auto xy = util::split(util::trim(p), ' ');
+          if (xy.size() < 2) throw std::runtime_error("Could not parse WKT");
+          double x = atof(xy[0].c_str());
+          double y = atof(xy[1].c_str());
+
+          if (i == 0) {
+            ret.back().getOuter().push_back({x, y});
+          } else {
+            ret.back().getInners().back().push_back({x, y});
+          }
+        }
+      }
+    }
+    return ret;
+  }
+  throw std::runtime_error("Could not parse WKT");
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline Polygon<T> polygonFromWKT(std::string wkt) {
+  wkt = util::normalizeWhiteSpace(util::trim(wkt));
+  for (size_t i = 0; i < 8;i++) wkt[i] = toupper(wkt[i]);
+  if (wkt.rfind("POLYGON") == 0 || wkt.rfind("MPOLYGON") == 0) {
+    Polygon<T> ret;
+    size_t b = wkt.find("(") + 1;
+    size_t e = wkt.rfind(")");
+    if (b > e) throw std::runtime_error("Could not parse WKT");
+
+    auto pairs = util::split(wkt.substr(b, e - b), ')');
+
+    for (size_t i = 0; i < pairs.size(); i++) {
+      size_t b = pairs[i].find("(") + 1;
+      size_t e = pairs[i].rfind(")", b);
+      auto pairsLoc = util::split(pairs[i].substr(b, e - b), ',');
+
+      if (i > 0) {
+        ret.getInners().push_back({});
+      }
+
+      for (const auto& p : pairsLoc) {
+        auto xy = util::split(util::trim(p), ' ');
+        if (xy.size() < 2) throw std::runtime_error("Could not parse WKT");
+        double x = atof(xy[0].c_str());
+        double y = atof(xy[1].c_str());
+
+        if (i == 0) {
+          ret.getOuter().push_back({x, y});
+        } else {
+          ret.getInners().back().push_back({x, y});
+        }
+      }
     }
     return ret;
   }
@@ -1073,6 +1235,43 @@ inline double len(const Line<T>& g) {
   double ret = 0;
   for (size_t i = 1; i < g.size(); i++) ret += dist(g[i - 1], g[i]);
   return ret;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool shorterThan(const Line<T>& g, double d) {
+  double ret = 0;
+  for (size_t i = 1; i < g.size(); i++) {
+    ret += dist(g[i - 1], g[i]);
+    if (ret >= d) return false;
+  }
+  return true;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool longerThan(const Line<T>& g, double d) {
+  double ret = 0;
+  for (size_t i = 1; i < g.size(); i++) {
+    ret += dist(g[i - 1], g[i]);
+    if (ret > d) return true;
+  }
+  return false;
+}
+
+// _____________________________________________________________________________
+template <typename T>
+inline bool longerThan(const Line<T>& a, const Line<T>& b, double d) {
+  double ret = 0;
+  for (size_t i = 1; i < a.size(); i++) {
+    ret += dist(a[i - 1], a[i]);
+    if (ret > d) return true;
+  }
+  for (size_t i = 1; i < b.size(); i++) {
+    ret += dist(b[i - 1], b[i]);
+    if (ret > d) return true;
+  }
+  return false;
 }
 
 // _____________________________________________________________________________
@@ -1317,6 +1516,9 @@ inline Polygon<T> buffer(const Polygon<T>& pol, double d, size_t points) {
 // _____________________________________________________________________________
 template <typename T>
 inline Box<T> extendBox(const Box<T>& a, Box<T> b) {
+  if (a.getLowerLeft().getX() > a.getUpperRight().getX()) return b;
+  if (a.getLowerLeft().getY() > a.getUpperRight().getY()) return b;
+
   b = extendBox(a.getLowerLeft(), b);
   b = extendBox(a.getUpperRight(), b);
   return b;
@@ -1458,10 +1660,14 @@ inline Polygon<T> convexHull(const RotatedBox<T>& b) {
 template <typename T>
 inline size_t convexHullImpl(const MultiPoint<T>& a, size_t p1, size_t p2,
                              Line<T>* h) {
+  // emergency stop
+  if (h->size() >= a.size() + 1) return 0;
+
   // quickhull by Barber, Dobkin & Huhdanpaa
   Point<T> pa;
   bool found = false;
   double maxDist = 0;
+
   for (const auto& p : a) {
     double tmpDist = distToSegment((*h)[p1], (*h)[p2], p);
     double cp = crossProd(p, LineSegment<T>((*h)[p1], (*h)[p2]));
@@ -1485,11 +1691,11 @@ inline Polygon<T> convexHull(const MultiPoint<T>& l) {
   if (l.size() == 2) return convexHull(LineSegment<T>(l[0], l[1]));
   if (l.size() == 1) return convexHull(l[0]);
 
-  Point<T> left(std::numeric_limits<T>::max(), 0);
-  Point<T> right(std::numeric_limits<T>::lowest(), 0);
+  Point<T> left(std::numeric_limits<T>::max(), std::numeric_limits<T>::max());
+  Point<T> right(std::numeric_limits<T>::lowest(), std::numeric_limits<T>::lowest());
   for (const auto& p : l) {
-    if (p.getX() < left.getX()) left = p;
-    if (p.getX() > right.getX()) right = p;
+    if (p.getX() < left.getX() || (p.getX() == left.getX() && p.getY() < left.getY())) left = p;
+    if (p.getX() > right.getX() || (p.getX() == right.getX() && p.getY() > right.getY())) right = p;
   }
 
   Line<T> hull{left, right};

@@ -82,9 +82,17 @@ class Grid {
   void add(size_t x, size_t y, V val);
 
   void get(const Box<T>& btbox, std::set<V>* s) const;
-  void get(const G<T>& geom, double d, std::set<V>* s) const;
+
+  template <template <typename> class GG>
+  void get(const GG<T>& geom, double d, std::set<V>* s) const;
+
+  template <template <typename> class GG>
+  void get(const std::vector<GG<T>>& geom, double d, std::set<V>* s) const;
+
   void get(size_t x, size_t y, std::set<V>* s) const;
   void remove(V val);
+
+  const std::set<V>& getCell(size_t x, size_t y) const;
 
   void getNeighbors(const V& val, double d, std::set<V>* s) const;
   void getCellNeighbors(const V& val, size_t d, std::set<V>* s) const;
@@ -98,6 +106,9 @@ class Grid {
 
   size_t getCellXFromX(double lon) const;
   size_t getCellYFromY(double lat) const;
+
+  Box<T> getBox(size_t x, size_t y) const;
+  Box<T> getBBox() const { return _bb; };
 
  private:
   double _width;
@@ -117,8 +128,6 @@ class Grid {
   std::set<V>** _grid;
   std::map<V, std::set<std::pair<size_t, size_t> > > _index;
   std::set<V> _removed;
-
-  Box<T> getBox(size_t x, size_t y) const;
 };
 
 #include "util/geo/Grid.tpp"

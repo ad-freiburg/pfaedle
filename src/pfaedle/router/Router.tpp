@@ -410,7 +410,8 @@ void RouterImpl<TW>::hops(const EdgeCandGroup& froms, const EdgeCandGroup& tos,
 
       if (c < maxCost) {
         rCosts->push_back({{frId, toId}, c});
-        if (TW::NEED_DIST) dists->push_back({{frId, toId}, dist});
+        if (TW::NEED_DIST)
+          dists->push_back({{frId, toId}, static_cast<uint32_t>(dist)});
       }
     }
   }

@@ -7,3 +7,6 @@
 [submodule "src/configparser"]
 	path = src/configparser
 	url = https://git.patrickbrosi.de/patrick/configparser
+[submodule "src/util"]
+	path = src/util
+	url = https://github.com/ad-freiburg/util

@@ -1,13 +1,11 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.12)
 
 project (pfaedle)
 
 if (CMAKE_BUILD_TYPE)
-	string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE)
-endif()
-if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-	set(CPPLINT "${CMAKE_SOURCE_DIR}/cpplint.py")
-	include(cmake/cpplint.cmake)
+	string(SUBSTRING ${CMAKE_BUILD_TYPE} 0 1 FIRST_CHAR)
+	string(TOUPPER ${FIRST_CHAR} FIRST_CHAR)
+	string(REGEX REPLACE "^.(.*)" "${FIRST_CHAR}\\1" CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
 endif()
 
 set(CPPLINT_PROJECT_ROOT "src")
@@ -15,7 +13,7 @@ set(CPPLINT_PROJECT_ROOT "src")
 enable_testing()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
 
 # set compiler flags, see http://stackoverflow.com/questions/7724569/debug-vs-release-in-cmake
 set(CMAKE_CXX_FLAGS                "-Ofast -fno-signed-zeros -fno-trapping-math -Wall -Wno-format-extra-args -Wextra -Wformat-nonliteral -Wformat-security -Wformat=2 -Wextra -Wno-implicit-fallthrough -pedantic -Wno-keyword-macro")
@@ -98,11 +96,11 @@ install(
 )
 
 install(
-	FILES build/pfaedle DESTINATION bin
+	FILES ${CMAKE_BINARY_DIR}/pfaedle DESTINATION bin
 	PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE COMPONENT binaries
 )
 
 install(
-	FILES build/shapevl DESTINATION bin
+	FILES ${CMAKE_BINARY_DIR}/shapevl DESTINATION bin
 	PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE COMPONENT binaries
 )

@@ -8,8 +8,6 @@ if (CMAKE_BUILD_TYPE)
 	string(REGEX REPLACE "^.(.*)" "${FIRST_CHAR}\\1" CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
 endif()
 
-set(CPPLINT_PROJECT_ROOT "src")
-
 enable_testing()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")

@@ -36,7 +36,6 @@ std::map<size_t, EdgeListHops> RouterImpl<TW>::route(
   for (size_t nid = 1; nid < trie->getNds().size(); nid++) {
     costsDAG[nid].resize(ecm.at(nid).size(), DBL_INF);
     predeDAG[nid].resize(ecm.at(nid).size(), NO_PREDE);
-    maxCosts.resize(ecm.at(nid).size(), 0);
   }
 
   std::stack<size_t> st;

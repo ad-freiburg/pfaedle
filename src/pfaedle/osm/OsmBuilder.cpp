@@ -1857,6 +1857,8 @@ bool OsmBuilder::keepFullTurn(const trgraph::Node* n, double ang) {
 
     POINT ap, bp;
 
+    if (!a || !b) return false;
+
     if (a->pl().getGeom() && b->pl().getGeom()) {
       ap = a->pl().backHop();
       bp = b->pl().backHop();

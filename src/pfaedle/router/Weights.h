@@ -48,7 +48,7 @@ class ExpoTransWeight {
     uint32_t _inf;
     bool _noLineSimiPen;
     mutable const trgraph::Edge* _lastFrom;
-    mutable uint32_t _lastC;
+    mutable uint32_t _lastC = 0;
 
     uint32_t operator()(const trgraph::Edge* from, const trgraph::Node* n,
                         const trgraph::Edge* to) const;
@@ -68,7 +68,7 @@ class ExpoTransWeight {
     uint32_t operator()(const trgraph::Edge* a,
                         const std::set<trgraph::Edge*>& b) const;
     mutable const trgraph::Edge* _lastE;
-    mutable uint32_t _lastC;
+    mutable uint32_t _lastC = 0;
   };
 
   static uint32_t maxCost(double tTime, const RoutingOpts& rOpts);

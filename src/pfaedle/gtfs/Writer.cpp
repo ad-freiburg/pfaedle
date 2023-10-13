@@ -50,7 +50,7 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
   if (toZip) {
     const size_t slashIdx = path.rfind('/');
     if (slashIdx != std::string::npos) {
-      zipFileName = path.substr(slashIdx, -1);
+      zipFileName = path.substr(slashIdx + 1, -1);
       gtfsPath = path.substr(0, slashIdx);
     } else {
       zipFileName = path;

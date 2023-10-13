@@ -965,8 +965,8 @@ std::vector<LINE> ShapeBuilder::getGeom(
       // no hop was found, use the fallback geometry
 
       if (hop.start) {
-        auto l = getLine(hop.start);
         if (hop.progrStart > 0) {
+          auto l = getLine(hop.start);
           PolyLine<PFDL_PREC> pl(l);
           const auto& seg = pl.getSegment(hop.progrStart, 1);
           ret.push_back({seg.getLine().front(), hop.pointEnd});
@@ -974,8 +974,8 @@ std::vector<LINE> ShapeBuilder::getGeom(
           ret.push_back({*hop.start->getFrom()->pl().getGeom(), hop.pointEnd});
         }
       } else if (hop.end) {
-        auto l = getLine(hop.end);
         if (hop.progrEnd > 0) {
+          auto l = getLine(hop.end);
           PolyLine<PFDL_PREC> pl(l);
           const auto& seg = pl.getSegment(0, hop.progrEnd);
           ret.push_back({hop.pointStart, seg.getLine().back()});

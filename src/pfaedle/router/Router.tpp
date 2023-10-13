@@ -52,6 +52,15 @@ std::map<size_t, EdgeListHops> RouterImpl<TW>::route(
     size_t frTrNid = st.top();
     st.pop();
     const auto& frTrNd = trie->getNd(frTrNid);
+
+    // determine the max speed for this hop
+    double maxSpeed = 0;
+    for (size_t nid = 0; nid < ecm.at(frTrNid).size(); nid++) {
+      if (!ecm.at(frTrNid)[nid].e) continue;
+      if (ecm.at(frTrNid)[nid].e->getFrom()->pl().getComp().maxSpeed > maxSpeed)
+        maxSpeed = ecm.at(frTrNid)[nid].e->getFrom()->pl().getComp().maxSpeed;
+    }
+
     for (size_t toTrNid : trie->getNd(frTrNid).childs) {
       CostMatrix costM, dists;
       const auto& toTrNd = trie->getNd(toTrNid);
@@ -76,11 +85,15 @@ std::map<size_t, EdgeListHops> RouterImpl<TW>::route(
 
       double hopDist = 0;
 
-      if (TW::NEED_DIST)
-        hopDist = util::geo::haversine(frTrNd.lat, frTrNd.lng, toTrNd.lat,
-                                       toTrNd.lng);
+      hopDist = util::geo::haversine(frTrNd.lat, frTrNd.lng, toTrNd.lat,
+                                     toTrNd.lng);
 
-      uint32_t newMaxCost = TW::maxCost(avgArrT - avgDepT, rOpts);
+      double minTime = hopDist / maxSpeed;
+      double hopTime = avgArrT - avgDepT;
+
+      if (hopTime < minTime) hopTime = minTime;
+
+      uint32_t newMaxCost = TW::maxCost(hopTime, rOpts);
       uint32_t maxCost = newMaxCost;
 
       bool found = false;
@@ -239,7 +252,6 @@ std::map<size_t, EdgeListHops> RouterImpl<TW>::route(
 
         const double c =
             EDijkstra::shortestPath(fr.e, to.e, cost, distH, &edgs);
-        // c += costPr(to.e, 0, 0) * to.progr;
 
         if (c < maxCostRtInt) {
           // a path was found, use it
@@ -370,7 +382,6 @@ void RouterImpl<TW>::hops(const EdgeCandGroup& froms, const EdgeCandGroup& tos,
     for (size_t toId = 0; toId < tos.size(); toId++) {
       auto to = tos[toId];
       if (!to.e) continue;
-      auto costTo = costF(to.e, 0, 0);
 
       uint32_t c = ecm[fr.e][to.e];
 
@@ -381,6 +392,7 @@ void RouterImpl<TW>::hops(const EdgeCandGroup& froms, const EdgeCandGroup& tos,
 
       if (fr.e == to.e) {
         if (fr.progr <= to.progr) {
+          auto costTo = costF(to.e, 0, 0);
           const uint32_t progrCFr = costFr * fr.progr;
           const uint32_t progrCTo = costTo * to.progr;
 
@@ -401,13 +413,14 @@ void RouterImpl<TW>::hops(const EdgeCandGroup& froms, const EdgeCandGroup& tos,
 
         // add progression cost on last edge
         if (to.progr > 0) {
+          const auto costTo = costF(to.e, 0, 0);
           const uint32_t progrCTo = costTo * to.progr;
           c += progrCTo;
           if (TW::NEED_DIST) dist += to.e->pl().getLength() * to.progr;
         }
       }
 
-      if (c < maxCost) {
+      if (c < maxCost - maxProgrStart) {
         rCosts->push_back({{frId, toId}, c});
         if (TW::NEED_DIST)
           dists->push_back({{frId, toId}, static_cast<uint32_t>(dist)});
@@ -429,6 +442,7 @@ void RouterImpl<TW>::hopsFast(const EdgeCandGroup& froms,
 
   std::set<trgraph::Edge*> eFrs, eTos;
   std::map<trgraph::Edge*, std::vector<size_t>> eFrCands, eToCands;
+
   double maxSpeed = 0;
   for (size_t frId = 0; frId < froms.size(); frId++) {
     if (rawInitCosts[frId] >= DBL_INF || !connected(froms[frId], tos)) continue;
@@ -557,9 +571,9 @@ void RouterImpl<TW>::hopsFast(const EdgeCandGroup& froms,
           }
         }
 
-        if (wrCost >= maxCost - maxProgrStart) continue;
-
-        rCosts->push_back({{frId, toId}, wrCost});
+        if (wrCost < maxCost - maxProgrStart) {
+          rCosts->push_back({{frId, toId}, wrCost});
+        }
       }
     }
   }

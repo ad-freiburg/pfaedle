@@ -182,14 +182,14 @@ double ExpoTransWeight::weight(uint32_t c, double d, double t0, double d0,
 
 // _____________________________________________________________________________
 uint32_t ExpoTransWeight::invWeight(double c, const RoutingOpts& rOpts) {
-  return std::round((c / rOpts.transitionPen) * 10);
+  return std::round((c / rOpts.transitionPen) * 10.0);
 }
 
 // _____________________________________________________________________________
 uint32_t ExpoTransWeight::maxCost(double tTime, const RoutingOpts& rOpts) {
   // abort after 3 times the scheduled time, but assume a min time of
   // 1 minute!
-  return std::ceil(fmax(tTime, 60) * 3 * rOpts.lineUnmatchedPunishFact *
+  return std::ceil(fmax(tTime, 60) * 3.0 * rOpts.lineUnmatchedPunishFact *
                    rOpts.lineNameToUnmatchedPunishFact *
                    rOpts.lineNameFromUnmatchedPunishFact * 10);
 }

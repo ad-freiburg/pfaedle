@@ -426,14 +426,15 @@ void Writer::writeAgency(gtfs::Feed* sourceFeed, std::ostream* os) const {
 
   ad::cppgtfs::Writer w;
 
-  auto csvw = ad::cppgtfs::Writer::getAgencyCsvw(os);
+  auto csvw =
+      ad::cppgtfs::Writer::getAgencyCsvw(os, sourceFeed->getAgencyAddFlds());
   csvw->flushLine();
 
   ad::cppgtfs::gtfs::flat::Agency fa;
   auto flds = Parser::getAgencyFlds(csvp.get());
 
   while (p.nextAgency(csvp.get(), &fa, flds)) {
-    w.writeAgency(fa, csvw.get());
+    w.writeAgency(fa, csvw.get(), sourceFeed->getAgencyAddFlds());
   }
 }
 
@@ -443,14 +444,15 @@ void Writer::writeStops(gtfs::Feed* sourceFeed, std::ostream* os) const {
   auto csvp = p.getCsvParser("stops.txt");
   ad::cppgtfs::Writer w;
 
-  auto csvw = ad::cppgtfs::Writer::getStopsCsvw(os);
+  auto csvw =
+      ad::cppgtfs::Writer::getStopsCsvw(os, sourceFeed->getStopAddFlds());
   csvw->flushLine();
 
   ad::cppgtfs::gtfs::flat::Stop s;
   auto flds = Parser::getStopFlds(csvp.get());
 
   while (p.nextStop(csvp.get(), &s, flds)) {
-    w.writeStop(s, csvw.get());
+    w.writeStop(s, csvw.get(), sourceFeed->getStopAddFlds());
   }
 }
 
@@ -458,11 +460,13 @@ void Writer::writeStops(gtfs::Feed* sourceFeed, std::ostream* os) const {
 void Writer::writeRoutes(gtfs::Feed* sourceFeed, std::ostream* os) const {
   ad::cppgtfs::Writer w;
 
-  auto csvw = ad::cppgtfs::Writer::getRoutesCsvw(os);
+  auto csvw =
+      ad::cppgtfs::Writer::getRoutesCsvw(os, sourceFeed->getRouteAddFlds());
   csvw->flushLine();
 
   for (auto r : sourceFeed->getRoutes()) {
-    w.writeRoute(r.second->getFlat(), csvw.get());
+    w.writeRoute(r.second->getFlat(), csvw.get(),
+                 sourceFeed->getRouteAddFlds());
   }
 }
 
@@ -611,12 +615,13 @@ bool Writer::writeTrips(gtfs::Feed* sourceFeed, std::ostream* os) const {
   ad::cppgtfs::Writer w;
   bool hasFreqs = false;
 
-  auto csvw = ad::cppgtfs::Writer::getTripsCsvw(os);
+  auto csvw =
+      ad::cppgtfs::Writer::getTripsCsvw(os, sourceFeed->getTripAddFlds());
   csvw->flushLine();
 
   for (auto t : sourceFeed->getTrips()) {
     if (t.getFrequencies().size()) hasFreqs = true;
-    w.writeTrip(t.getFlat(), csvw.get());
+    w.writeTrip(t.getFlat(), csvw.get(), sourceFeed->getTripAddFlds());
   }
 
   return hasFreqs;

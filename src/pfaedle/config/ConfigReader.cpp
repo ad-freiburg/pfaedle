@@ -144,10 +144,11 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"stats", no_argument, 0, 14},
                          {"no-hop-cache", no_argument, 0, 15},
                          {"gaussian-noise", required_argument, 0, 16},
+                         {"keep-additional-gtfs-fields", no_argument, 0, 'F'},
                          {0, 0, 0, 0}};
 
   char c;
-  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:", ops, 0)) !=
+  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:F", ops, 0)) !=
          -1) {
     switch (c) {
       case 1:
@@ -218,6 +219,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 16:
         cfg->gaussianNoise = atof(optarg);
+        break;
+      case 'F':
+        cfg->parseAdditionalGTFSFields = true;
         break;
       case 'v':
         std::cout << "pfaedle " << VERSION_FULL << std::endl;

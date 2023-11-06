@@ -135,7 +135,8 @@ int main(int argc, char** argv) {
     if (!cfg.writeOverpass && !cfg.writeOsmfilter)
       LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[0] << " ...";
     try {
-      ad::cppgtfs::Parser p(cfg.feedPaths[0]);
+      ad::cppgtfs::Parser p(cfg.feedPaths[0], false,
+                            cfg.parseAdditionalGTFSFields);
       p.parse(&gtfs[0]);
     } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse input GTFS feed, reason was:";

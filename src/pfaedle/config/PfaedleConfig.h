@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
 #include "ad/cppgtfs/gtfs/Route.h"
 #include "util/geo/Geo.h"
 
@@ -36,6 +37,7 @@ struct Config {
         noTrie(false),
         noHopCache(false),
         writeStats(false),
+        parseAdditionalGTFSFields(false),
         gridSize(2000 / util::geo::M_PER_DEG),
         gaussianNoise(0) {}
   std::string dbgOutputPath;
@@ -62,6 +64,7 @@ struct Config {
   bool noTrie;
   bool noHopCache;
   bool writeStats;
+  bool parseAdditionalGTFSFields;
   double gridSize;
   double gaussianNoise;
 
@@ -85,6 +88,7 @@ struct Config {
        << "no-a-star: " << noAStar << "\n"
        << "no-trie: " << noTrie << "\n"
        << "no-hop-cache: " << noHopCache << "\n"
+       << "parse-additional-gtfs-fields: " << parseAdditionalGTFSFields << "\n"
        << "write-stats: " << writeStats << "\n"
        << "feed-paths: ";
 

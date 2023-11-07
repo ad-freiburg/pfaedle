@@ -5,8 +5,11 @@
 #ifndef PFAEDLE_OSM_OSMFILTER_H_
 #define PFAEDLE_OSM_OSMFILTER_H_
 
+#include <stdint.h>
+
 #include <string>
 #include <vector>
+
 #include "pfaedle/osm/Osm.h"
 #include "pfaedle/osm/OsmReadOpts.h"
 

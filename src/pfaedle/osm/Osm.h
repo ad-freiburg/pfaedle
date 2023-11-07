@@ -5,10 +5,12 @@
 #ifndef PFAEDLE_OSM_OSM_H_
 #define PFAEDLE_OSM_OSM_H_
 
+#include <stdint.h>
+
 #include <set>
 #include <string>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace pfaedle {

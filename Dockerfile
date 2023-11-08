@@ -1,4 +1,4 @@
-FROM debian:buster-slim AS builder
+FROM debian:bookworm-slim AS builder
 
 WORKDIR /app
 

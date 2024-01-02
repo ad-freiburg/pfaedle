@@ -147,7 +147,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"keep-additional-gtfs-fields", no_argument, 0, 'F'},
                          {0, 0, 0, 0}};
 
-  char c;
+  int c;
   while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:F", ops, 0)) !=
          -1) {
     switch (c) {

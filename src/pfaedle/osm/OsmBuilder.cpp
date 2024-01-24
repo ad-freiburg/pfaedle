@@ -137,17 +137,11 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
   LOG(DEBUG) << "Snapping stations...";
   snapStats(opts, g, bbox, gridSize, res, orphanStations);
 
-  LOG(DEBUG) << "Deleting orphan edges...";
-  deleteOrphEdgs(g, opts);
-
   LOG(DEBUG) << "Collapsing edges...";
   collapseEdges(g);
 
   LOG(DEBUG) << "Writing edge geoms...";
   writeGeoms(g, opts);
-
-  LOG(DEBUG) << "Deleting orphan edges...";
-  deleteOrphEdgs(g, opts);
 
   LOG(DEBUG) << "Deleting orphan nodes...";
   deleteOrphNds(g, opts);
@@ -1563,30 +1557,6 @@ void OsmBuilder::deleteOrphNds(Graph* g, const OsmReadOpts& opts) {
     }
 
     i = g->delNd(*i);
-  }
-}
-
-// _____________________________________________________________________________
-void OsmBuilder::deleteOrphEdgs(Graph* g, const OsmReadOpts& opts) {
-  size_t ROUNDS = 3;
-  for (size_t c = 0; c < ROUNDS; c++) {
-    for (auto i = g->getNds().begin(); i != g->getNds().end();) {
-      if ((*i)->getInDeg() + (*i)->getOutDeg() != 1 || (*i)->pl().getSI() ||
-          (*i)->pl().isTurnCycle()) {
-        ++i;
-        continue;
-      }
-
-      // check if the removal of this edge would transform a steep angle
-      // full turn at an intersection into a node 2 eligible for contraction
-      // if so, dont delete
-      if (keepFullTurn(*i, opts.fullTurnAngle)) {
-        ++i;
-        continue;
-      }
-
-      i = g->delNd(*i);
-    }
   }
 }
 

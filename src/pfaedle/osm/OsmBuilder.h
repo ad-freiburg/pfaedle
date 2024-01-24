@@ -180,7 +180,6 @@ class OsmBuilder {
                         double gridSize, Restrictor* res,
                         const NodeSet& orphanStations);
   static void writeGeoms(Graph* g, const OsmReadOpts& opts);
-  static void deleteOrphEdgs(Graph* g, const OsmReadOpts& opts);
   static void deleteOrphNds(Graph* g, const OsmReadOpts& opts);
   static double dist(const Node* a, const Node* b);
 

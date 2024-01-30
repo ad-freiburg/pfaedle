@@ -39,7 +39,8 @@ struct Config {
         writeStats(false),
         parseAdditionalGTFSFields(false),
         gridSize(2000 / util::geo::M_PER_DEG),
-        gaussianNoise(0) {}
+        gaussianNoise(0),
+        verbosity(0) {}
   std::string dbgOutputPath;
   std::string solveMethod;
   std::string shapeTripId;
@@ -67,6 +68,7 @@ struct Config {
   bool parseAdditionalGTFSFields;
   double gridSize;
   double gaussianNoise;
+  uint8_t verbosity;
 
   std::string toString() {
     std::stringstream ss;
@@ -88,6 +90,7 @@ struct Config {
        << "no-a-star: " << noAStar << "\n"
        << "no-trie: " << noTrie << "\n"
        << "no-hop-cache: " << noHopCache << "\n"
+       << "verbosity: " << verbosity << "\n"
        << "parse-additional-gtfs-fields: " << parseAdditionalGTFSFields << "\n"
        << "write-stats: " << writeStats << "\n"
        << "feed-paths: ";

@@ -111,6 +111,8 @@ void ConfigReader::help(const char* bin) {
             << "Disable hop cache \n"
             << std::setw(35) << "  --stats"
             << "write stats to stats.json\n"
+            << std::setw(35) << "  -W [ --warn ]"
+            << "enable verbose warning messages\n"
             << std::setw(35) << "  -P"
             << "additional parameter string (in cfg file format)\n";
 }
@@ -144,11 +146,12 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"stats", no_argument, 0, 14},
                          {"no-hop-cache", no_argument, 0, 15},
                          {"gaussian-noise", required_argument, 0, 16},
+                         {"warn", no_argument, 0, 'W'},
                          {"keep-additional-gtfs-fields", no_argument, 0, 'F'},
                          {0, 0, 0, 0}};
 
   int c;
-  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:F", ops, 0)) !=
+  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:FW", ops, 0)) !=
          -1) {
     switch (c) {
       case 1:
@@ -219,6 +222,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 16:
         cfg->gaussianNoise = atof(optarg);
+        break;
+      case 'W':
+        cfg->verbosity = 1;
         break;
       case 'F':
         cfg->parseAdditionalGTFSFields = true;

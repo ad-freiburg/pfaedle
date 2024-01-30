@@ -73,7 +73,7 @@ ShapeBuilder::ShapeBuilder(
       _router(router) {
   pfaedle::osm::BBoxIdx box(BOX_PADDING);
   ShapeBuilder::getGtfsBox(feed, mots, cfg.shapeTripId, cfg.dropShapes, &box,
-                           _motCfg.osmBuildOpts.maxSpeed, 0);
+                           _motCfg.osmBuildOpts.maxSpeed, 0, cfg.verbosity);
 
   _eGrid = EdgeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
   _nGrid = NodeGrid(cfg.gridSize, cfg.gridSize, box.getFullBox(), false);
@@ -270,6 +270,11 @@ EdgeCandGroup ShapeBuilder::getEdgCands(const Stop* s) const {
                    {}});
   }
 
+  if (ret.size() == 1 && _cfg.verbosity) {
+    LOG(WARN) << "No snapping candidate found for stop '" << s->getName()
+              << "' (" << s->getId() << ")";
+  }
+
   return ret;
 }
 
@@ -321,7 +326,7 @@ std::pair<std::vector<LINE>, Stats> ShapeBuilder::shapeL(Trip* trip) {
     LOG(INFO) << "Matched 1 trip in " << std::fixed << std::setprecision(2)
               << stats.solveTime << " ms.";
     // print to line
-    return {getGeom(hops, getRAttrs(trip), &colors), stats};
+    return {getGeom(hops, getRAttrs(trip), &colors, trip, 1), stats};
   } catch (const std::runtime_error& e) {
     LOG(ERROR) << e.what();
     return {std::vector<LINE>(), stats};
@@ -558,15 +563,16 @@ void ShapeBuilder::setShape(Trip* t, const ad::cppgtfs::gtfs::Shape& s,
 
 // _____________________________________________________________________________
 ad::cppgtfs::gtfs::Shape ShapeBuilder::getGtfsShape(
-    const EdgeListHops& hops, Trip* t, const RoutingAttrs& rAttrs,
-    std::vector<float>* hopDists, uint32_t* bestColor) {
+    const EdgeListHops& hops, Trip* t, size_t numOthers,
+    const RoutingAttrs& rAttrs, std::vector<float>* hopDists,
+    uint32_t* bestColor) {
   ad::cppgtfs::gtfs::Shape ret(getFreeShapeId(t));
 
   assert(hops.size() == t->getStopTimes().size() - 1);
 
   std::map<uint32_t, double> colors;
 
-  const std::vector<LINE>& gl = getGeom(hops, rAttrs, &colors);
+  const std::vector<LINE>& gl = getGeom(hops, rAttrs, &colors, t, numOthers);
   const std::vector<float>& measures = getMeasure(gl);
 
   size_t seq = 0;
@@ -651,7 +657,8 @@ const RoutingAttrs& ShapeBuilder::getRAttrs(const Trip* trip) const {
 void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
                               const std::string& tid, bool dropShapes,
                               osm::BBoxIdx* box, double maxSpeed,
-                              std::vector<double>* hopDists) {
+                              std::vector<double>* hopDists,
+                              uint8_t verbosity) {
   for (const auto& t : feed->getTrips()) {
     if (!tid.empty() && t.getId() != tid) continue;
     if (tid.empty() && !t.getShape().empty() && !dropShapes) continue;
@@ -695,11 +702,21 @@ void ShapeBuilder::getGtfsBox(const Feed* feed, const MOTs& mots,
         if (reqToTime > (BUFFER + toTime) * 3 * MAX_ROUTE_COST_DOUBLING_STEPS &&
             reqFromTime >
                 (BUFFER + fromTime) * 3 * MAX_ROUTE_COST_DOUBLING_STEPS) {
-          LOG(DEBUG) << "Skipping station " << st.getStop()->getId() << " ("
-                     << st.getStop()->getName() << ") @ "
-                     << st.getStop()->getLat() << ", " << st.getStop()->getLng()
-                     << " for bounding box as the vehicle cannot realistically "
-                        "reach and leave it in the scheduled time";
+          if (verbosity) {
+            LOG(WARN)
+                << "Skipping station '" << st.getStop()->getName() << "' ("
+                << st.getStop()->getId() << ") @ " << st.getStop()->getLat()
+                << ", " << st.getStop()->getLng()
+                << " for bounding box as the vehicle cannot realistically "
+                   "reach and leave it in the scheduled time";
+          } else {
+            LOG(DEBUG)
+                << "Skipping station '" << st.getStop()->getName() << "' ("
+                << st.getStop()->getId() << ") @ " << st.getStop()->getLat()
+                << ", " << st.getStop()->getLng()
+                << " for bounding box as the vehicle cannot realistically "
+                   "reach and leave it in the scheduled time";
+          }
           continue;
         }
 
@@ -954,15 +971,33 @@ void ShapeBuilder::buildNetGraph(TrGraphEdgs* edgs,
 }
 
 // _____________________________________________________________________________
-std::vector<LINE> ShapeBuilder::getGeom(
-    const EdgeListHops& hops, const RoutingAttrs& rAttrs,
-    std::map<uint32_t, double>* colors) const {
+std::vector<LINE> ShapeBuilder::getGeom(const EdgeListHops& hops,
+                                        const RoutingAttrs& rAttrs,
+                                        std::map<uint32_t, double>* colors,
+                                        Trip* t, size_t numOthers) const {
   std::vector<LINE> ret;
 
   for (size_t i = hops.size(); i > 0; i--) {
     const auto& hop = hops[i - 1];
     if (!hop.start || !hop.end) {
       // no hop was found, use the fallback geometry
+
+      if (_cfg.verbosity) {
+        const auto stopFr = t->getStopTimes()[hops.size() - i].getStop();
+        const auto stopTo = t->getStopTimes()[hops.size() - i + 1].getStop();
+
+        LOG(WARN) << "No viable hop found between stops '" << stopFr->getName()
+                  << "' (" << stopFr->getId() << ") and '" << stopTo->getName()
+                  << "' (" << stopTo->getId() << ") for trip " << t->getId()
+                  << " of type '"
+                  << ad::cppgtfs::gtfs::flat::Route::getTypeString(
+                         t->getRoute()->getType())
+                  << "'"
+                  << (numOthers > 1 ? " (and " + std::to_string(numOthers) +
+                                          " similar trips)"
+                                    : "")
+                  << ", falling back to straight line";
+      }
 
       if (hop.start) {
         if (hop.progrStart > 0) {
@@ -1159,8 +1194,9 @@ void ShapeBuilder::shapeWorker(
 
         uint32_t color;
 
-        const ad::cppgtfs::gtfs::Shape& shp = getGtfsShape(
-            hops.at(leaf.first), leaf.second[0], rAttrs, &distances, &color);
+        const ad::cppgtfs::gtfs::Shape& shp =
+            getGtfsShape(hops.at(leaf.first), leaf.second[0],
+                         leaf.second.size(), rAttrs, &distances, &color);
 
         if (_cfg.buildTransitGraph) {
           writeTransitGraph(hops.at(leaf.first), gtfsGraph, leaf.second);

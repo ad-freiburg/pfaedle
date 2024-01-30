@@ -87,6 +87,9 @@ std::string getFileNameMotStr(const MOTs& mots);
 std::vector<std::string> getCfgPaths(const Config& cfg);
 
 // _____________________________________________________________________________
+void gtfsWarnCb(std::string msg) { LOG(WARN) << msg; }
+
+// _____________________________________________________________________________
 int main(int argc, char** argv) {
   // disable output buffering for standard output
   setbuf(stdout, NULL);
@@ -136,7 +139,8 @@ int main(int argc, char** argv) {
       LOG(INFO) << "Reading GTFS feed " << cfg.feedPaths[0] << " ...";
     try {
       ad::cppgtfs::Parser p(cfg.feedPaths[0], false,
-                            cfg.parseAdditionalGTFSFields);
+                            cfg.parseAdditionalGTFSFields,
+                            cfg.verbosity ? gtfsWarnCb : 0);
       p.parse(&gtfs[0]);
     } catch (const ad::cppgtfs::ParserException& ex) {
       LOG(ERROR) << "Could not parse input GTFS feed, reason was:";
@@ -193,7 +197,7 @@ int main(int argc, char** argv) {
 
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box, maxSpeed, 0);
+                               &box, maxSpeed, 0, cfg.verbosity);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -215,7 +219,7 @@ int main(int argc, char** argv) {
     BBoxIdx box(BOX_PADDING);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
-                               &box, maxSpeed, 0);
+                               &box, maxSpeed, 0, cfg.verbosity);
     }
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
@@ -270,9 +274,9 @@ int main(int argc, char** argv) {
       pfaedle::osm::OsmBuilder osmBuilder;
 
       pfaedle::osm::BBoxIdx box(BOX_PADDING);
-      ShapeBuilder::getGtfsBox(&gtfs[0], usedMots, cfg.shapeTripId,
-                               cfg.dropShapes, &box,
-                               motCfg.osmBuildOpts.maxSpeed, &hopDists);
+      ShapeBuilder::getGtfsBox(
+          &gtfs[0], usedMots, cfg.shapeTripId, cfg.dropShapes, &box,
+          motCfg.osmBuildOpts.maxSpeed, &hopDists, cfg.verbosity);
 
       T_START(osmBuild);
 

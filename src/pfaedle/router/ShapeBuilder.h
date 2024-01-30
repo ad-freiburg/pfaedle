@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
 #include "ad/cppgtfs/gtfs/Feed.h"
 #include "pfaedle/Def.h"
 #include "pfaedle/config/MotConfig.h"
@@ -73,7 +74,7 @@ class ShapeBuilder {
   static void getGtfsBox(const pfaedle::gtfs::Feed* feed, const MOTs& mots,
                          const std::string& tid, bool dropShapes,
                          osm::BBoxIdx* box, double maxSpeed,
-                         std::vector<double>* hopDists);
+                         std::vector<double>* hopDists, uint8_t verbosity);
 
  private:
   pfaedle::gtfs::Feed* _feed;
@@ -103,6 +104,7 @@ class ShapeBuilder {
   std::string getFreeShapeId(pfaedle::gtfs::Trip* t);
   ad::cppgtfs::gtfs::Shape getGtfsShape(const EdgeListHops& shp,
                                         pfaedle::gtfs::Trip* t,
+                                        size_t numOthers,
                                         const RoutingAttrs& rAttrs,
                                         std::vector<float>* hopDists,
                                         uint32_t* bestColor);
@@ -126,7 +128,8 @@ class ShapeBuilder {
   void buildIndex();
 
   std::vector<LINE> getGeom(const EdgeListHops& shp, const RoutingAttrs& rAttrs,
-                            std::map<uint32_t, double>* colors) const;
+                            std::map<uint32_t, double>* colors, Trip* t,
+                            size_t numOthers) const;
   double timePen(int candTime, int schedTime) const;
 
   LINE getLine(const EdgeListHop& hop, const RoutingAttrs&,

@@ -16,7 +16,7 @@ RUN mkdir build && \
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-	apt-get install -y libgomp1 libzip4 zlib1g libbz2-1.0 && \
+	apt-get install -y libzip4 zlib1g libbz2-1.0 && \
 	rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/etc/pfaedle /usr/local/etc/pfaedle

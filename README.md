@@ -90,8 +90,12 @@ $ docker run -i --rm \
 	--volume /path/to/osm/data:/osm \
 	# mount GTFS data
 	--volume /path/to/gtfs/data:/gtfs \
+	# mount default output folder gtfs-out
+	--volume /path/to/output-dir:/gtfs-out \
 	# tell pfaedle where to find the data
-	ghcr.io/ad-freiburg/pfaedle:latest -x /osm/osm-data.xml.bz2 -i /gtfs/myfeed.zip
+	ghcr.io/ad-freiburg/pfaedle:latest \
+	# tell pfaedle where to find the data
+	-x /osm/osm-data.xml.bz2 -i /gtfs/myfeed.zip
 ```
 
 ## Debugging

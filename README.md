@@ -25,27 +25,27 @@ For a quick visual inspection of the shape quality, see for example the schedule
 
 Fetch this repository and init submodules:
 
-```
-git clone --recurse-submodules https://github.com/ad-freiburg/pfaedle
+```shell
+$ git clone --recurse-submodules https://github.com/ad-freiburg/pfaedle
 ```
 
-```
-mkdir build && cd build
-cmake ..
-make -j
+```shell
+$ mkdir build && cd build
+$ cmake ..
+$ make -j
 ```
 
 To install, type
-```
-make install
+```shell
+$ make install
 ```
 
 # General Usage
 
 ## Generating shapes for a GTFS feed
 
-```
-pfaedle -x <OSM FILE> <GTFS INPUT FEED>
+```shell
+$ pfaedle -x <OSM FILE> <GTFS INPUT FEED>
 ```
 
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
@@ -55,7 +55,7 @@ input feed. To drop all existing shapes, use the `-D` flag.
 
 For example, you may generate (and replace existing, see `-D` flag) shapes for the GTFS dataset for Freiburg like this:
 
-```
+```shell
 $ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip
 $ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2
 $ pfaedle -D -x freiburg-regbez-latest.osm.bz2 VAGFR.zip
@@ -84,8 +84,8 @@ run.
 You can use the [Docker image](https://github.com/orgs/ad-freiburg/packages/container/package/pfaedle) by mounting the OSM & GTFS data into the container:
 
 ```shell
-docker pull ghcr.io/ad-freiburg/pfaedle:latest
-docker run -i --rm \
+$ docker pull ghcr.io/ad-freiburg/pfaedle:latest
+$ docker run -i --rm \
 	# mount OSM data
 	--volume /path/to/osm/data:/osm \
 	# mount GTFS data

@@ -346,7 +346,6 @@ std::map<size_t, EdgeListHops> ShapeBuilder::shapeify(
     const TripTrie<pfaedle::gtfs::Trip>* trie, HopCache* hopCache) const {
   LOG(VDEBUG) << "Map-matching trie " << trie;
 
-  // TODO(patrick): assumes the trie is not empty, check this!
   assert(trie->getNdTrips().size());
   assert(trie->getNdTrips().begin()->second.size());
   RoutingAttrs rAttrs = getRAttrs(trie->getNdTrips().begin()->second[0]);
@@ -838,9 +837,8 @@ double ShapeBuilder::timePen(int candTime, int schedTime) const {
 // _____________________________________________________________________________
 EdgeCandGroup ShapeBuilder::timeExpand(const EdgeCand& ec, int time) const {
   EdgeCandGroup ret;
-  // TODO(patrick): heuristic for time expansion variance
-  // for (int i = -5; i < 6; i++) {
-  // for (int i = -10; i < 1; i++) {
+  // TODO(patrick): heuristic for time expansion variance, currently
+  // unused
   for (int i = 0; i < 1; i++) {
     EdgeCand ecNew = ec;
     // in 30 sec steps

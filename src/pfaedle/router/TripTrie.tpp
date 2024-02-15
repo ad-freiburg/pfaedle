@@ -193,7 +193,6 @@ size_t TripTrie<TRIP>::getMatchChild(size_t parentNid,
                                      const std::string& platform, POINT pos,
                                      int time, bool timeEx) const {
   for (size_t child : _nds[parentNid].childs) {
-    // TODO(patrick): use similarity classification here?
     if (_nds[child].stopName == stopName && _nds[child].platform == platform &&
         util::geo::dist(_nds[child].pos, pos) < 1 &&
         (!timeEx || _nds[child].time == time)) {

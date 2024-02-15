@@ -81,16 +81,17 @@ run.
 
 ## via Docker
 
-You can use the [`adfreiburg/pfaedle` Docker image](https://hub.docker.com/r/adfreiburg/pfaedle) by mounting the OSM & GTFS data into the container:
+You can use the [Docker image](https://github.com/orgs/ad-freiburg/packages/container/package/pfaedle) by mounting the OSM & GTFS data into the container:
 
 ```shell
+docker pull ghcr.io/ad-freiburg/pfaedle:latest
 docker run -i --rm \
 	# mount OSM data
 	--volume /path/to/osm/data:/osm \
 	# mount GTFS data
 	--volume /path/to/gtfs/data:/gtfs \
 	# tell pfaedle where to find the data
-	adfreiburg/pfaedle -x /osm/osm-data.xml -i /gtfs
+	ghcr.io/ad-freiburg/pfaedle:latest -x /osm/osm-data.xml.bz2 -i /gtfs/myfeed.zip
 ```
 
 ## Debugging

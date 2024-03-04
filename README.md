@@ -109,3 +109,7 @@ The following flags may be useful for debugging:
 # Configuration
 
 A default configuration file `pfaedle.cfg` can be found in this repo and will be installed with `make install`. Custom configuration files can be specified with the `-c` flag. If no `-c` flag is set, `pfaedle` will parse and merge the following cfg files in the given order (if present): `<install prefix>/etc/pfaedle/pfaedle.cfg`, `$HOME/.config/pfaedle/pfaedle.cfg`, `<CWD>/pfaedle.cfg`. Values given in later files will overwrite earlier defined values.
+
+# Attribution
+
+Note that the `shapes.txt` produced by `pfaedle` is based on OpenStreetMap data, which is licensed under OdBL 1.0 (see [here](https://osm.org/copyright)). If you copy, distribute, transmit and adapt the shapefied GTFS feed, please credit the contributors of OpenStreetMap.

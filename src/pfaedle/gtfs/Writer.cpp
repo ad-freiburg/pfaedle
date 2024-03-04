@@ -345,6 +345,22 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
           cannotWrite(curFileTg);
       }
     }
+
+    curFile = getTmpFName(gtfsPath, ".pfaedle-tmp", "attributions.txt");
+    curFileTg = gtfsPath + "/attributions.txt";
+    fs.open(curFile.c_str());
+    if (!fs.good()) cannotWrite(curFile, curFileTg);
+    writeAttribution(sourceFeed, &fs);
+    fs.close();
+
+    if (toZip) {
+#ifdef LIBZIP_FOUND
+      moveIntoZip(za, curFile, "attributions.txt");
+#endif
+    } else {
+      if (std::rename(curFile.c_str(), curFileTg.c_str()))
+        cannotWrite(curFileTg);
+    }
   } catch (...) {
 #ifdef LIBZIP_FOUND
     zip_discard(za);
@@ -361,6 +377,18 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       cannotWrite(targetZipPath);
 #endif
   }
+}
+
+// ____________________________________________________________________________
+void Writer::writeAttribution(gtfs::Feed*, std::ostream* os) const {
+  auto csvw = ad::cppgtfs::Writer::getAttributionCsvw(os);
+
+  csvw->flushLine();
+  csvw->writeString("OpenStreetMap contributors");
+  csvw->writeString("https://www.openstreetmap.org/copyright");
+  csvw->writeInt(1);
+
+  csvw->flushLine();
 }
 
 // ____________________________________________________________________________

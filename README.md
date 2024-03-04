@@ -112,4 +112,4 @@ A default configuration file `pfaedle.cfg` can be found in this repo and will be
 
 # Attribution
 
-Note that the `shapes.txt` produced by `pfaedle` is based on OpenStreetMap data, which is licensed under ODbL 1.0 (see [here](https://osm.org/copyright)). If you copy, distribute, transmit and adapt the shapefied GTFS feed, please credit the contributors of OpenStreetMap.
+Note that the `shapes.txt` produced by `pfaedle` is based on OpenStreetMap data, which is licensed under ODbL 1.0 (see [here](https://osm.org/copyright)). If you copy, distribute, transmit or adapt the shapefied GTFS feed, please credit the contributors of OpenStreetMap.

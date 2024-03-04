@@ -1,7 +1,7 @@
-[![Left: station-to-station path of a single train through Switzerland obtained from schedule timetable data. Right: path of the same train map-matched by pfaedle.](geo/schweiz_ex_res.png?raw=true)](geo/schweiz_ex.png?raw=true)
+[![Left: station-to-station path of a single train through Switzerland obtained from schedule timetable data. Right: path of the same train map-matched by pfaedle.](geo/schweiz_ex_res.png?raw=true)](geo/schweiz_ex.png?raw=true)  
 *Left: station-to-station path of a single train through Switzerland obtained from official schedule data. Right: path of the same train map-matched by pfaedle.*
 
-[![Left: station-to-station path of a single bus through Stuttgart obtained from official schedule data. Right: path of the same bus map-matched by pfaedle.](geo/stuttgart_ex_res.png?raw=true)](geo/stuttgart_ex.png?raw=true)
+[![Left: station-to-station path of a single bus through Stuttgart obtained from official schedule data. Right: path of the same bus map-matched by pfaedle.](geo/stuttgart_ex_res.png?raw=true)](geo/stuttgart_ex.png?raw=true)  
 *Left: station-to-station path of a single bus through Stuttgart obtained from official schedule data. Right: path of the same bus map-matched by pfaedle.*
 
 [![Build](https://github.com/ad-freiburg/pfaedle/actions/workflows/build.yml/badge.svg)](https://github.com/ad-freiburg/pfaedle/actions/workflows/build.yml)

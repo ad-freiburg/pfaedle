@@ -194,10 +194,8 @@ std::vector<LINE> Collector::segmentize(
   POLYLINE pl(shape);
   std::vector<double> cuts;
 
-  size_t i = 0;
   for (const auto& st : t->getStopTimes()) {
     cuts.push_back(st.getShapeDistanceTravelled());
-    i++;
   }
 
 

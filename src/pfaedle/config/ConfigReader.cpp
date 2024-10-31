@@ -51,6 +51,8 @@ void ConfigReader::help(const char* bin) {
             << "pfaedle config file\n"
             << std::setw(35) << "  -i [ --input ] arg"
             << "gtfs feed(s), may also be given as positional\n"
+            << std::setw(35) << "  -F [ --keep-additional-gtfs-fields ] arg"
+            << "keep additional non-standard feeds in GTFS input\n"
             << std::setw(35) << " "
             << "  parameter (see usage)\n"
             << std::setw(35) << "  -x [ --osm-file ] arg"
@@ -99,8 +101,10 @@ void ConfigReader::help(const char* bin) {
             << "Output overpass query for matching OSM data\n"
             << std::setw(35) << "  --osmfilter"
             << "Output osmfilter filter rules for matching OSM data\n"
-            << std::setw(35) << "  --grid-size arg (=2000)"
+            << std::setw(35) << "  -g [ --grid-size ] arg (=2000)"
             << "Approx. grid cell size in meters\n"
+            << std::setw(35) << "  -b [ --box-padding ] arg (=20000)"
+            << "Padding of bounding box used to crop input OSM data in meters\n"
             << std::setw(35) << "  --no-fast-hops"
             << "Disable fast hops technique\n"
             << std::setw(35) << "  --no-a-star"
@@ -129,6 +133,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {"drop-shapes", required_argument, 0, 'D'},
                          {"mots", required_argument, NULL, 'm'},
                          {"grid-size", required_argument, 0, 'g'},
+                         {"box-padding", required_argument, 0, 'b'},
                          {"overpass", no_argument, 0, 'a'},
                          {"osmfilter", no_argument, 0, 'f'},
                          {"osm-out", required_argument, 0, 'X'},
@@ -151,7 +156,7 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
                          {0, 0, 0, 0}};
 
   int c;
-  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:FW", ops, 0)) !=
+  while ((c = getopt_long(argc, argv, ":o:hvi:c:x:Dm:g:X:T:d:pP:FWb:", ops, 0)) !=
          -1) {
     switch (c) {
       case 1:
@@ -189,6 +194,9 @@ void ConfigReader::read(Config* cfg, int argc, char** argv) {
         break;
       case 'g':
         cfg->gridSize = atof(optarg) / util::geo::M_PER_DEG;
+        break;
+      case 'b':
+        cfg->boxPadding = atof(optarg);
         break;
       case 'X':
         cfg->writeOsm = optarg;

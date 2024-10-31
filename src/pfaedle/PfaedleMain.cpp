@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
 
   if (cfg.writeOsm.size()) {
     LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
-    BBoxIdx box(BOX_PADDING);
+    BBoxIdx box(cfg.boxPadding);
 
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
     }
     exit(static_cast<int>(RetCode::SUCCESS));
   } else if (cfg.writeOverpass) {
-    BBoxIdx box(BOX_PADDING);
+    BBoxIdx box(cfg.boxPadding);
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {
       ShapeBuilder::getGtfsBox(&gtfs[i], cmdCfgMots, cfg.shapeTripId, true,
                                &box, maxSpeed, 0, cfg.verbosity);
@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
     osmBuilder.overpassQryWrite(&std::cout, opts, box);
     exit(static_cast<int>(RetCode::SUCCESS));
   } else if (cfg.writeOsmfilter) {
-    BBoxIdx box(BOX_PADDING);
+    BBoxIdx box(cfg.boxPadding);
     OsmBuilder osmBuilder;
     std::vector<pfaedle::osm::OsmReadOpts> opts;
     for (const auto& o : motCfgReader.getConfigs()) {
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
       pfaedle::trgraph::Graph graph;
       pfaedle::osm::OsmBuilder osmBuilder;
 
-      pfaedle::osm::BBoxIdx box(BOX_PADDING);
+      pfaedle::osm::BBoxIdx box(cfg.boxPadding);
       ShapeBuilder::getGtfsBox(
           &gtfs[0], usedMots, cfg.shapeTripId, cfg.dropShapes, &box,
           motCfg.osmBuildOpts.maxSpeed, &hopDists, cfg.verbosity);

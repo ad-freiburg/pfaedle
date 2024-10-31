@@ -39,6 +39,7 @@ struct Config {
         writeStats(false),
         parseAdditionalGTFSFields(false),
         gridSize(2000 / util::geo::M_PER_DEG),
+        boxPadding(20000),
         gaussianNoise(0),
         verbosity(0) {}
   std::string dbgOutputPath;
@@ -67,6 +68,7 @@ struct Config {
   bool writeStats;
   bool parseAdditionalGTFSFields;
   double gridSize;
+  double boxPadding;
   double gaussianNoise;
   uint8_t verbosity;
 
@@ -81,6 +83,7 @@ struct Config {
        << "use-hmm: " << useHMM << "\n"
        << "write-graph: " << writeGraph << "\n"
        << "grid-size: " << gridSize << "\n"
+       << "box-padding: " << boxPadding << "\n"
        << "use-cache: " << useCaching << "\n"
        << "write-overpass: " << writeOverpass << "\n"
        << "write-osmfilter: " << writeOsmfilter << "\n"

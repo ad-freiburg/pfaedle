@@ -29,6 +29,4 @@
 #define BOX util::geo::Box<PFDL_PREC>
 #define POLYLINE util::geo::PolyLine<PFDL_PREC>
 
-#define BOX_PADDING 2500
-
 #endif  // PFAEDLE_DEF_H_

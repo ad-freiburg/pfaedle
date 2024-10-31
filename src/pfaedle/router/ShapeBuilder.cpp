@@ -71,7 +71,7 @@ ShapeBuilder::ShapeBuilder(
       _restr(restr),
       _classifier(classifier),
       _router(router) {
-  pfaedle::osm::BBoxIdx box(BOX_PADDING);
+  pfaedle::osm::BBoxIdx box(cfg.boxPadding);
   ShapeBuilder::getGtfsBox(feed, mots, cfg.shapeTripId, cfg.dropShapes, &box,
                            _motCfg.osmBuildOpts.maxSpeed, 0, cfg.verbosity);
 

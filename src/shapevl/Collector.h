@@ -47,10 +47,10 @@ struct lineCmp {
  */
 class Collector {
  public:
-  Collector(std::ostream* reportOut)
+  Collector(std::ostream* reportOut, int reportLevel)
       : _trips(0),
         _noOrigShp(0),
-        _fdSum(0),
+        _accFdSum(0),
         _unmatchedSegSum(0),
         _unmatchedSegLengthSum(0),
         _an0(0),
@@ -60,7 +60,7 @@ class Collector {
         _an50(0),
         _an70(0),
         _an90(0),
-        _reportOut(reportOut) {}
+        _reportOut(reportOut), _reportLevel(reportLevel) {}
 
   // Add a shape found by our tool newS for a trip t with newly calculated
   // station dist values with the old shape oldS
@@ -91,8 +91,11 @@ class Collector {
 
  private:
   std::set<Result> _results;
-  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _dCache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _accFdCache;
   std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _dACache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _fdCache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _dCache;
+  std::map<LINE, std::map<LINE, double, lineCmp>, lineCmp> _lenDiffCache;
 
   size_t _trips;
   size_t _noOrigShp;
@@ -100,7 +103,7 @@ class Collector {
   std::vector<double> _distDiffs;
   std::vector<double> _hopDists;
 
-  double _fdSum;
+  double _accFdSum;
   size_t _unmatchedSegSum;
   double _unmatchedSegLengthSum;
 
@@ -114,6 +117,7 @@ class Collector {
   size_t _an90 = 0;
 
   std::ostream* _reportOut;
+  int _reportLevel = 1;
 
   std::pair<size_t, double> getDa(const std::vector<LINE>& a,
                                   const std::vector<LINE>& b);

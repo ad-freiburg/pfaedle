@@ -27,11 +27,12 @@ void printHelp(int argc, char** argv) {
             << " [-f <reportpath>] -g <gtfs> [-s] <test feeds>"
             << "\n";
   std::cout
-      << "\nAllowed arguments:\n    -g <gtfs>     Ground truth GTFS file\n";
+      << "\nAllowed arguments:\n     -g <gtfs>    Ground truth GTFS file\n";
   std::cout << "     -s           Only output summary\n";
   std::cout << "     --json       Output JSON\n";
-  std::cout << "     --avg       Take avg of all inputs (only for --json)\n";
+  std::cout << "     --avg        Take avg of all inputs (only for --json)\n";
   std::cout << "     -f <folder>  Output full reports (per feed) to <folder>\n";
+  std::cout << "     -l <level>   Full report level (0 - 2), default 1\n";
   std::cout
       << "     -m           MOTs to match (GTFS MOT or string, default: all)\n";
 }
@@ -135,6 +136,7 @@ int main(int argc, char** argv) {
   bool json = false;
   bool avg = false;
   bool unique = false;
+  int reportLevel = 1;
 
   for (int i = 1; i < argc; i++) {
     std::string cur = argv[i];
@@ -155,6 +157,12 @@ int main(int argc, char** argv) {
       unique = true;
     } else if (cur == "--avg") {
       avg = true;
+    } else if (cur == "-l") {
+      if (++i >= argc) {
+        LOG(ERROR) << "Missing argument for report level (-l)";
+        exit(1);
+      }
+      reportLevel = atoi(argv[i]);
     } else if (cur == "-f") {
       if (++i >= argc) {
         LOG(ERROR) << "Missing argument for full reports (-f).";
@@ -185,9 +193,9 @@ int main(int argc, char** argv) {
       reportStreams.back().open(fullReportPath + "/" +
                                 util::split(feedPath, '/').back() +
                                 ".fullreport.tsv");
-      evalColls.push_back({&reportStreams.back()});
+      evalColls.push_back({&reportStreams.back(), reportLevel});
     } else {
-      evalColls.push_back({0});
+      evalColls.push_back({0, reportLevel});
     }
     count++;
   }

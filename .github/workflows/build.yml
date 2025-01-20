@@ -93,8 +93,23 @@ jobs:
         run: cd build && make
       - name: tests
         run: cd build && ctest --output-on-failure
-  macos-12-build:
-    runs-on: macOS-12
+  macos-15-build:
+    runs-on: macOS-15
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Checkout submodules
+        run: git submodule update --init --recursive
+      - name: install dependencies
+        run: brew install cmake
+      - name: cmake
+        run: mkdir build && cd build && cmake ..
+      - name: make
+        run: cd build && make
+      - name: tests
+        run: cd build && ctest --output-on-failure
+  macos-13-build:
+    runs-on: macOS-13
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2

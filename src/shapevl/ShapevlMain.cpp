@@ -27,21 +27,23 @@ void printHelp(int argc, char** argv) {
             << " [-f <reportpath>] -g <gtfs> [-s] <test feeds>"
             << "\n";
   std::cout
-      << "\nAllowed arguments:\n     -g <gtfs>    Ground truth GTFS file\n";
-  std::cout << "     -s           Only output summary\n";
-  std::cout << "     --json       Output JSON\n";
-  std::cout << "     --avg        Take avg of all inputs (only for --json)\n";
-  std::cout << "     -f <folder>  Output full reports (per feed) to <folder>\n";
-  std::cout << "     -l <level>   Full report level (0 - 2), default 1\n";
+      << "\nAllowed arguments:\n     -g <gtfs>              Ground truth GTFS file\n";
+  std::cout << "     -s                     Only output summary\n";
+  std::cout << "     --json                 Output JSON\n";
+  std::cout << "     --avg                  Take avg of all inputs (only for --json)\n";
+  std::cout << "     --unique               Only use trips with unique stop sequence\n";
+  std::cout << "     --segment-length <len> Segment length for Frechet distance, in meters, default: 25\n";
+  std::cout << "     -f <folder>            Output full reports (per feed) to <folder>\n";
+  std::cout << "     -l <level>             Full report level (0 - 2), default 1\n";
   std::cout
-      << "     -m           MOTs to match (GTFS MOT or string, default: all)\n";
+      << "     -m                     MOTs to match (GTFS MOT or string, default: all)\n";
 }
 
 // _____________________________________________________________________________
 void eval(const std::vector<std::string>* paths,
           std::vector<pfaedle::eval::Collector>* colls,
           const std::set<Route::TYPE>* mots,
-          const ad::cppgtfs::gtfs::Feed* evalFeed, bool unique) {
+          const ad::cppgtfs::gtfs::Feed* evalFeed, bool unique, double segLen) {
   while (1) {
     int myFeed = count-- - 1;
     if (myFeed < 0) return;
@@ -110,8 +112,12 @@ void eval(const std::vector<std::string>* paths,
                    << ", skipping...";
         continue;
       }
+
+      // skip target trips without shape
+      if (!newTrip->getShape()) continue;
+
       (*colls)[myFeed].add(oldTrip, oldTrip->getShape(), newTrip,
-                           newTrip->getShape());
+                           newTrip->getShape(), segLen);
     }
   }
 }
@@ -137,6 +143,7 @@ int main(int argc, char** argv) {
   bool avg = false;
   bool unique = false;
   int reportLevel = 1;
+  double segLen = 25.0 / util::geo::M_PER_DEG;
 
   for (int i = 1; i < argc; i++) {
     std::string cur = argv[i];
@@ -157,6 +164,12 @@ int main(int argc, char** argv) {
       unique = true;
     } else if (cur == "--avg") {
       avg = true;
+    } else if (cur == "--segment-length") {
+      if (++i >= argc) {
+        LOG(ERROR) << "Missing argument for segment length (--segment-length)";
+        exit(1);
+      }
+      segLen = atoi(argv[i]);
     } else if (cur == "-l") {
       if (++i >= argc) {
         LOG(ERROR) << "Missing argument for report level (-l)";
@@ -225,7 +238,7 @@ int main(int argc, char** argv) {
   std::vector<std::thread> thrds(THREADS);
   for (auto& thr : thrds)
     thr = std::thread(&eval, &evlFeedPaths, &evalColls, &mots, &groundTruthFeed,
-                      unique);
+                      unique, segLen);
 
   for (auto& thr : thrds) thr.join();
 

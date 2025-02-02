@@ -65,7 +65,7 @@ class Collector {
   // Add a shape found by our tool newS for a trip t with newly calculated
   // station dist values with the old shape oldS
   double add(const Trip* oldT, const Shape* oldS, const Trip* newT,
-             const Shape* newS);
+             const Shape* newS, double segLen);
 
   // Return the set of all Result objects
   const std::set<Result>& getResults() const;
@@ -120,7 +120,7 @@ class Collector {
   int _reportLevel = 1;
 
   std::pair<size_t, double> getDa(const std::vector<LINE>& a,
-                                  const std::vector<LINE>& b);
+                                  const std::vector<LINE>& b, double segLen);
 
   static std::vector<LINE> segmentize(
       const Trip* t, const LINE& shape, const std::vector<double>& dists,

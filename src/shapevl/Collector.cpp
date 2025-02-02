@@ -26,7 +26,7 @@ using util::geo::output::GeoJsonOutput;
 
 // _____________________________________________________________________________
 double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
-                      const Shape* newS) {
+                      const Shape* newS, double segLen) {
   // This adds a new trip with a new shape to our evaluation.
   _trips++;
 
@@ -106,9 +106,6 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     newLCut.insert(newLCut.end(), newL.begin(), newL.end());
   }
 
-  // convert (roughly) to degrees
-  double SEGL = 25.0 / util::geo::M_PER_DEG;
-
   double f = util::geo::webMercDistFactor(oldLCut.front());
 
   // roughly half a meter
@@ -123,11 +120,11 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     if (match != old->second.end()) {
       accFd = match->second;
     } else {
-      accFd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, SEGL);
+      accFd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, segLen);
       _accFdCache[oldLCutS][newLCutS] = accFd;
     }
   } else {
-    accFd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, SEGL);
+    accFd = util::geo::accFrechetDistCHav(oldLCutS, newLCutS, segLen);
     _accFdCache[oldLCutS][newLCutS] = accFd;
   }
 
@@ -137,11 +134,11 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     if (match != old->second.end()) {
       fd = match->second;
     } else {
-      fd = util::geo::frechetDistHav(oldLCutS, newLCutS, SEGL);
+      fd = util::geo::frechetDistHav(oldLCutS, newLCutS, segLen);
       _fdCache[oldLCutS][newLCutS] = fd;
     }
   } else {
-    fd = util::geo::frechetDistHav(oldLCutS, newLCutS, SEGL);
+    fd = util::geo::frechetDistHav(oldLCutS, newLCutS, segLen);
     _fdCache[oldLCutS][newLCutS] = fd;
   }
 
@@ -165,17 +162,15 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
     if (match != old->second.end()) {
       fd = match->second;
     } else {
-      lenDiff =
-          fabs(util::geo::latLngLen(oldLCutS) - util::geo::latLngLen(newLCutS));
+      lenDiff = util::geo::latLngLen(oldLCutS) - util::geo::latLngLen(newLCutS);
       _lenDiffCache[oldLCutS][newLCutS] = lenDiff;
     }
   } else {
-    lenDiff =
-        fabs(util::geo::latLngLen(oldLCutS) - util::geo::latLngLen(newLCutS));
+    lenDiff = util::geo::latLngLen(oldLCutS) - util::geo::latLngLen(newLCutS);
     _lenDiffCache[oldLCutS][newLCutS] = lenDiff;
   }
 
-  auto dA = getDa(oldSegs, newSegs);
+  auto dA = getDa(oldSegs, newSegs, segLen);
   unmatchedSegments = dA.first;
   unmatchedSegmentsLength = dA.second;
 
@@ -516,12 +511,9 @@ std::map<string, double> Collector::getStats() {
 
 // _____________________________________________________________________________
 std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
-                                           const std::vector<LINE>& b) {
+                                           const std::vector<LINE>& b, double segLen) {
   assert(a.size() == b.size());
   std::pair<size_t, double> ret{0, 0};
-
-  // convert (roughly) to degrees
-  double SEGL = 25 / util::geo::M_PER_DEG;
 
   double MAX = 100;
 
@@ -540,11 +532,11 @@ std::pair<size_t, double> Collector::getDa(const std::vector<LINE>& a,
       if (match != old->second.end()) {
         fdMeter = match->second;
       } else {
-        fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
+        fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, segLen);
         _dACache[aSimpl][bSimpl] = fdMeter;
       }
     } else {
-      fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, SEGL);
+      fdMeter = util::geo::frechetDistHav(aSimpl, bSimpl, segLen);
       _dACache[aSimpl][bSimpl] = fdMeter;
     }
 

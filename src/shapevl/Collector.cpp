@@ -25,8 +25,8 @@ using pfaedle::eval::Result;
 using util::geo::output::GeoJsonOutput;
 
 // _____________________________________________________________________________
-double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
-                      const Shape* newS, double segLen) {
+double Collector::add(const Trip* oldT, const Shape* oldS, size_t numOldTrips,
+                      const Trip* newT, const Shape* newS, double segLen) {
   // This adds a new trip with a new shape to our evaluation.
   _trips++;
 
@@ -236,7 +236,8 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
                     << lenDiff
                     << "\t" << util::geo::getWKT(oldSegs) << "\t"
                     << util::geo::getWKT(newSegs) << "\t"
-                    << oldT->getRoute()->getShortName() << "\t";
+                    << oldT->getRoute()->getShortName() << "\t"
+                    << numOldTrips << "\t";
 
       for (const auto& st : oldT->getStopTimes()) {
         (*_reportOut) << st.getStop()->getName() << "\t"

@@ -60,7 +60,7 @@ void eval(const std::vector<std::string>* paths,
       exit(1);
     }
 
-    std::vector<ad::cppgtfs::gtfs::Trip*> trips;
+    std::vector<std::pair<ad::cppgtfs::gtfs::Trip*, size_t>> trips;
 
     if (unique) {
       std::map<const ad::cppgtfs::gtfs::Route*,
@@ -91,19 +91,21 @@ void eval(const std::vector<std::string>* paths,
         for (auto sf : f.second) {
           for (auto leaf : sf.getNdTrips()) {
             // only one reference node
-            trips.push_back(leaf.second.front());
+            trips.push_back({leaf.second.front(), leaf.second.size()});
           }
         }
       }
     } else {
       for (auto t : evalFeed->getTrips()) {
-        trips.push_back(t.second);
+        trips.push_back({t.second, 1});
       }
     }
 
     LOG(DEBUG) << "Evaluating " << path << "...";
     size_t i = 0;
-    for (const auto& oldTrip : trips) {
+    for (const auto& tripPair : trips) {
+      const auto& oldTrip = tripPair.first;
+      size_t numTrips = tripPair.second;
       LOG(DEBUG) << "@ " << ++i << "/" << trips.size();
       if (!mots->count(oldTrip->getRoute()->getType())) continue;
       auto newTrip = feed.getTrips().get(oldTrip->getId());
@@ -116,7 +118,7 @@ void eval(const std::vector<std::string>* paths,
       // skip target trips without shape
       if (!newTrip->getShape()) continue;
 
-      (*colls)[myFeed].add(oldTrip, oldTrip->getShape(), newTrip,
+      (*colls)[myFeed].add(oldTrip, oldTrip->getShape(), numTrips, newTrip,
                            newTrip->getShape(), segLen);
     }
   }

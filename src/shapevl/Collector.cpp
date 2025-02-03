@@ -160,7 +160,7 @@ double Collector::add(const Trip* oldT, const Shape* oldS, const Trip* newT,
   if (old != _lenDiffCache.end()) {
     auto match = old->second.find(newLCutS);
     if (match != old->second.end()) {
-      fd = match->second;
+      lenDiff = match->second;
     } else {
       lenDiff = util::geo::latLngLen(oldLCutS) - util::geo::latLngLen(newLCutS);
       _lenDiffCache[oldLCutS][newLCutS] = lenDiff;

@@ -387,6 +387,8 @@ void Writer::writeAttribution(gtfs::Feed*, std::ostream* os) const {
   csvw->writeString("OpenStreetMap contributors");
   csvw->writeString("https://www.openstreetmap.org/copyright");
   csvw->writeInt(1);
+  csvw->writeInt(0);
+  csvw->writeInt(0);
 
   csvw->flushLine();
 }

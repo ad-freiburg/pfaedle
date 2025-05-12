@@ -236,7 +236,8 @@ double Collector::add(const Trip* oldT, const Shape* oldS, size_t numOldTrips,
                     << oldT->getRoute()->getShortName() << "\t" << numOldTrips
                     << "\t"
                     << ad::cppgtfs::gtfs::flat::Route::getTypeString(
-                           oldT->getRoute()->getType())
+                           ad::cppgtfs::gtfs::flat::Route::getStandardRouteType(
+                               oldT->getRoute()->getType()))
                     << "\t";
 
       for (const auto& st : oldT->getStopTimes()) {

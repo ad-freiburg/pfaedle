@@ -350,7 +350,7 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     curFileTg = gtfsPath + "/attributions.txt";
     fs.open(curFile.c_str());
     if (!fs.good()) cannotWrite(curFile, curFileTg);
-    writeAttribution(sourceFeed, &fs);
+    writeAttributions(sourceFeed, &fs);
     fs.close();
 
     if (toZip) {
@@ -380,17 +380,40 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
 }
 
 // ____________________________________________________________________________
-void Writer::writeAttribution(gtfs::Feed*, std::ostream* os) const {
-  auto csvw = ad::cppgtfs::Writer::getAttributionCsvw(os);
-
+void Writer::writeAttributions(gtfs::Feed* sourceFeed, std::ostream* os) const {
+  Parser p(sourceFeed->getPath());
+  auto csvp = p.getCsvParser("attributions.txt");
+  auto csvw = ad::cppgtfs::Writer::getAttributionsCsvw(os);
   csvw->flushLine();
-  csvw->writeString("OpenStreetMap contributors");
-  csvw->writeString("https://www.openstreetmap.org/copyright");
-  csvw->writeInt(1);
-  csvw->writeInt(0);
-  csvw->writeInt(0);
+  ad::cppgtfs::Writer w;
 
-  csvw->flushLine();
+  bool hasOsm = false;
+
+  if (csvp->isGood()) {
+    ad::cppgtfs::gtfs::flat::Attribution a;
+    auto flds = Parser::getAttributionsFlds(csvp.get());
+
+    while (p.nextAttribution(csvp.get(), &a, flds)) {
+      if (a.organizationName == "OpenStreetMap contributors") hasOsm = true;
+      w.writeAttribution(a, csvw.get());
+    }
+  }
+
+  if (!hasOsm) {
+    csvw->skip();
+    csvw->skip();
+    csvw->skip();
+    csvw->skip();
+    csvw->writeString("OpenStreetMap contributors");
+    csvw->writeInt(1);
+    csvw->writeInt(0);
+    csvw->writeInt(0);
+    csvw->writeString("https://www.openstreetmap.org/copyright");
+    csvw->skip();
+    csvw->skip();
+
+    csvw->flushLine();
+  }
 }
 
 // ____________________________________________________________________________

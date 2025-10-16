@@ -424,9 +424,9 @@ int main(int argc, char** argv) {
              {"time_solve", stats.solveTime},
              {"time_read_osm", tOsmBuild},
              {"time_read_gtfs", static_cast<int>(tGtfsBuild)},
-             {"time_tot", static_cast<uint64_t>(T_STOP(total))},
+             {"time_tot", static_cast<size_t>(T_STOP(total))},
              {"peak-memory", util::readableSize(util::getPeakRSS())},
-             {"peak-memory-bytes", static_cast<uint64_t>(util::getPeakRSS())}}}};
+             {"peak-memory-bytes", static_cast<size_t>(util::getPeakRSS())}}}};
 
     std::ofstream ofs;
     ofs.open(cfg.dbgOutputPath + "/stats.json");

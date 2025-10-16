@@ -2,6 +2,7 @@
 // Author: Patrick Brosi
 
 #include "pfaedle/osm/Restrictor.h"
+#include "util/Test.h"
 
 #define private public
 #include "pfaedle/router/Router.h"

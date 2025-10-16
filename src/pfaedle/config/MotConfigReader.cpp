@@ -20,6 +20,11 @@ using pfaedle::osm::DeepAttrRule;
 using pfaedle::osm::FilterRule;
 using pfaedle::osm::KeyVal;
 using pfaedle::trgraph::ReplRules;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 double DEF_TRANS_PEN = 0.0083;
 

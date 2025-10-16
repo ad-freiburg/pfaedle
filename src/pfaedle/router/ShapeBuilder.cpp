@@ -53,6 +53,11 @@ using pfaedle::trgraph::NodeGrid;
 using util::geo::latLngToWebMerc;
 using util::geo::M_PER_DEG;
 using util::geo::output::GeoGraphJsonOutput;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 // _____________________________________________________________________________
 ShapeBuilder::ShapeBuilder(
@@ -446,7 +451,7 @@ Stats ShapeBuilder::shapeify(pfaedle::netgraph::Graph* outNg) {
 
   for (auto& thr : thrds) thr.join();
 
-  stats.solveTime = TOOK(tStart, TIME());
+  stats.solveTime = TOOK_UNTIL(tStart, TIME());
 
   LOG(INFO) << "Matched " << stats.totNumTrips << " trips in " << std::fixed
             << std::setprecision(2) << stats.solveTime << " ms.";

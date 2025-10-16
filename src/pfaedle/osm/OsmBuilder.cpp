@@ -47,6 +47,11 @@ using pfaedle::trgraph::TransitEdgeLine;
 using util::Nullable;
 using util::geo::Box;
 using util::geo::M_PER_DEG;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 // _____________________________________________________________________________
 bool EqSearch::operator()(const Node* cand, const StatInfo* si) const {

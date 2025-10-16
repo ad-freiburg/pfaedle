@@ -23,6 +23,11 @@ using ad::cppgtfs::gtfs::Trip;
 using pfaedle::eval::Collector;
 using pfaedle::eval::Result;
 using util::geo::output::GeoJsonOutput;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 // _____________________________________________________________________________
 double Collector::add(const Trip* oldT, const Shape* oldS, size_t numOldTrips,

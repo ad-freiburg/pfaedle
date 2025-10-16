@@ -17,6 +17,11 @@
 #include "util/log/Log.h"
 
 using pfaedle::router::TripTrie;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 std::atomic<int> count(0);
 

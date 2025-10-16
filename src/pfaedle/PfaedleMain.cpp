@@ -69,6 +69,11 @@ using pfaedle::statsimiclassifier::JaccardClassifier;
 using pfaedle::statsimiclassifier::JaccardGeodistClassifier;
 using pfaedle::statsimiclassifier::PEDClassifier;
 using pfaedle::statsimiclassifier::StatsimiClassifier;
+using util::WARN;
+using util::INFO;
+using util::ERROR;
+using util::DEBUG;
+using util::VDEBUG;
 
 enum class RetCode {
   SUCCESS = 0,
@@ -418,10 +423,10 @@ int main(int argc, char** argv) {
              {"dijkstra_iters", stats.dijkstraIters},
              {"time_solve", stats.solveTime},
              {"time_read_osm", tOsmBuild},
-             {"time_read_gtfs", tGtfsBuild},
-             {"time_tot", T_STOP(total)},
+             {"time_read_gtfs", static_cast<int>(tGtfsBuild)},
+             {"time_tot", static_cast<uint64_t>(T_STOP(total))},
              {"peak-memory", util::readableSize(util::getPeakRSS())},
-             {"peak-memory-bytes", util::getPeakRSS()}}}};
+             {"peak-memory-bytes", static_cast<uint64_t>(util::getPeakRSS())}}}};
 
     std::ofstream ofs;
     ofs.open(cfg.dbgOutputPath + "/stats.json");

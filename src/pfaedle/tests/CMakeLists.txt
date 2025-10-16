@@ -1,2 +1,2 @@
 add_executable(pfaedleTest TestMain.cpp)
-target_link_libraries(pfaedleTest pfaedle_dep util)
+target_link_libraries(pfaedleTest pfaedle_dep pb_util pb_util_geo pb_util_graph pb_util_xml pb_util_json)

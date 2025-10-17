@@ -361,6 +361,25 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
       if (std::rename(curFile.c_str(), curFileTg.c_str()))
         cannotWrite(curFileTg);
     }
+
+    csvp = ip.getCsvParser("translations.txt");
+    if (csvp->isGood()) {
+      curFile = getTmpFName(gtfsPath, ".pfaedle-tmp", "translations.txt");
+      curFileTg = gtfsPath + "/translations.txt";
+      fs.open(curFile.c_str());
+      if (!fs.good()) cannotWrite(curFile, curFileTg);
+      writeTranslations(sourceFeed, &fs);
+      fs.close();
+
+      if (toZip) {
+#ifdef LIBZIP_FOUND
+        moveIntoZip(za, curFile, "translations.txt");
+#endif
+      } else {
+        if (std::rename(curFile.c_str(), curFileTg.c_str()))
+          cannotWrite(curFileTg);
+      }
+    }
   } catch (...) {
 #ifdef LIBZIP_FOUND
     zip_discard(za);
@@ -376,6 +395,24 @@ void Writer::write(gtfs::Feed* sourceFeed, const std::string& path) const {
     if (std::rename(tmpZip.c_str(), targetZipPath.c_str()))
       cannotWrite(targetZipPath);
 #endif
+  }
+}
+
+// ____________________________________________________________________________
+void Writer::writeTranslations(gtfs::Feed* sourceFeed, std::ostream* os) const {
+  Parser p(sourceFeed->getPath());
+  auto csvp = p.getCsvParser("translations.txt");
+  auto csvw = ad::cppgtfs::Writer::getTranslationsCsvw(os);
+  csvw->flushLine();
+  ad::cppgtfs::Writer w;
+
+  if (csvp->isGood()) {
+    ad::cppgtfs::gtfs::flat::Translation a;
+    auto flds = Parser::getTranslationFlds(csvp.get());
+
+    while (p.nextTranslation(csvp.get(), &a, flds)) {
+      w.writeTranslation(a, csvw.get());
+    }
   }
 }
 

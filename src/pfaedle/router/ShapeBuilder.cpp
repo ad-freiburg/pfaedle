@@ -1210,10 +1210,6 @@ void ShapeBuilder::shapeWorker(
               t->getRoute()->getColor() == NO_COLOR &&
               t->getRoute()->getTextColor() == NO_COLOR) {
             (*routeColors)[t->getRoute()][color].push_back(t);
-          } else {
-            // else, use the original route color
-            (*routeColors)[t->getRoute()][t->getRoute()->getColor()].push_back(
-                t);
           }
 
           if (!t->getShape().empty() && (*shpUse)[t->getShape()] > 0) {

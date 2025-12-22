@@ -41,7 +41,8 @@ typedef std::unordered_map<const pfaedle::gtfs::Trip*, router::RoutingAttrs>
 typedef std::unordered_map<const trgraph::Edge*,
                            std::vector<const pfaedle::gtfs::Trip*>>
     TrGraphEdgs;
-typedef std::map<Route*, std::map<std::pair<uint32_t, uint32_t>, std::vector<gtfs::Trip*>>>
+typedef std::map<
+    Route*, std::map<std::pair<uint32_t, uint32_t>, std::vector<gtfs::Trip*>>>
     RouteRefColors;
 typedef std::unordered_map<const ad::cppgtfs::gtfs::Stop*, EdgeCandGroup>
     GrpCache;
@@ -155,8 +156,8 @@ class ShapeBuilder {
   void shapeWorker(
       const std::vector<const TripForest*>* tries, std::atomic<size_t>* at,
       std::map<std::string, size_t>* shpUsage,
-      std::map<Route*, std::map<std::pair<uint32_t, uint32_t>, std::vector<gtfs::Trip*>>>*
-          routeColors,
+      std::map<Route*, std::map<std::pair<uint32_t, uint32_t>,
+                                std::vector<gtfs::Trip*>>>* routeColors,
       TrGraphEdgs* gtfsGraph);
 
   void edgCandWorker(std::vector<const Stop*>* stops, GrpCache* cache);

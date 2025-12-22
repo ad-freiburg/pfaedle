@@ -50,14 +50,14 @@ using pfaedle::router::TripForests;
 using pfaedle::router::TripTrie;
 using pfaedle::trgraph::EdgeGrid;
 using pfaedle::trgraph::NodeGrid;
+using util::DEBUG;
+using util::ERROR;
+using util::INFO;
+using util::VDEBUG;
+using util::WARN;
 using util::geo::latLngToWebMerc;
 using util::geo::M_PER_DEG;
 using util::geo::output::GeoGraphJsonOutput;
-using util::WARN;
-using util::INFO;
-using util::ERROR;
-using util::DEBUG;
-using util::VDEBUG;
 
 // _____________________________________________________________________________
 ShapeBuilder::ShapeBuilder(
@@ -417,7 +417,9 @@ Stats ShapeBuilder::shapeify(pfaedle::netgraph::Graph* outNg) {
       continue;
 
     if (!t.getShape().empty() && !_cfg.dropShapes) {
-      refColors[t.getRoute()][{t.getRoute()->getColor(),t.getRoute()->getTextColor()} ].push_back(&t);
+      refColors[t.getRoute()]
+               [{t.getRoute()->getColor(), t.getRoute()->getTextColor()}]
+                   .push_back(&t);
     }
   }
 
@@ -516,7 +518,9 @@ void ShapeBuilder::updateRouteColors(const RouteRefColors& refColors) {
       // add new routes...
       for (auto& c : route.second) {
         // keep the original one intact
-        if (c.first.first == route.first->getColor() && c.first.second == route.first->getTextColor()) continue;
+        if (c.first.first == route.first->getColor() &&
+            c.first.second == route.first->getTextColor())
+          continue;
 
         auto routeCp = *route.first;
 
@@ -1164,7 +1168,9 @@ std::vector<float> ShapeBuilder::getMeasure(
 void ShapeBuilder::shapeWorker(
     const std::vector<const TripForest*>* tries, std::atomic<size_t>* at,
     std::map<std::string, size_t>* shpUse,
-    std::map<Route*, std::map<std::pair<uint32_t, uint32_t>, std::vector<gtfs::Trip*>>>* routeColors,
+    std::map<Route*,
+             std::map<std::pair<uint32_t, uint32_t>, std::vector<gtfs::Trip*>>>*
+        routeColors,
     TrGraphEdgs* gtfsGraph) {
   while (1) {
     size_t j = (*at)++;
@@ -1214,8 +1220,7 @@ void ShapeBuilder::shapeWorker(
             // else, use the original route color
             auto color = t->getRoute()->getColor();
             auto textColor = t->getRoute()->getTextColor();
-            (*routeColors)[t->getRoute()][{color, textColor}].push_back(
-                t);
+            (*routeColors)[t->getRoute()][{color, textColor}].push_back(t);
           }
 
           if (!t->getShape().empty() && (*shpUse)[t->getShape()] > 0) {

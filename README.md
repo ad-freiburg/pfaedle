@@ -48,6 +48,8 @@ $ make install
 $ pfaedle -x <OSM FILE> <GTFS INPUT FEED>
 ```
 
+The OSM file may be given in the following formats: OSM XML, OSM XML BZ2, PBF.
+
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
 
 By default, shapes are only calculated for trips that don't have a shape in the
@@ -56,9 +58,9 @@ input feed. To drop all existing shapes, use the `-D` flag.
 For example, you may generate (and replace existing, see `-D` flag) shapes for the GTFS dataset for Freiburg like this:
 
 ```shell
-$ wget https://fritz.freiburg.de/csv_Downloads/VAGFR.zip
-$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.bz2
-$ pfaedle -D -x freiburg-regbez-latest.osm.bz2 VAGFR.zip
+$ wget https://www.vag-freiburg.de/fileadmin/gtfs/VAGFR.zip
+$ wget http://download.geofabrik.de/europe/germany/baden-wuerttemberg/freiburg-regbez-latest.osm.pbf
+$ pfaedle -D -x freiburg-regbez-latest.osm.pbf VAGFR.zip
 ```
 
 ## Generating shapes for a specific MOT

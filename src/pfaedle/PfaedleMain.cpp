@@ -218,6 +218,10 @@ int main(int argc, char** argv) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
+    } catch (const std::runtime_error& ex) {
+      LOG(ERROR) << "Could not parse OSM data, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
     }
     exit(static_cast<int>(RetCode::SUCCESS));
   } else if (cfg.writeOverpass) {
@@ -384,6 +388,10 @@ int main(int argc, char** argv) {
         fstr.close();
       }
     } catch (const pfxml::parse_exc& ex) {
+      LOG(ERROR) << "Could not parse OSM data, reason was:";
+      std::cerr << ex.what() << std::endl;
+      exit(static_cast<int>(RetCode::OSM_PARSE_ERR));
+    } catch (const std::runtime_error& ex) {
       LOG(ERROR) << "Could not parse OSM data, reason was:";
       std::cerr << ex.what() << std::endl;
       exit(static_cast<int>(RetCode::OSM_PARSE_ERR));

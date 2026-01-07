@@ -21,10 +21,14 @@
 #include "pfaedle/osm/OsmBuilder.h"
 #include "pfaedle/osm/OsmFilter.h"
 #include "pfaedle/osm/Restrictor.h"
+#include "pfaedle/osm/output/OsmWriter.h"
+#include "pfaedle/osm/output/XMLWriter.h"
+#include "pfaedle/osm/output/PBFWriter.h"
+#include "pfaedle/osm/source/PBFSource.h"
+#include "pfaedle/osm/source/XMLSource.h"
 #include "util/Misc.h"
 #include "util/Nullable.h"
 #include "util/log/Log.h"
-#include "pfxml/pfxml.h"
 
 using ad::cppgtfs::gtfs::Stop;
 using pfaedle::osm::BlockSearch;
@@ -35,6 +39,17 @@ using pfaedle::osm::OsmBuilder;
 using pfaedle::osm::OsmNode;
 using pfaedle::osm::OsmRel;
 using pfaedle::osm::OsmWay;
+using pfaedle::osm::output::OsmWriter;
+using pfaedle::osm::output::XMLWriter;
+using pfaedle::osm::output::PBFWriter;
+using pfaedle::osm::source::OsmSource;
+using pfaedle::osm::source::OsmSourceAttr;
+using pfaedle::osm::source::OsmSourceNode;
+using pfaedle::osm::source::OsmSourceRelation;
+using pfaedle::osm::source::OsmSourceRelationMember;
+using pfaedle::osm::source::OsmSourceWay;
+using pfaedle::osm::source::PBFSource;
+using pfaedle::osm::source::XMLSource;
 using pfaedle::trgraph::Component;
 using pfaedle::trgraph::Edge;
 using pfaedle::trgraph::EdgePL;
@@ -44,14 +59,14 @@ using pfaedle::trgraph::NodePL;
 using pfaedle::trgraph::Normalizer;
 using pfaedle::trgraph::StatInfo;
 using pfaedle::trgraph::TransitEdgeLine;
+using util::DEBUG;
+using util::ERROR;
+using util::INFO;
 using util::Nullable;
+using util::VDEBUG;
+using util::WARN;
 using util::geo::Box;
 using util::geo::M_PER_DEG;
-using util::WARN;
-using util::INFO;
-using util::ERROR;
-using util::DEBUG;
-using util::VDEBUG;
 
 // _____________________________________________________________________________
 bool EqSearch::operator()(const Node* cand, const StatInfo* si) const {
@@ -85,8 +100,13 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
     getKeptAttrKeys(opts, attrKeys);
 
     OsmFilter filter(opts);
+    OsmSource* source;
 
-    pfxml::file xml(path);
+    if (util::endsWith(path, ".pbf")) {
+      source = new PBFSource(path);
+    } else {
+      source = new XMLSource(path);
+    }
 
     // we do four passes of the file here to be as memory creedy as possible:
     // - the first pass collects all node IDs which are
@@ -103,26 +123,22 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
     //    * have been used in a way in pass 3
 
     LOG(DEBUG) << "Reading bounding box nodes...";
-    skipUntil(&xml, "node");
-    pfxml::parser_state nodeBeg = xml.state();
-    pfxml::parser_state edgesBeg =
-        readBBoxNds(&xml, &bboxNodes, &noHupNodes, filter, bbox);
+    readBBoxNds(source, &bboxNodes, &noHupNodes, filter, bbox);
 
     LOG(DEBUG) << "Reading relations...";
-    skipUntil(&xml, "relation");
-    readRels(&xml, &intmRels, &nodeRels, &wayRels, filter, attrKeys[2],
+    readRels(source, &intmRels, &nodeRels, &wayRels, filter, attrKeys[2],
              &rawRests);
 
     LOG(DEBUG) << "Reading edges...";
-    xml.set_state(edgesBeg);
-    readEdges(&xml, g, intmRels, wayRels, filter, bboxNodes, &nodes, &multNodes,
-              noHupNodes, attrKeys[1], rawRests, res, intmRels.flat, &eTracks,
-              opts);
+    readEdges(source, g, intmRels, wayRels, filter, bboxNodes, &nodes,
+              &multNodes, noHupNodes, attrKeys[1], rawRests, res, intmRels.flat,
+              &eTracks, opts);
 
     LOG(DEBUG) << "Reading kept nodes...";
-    xml.set_state(nodeBeg);
-    readNodes(&xml, g, intmRels, nodeRels, filter, bboxNodes, &nodes,
+    readNodes(source, g, intmRels, nodeRels, filter, bboxNodes, &nodes,
               &multNodes, &orphanStations, attrKeys[0], intmRels.flat, opts);
+
+    delete source;
   }
 
   LOG(DEBUG) << "OSM ID set lookups: " << osm::OsmIdSet::LOOKUPS
@@ -331,67 +347,24 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
   // always empty
   NIdMultMap multNodes;
 
-  pfxml::file xml(in);
+  OsmSource* source;
+  OsmWriter* writer;
+
+  if (util::endsWith(in, ".pbf")) {
+    source = new PBFSource(in);
+  } else {
+    source = new XMLSource(in);
+  }
 
   BBoxIdx latLngBox = box;
 
-  if (latLngBox.size() == 0) {
-    skipUntil(&xml, "bounds");
+  if (latLngBox.size() == 0) latLngBox.add(source->getBounds());
 
-    const pfxml::tag& cur = xml.get();
-
-    if (strcmp(cur.name, "bounds") != 0) {
-      throw pfxml::parse_exc(
-          std::string("Could not find required <bounds> tag"), in, 0, 0, 0);
-    }
-
-    if (!cur.attr("minlat")) {
-      throw pfxml::parse_exc(
-          std::string(
-              "Could not find required attribute \"minlat\" for <bounds> tag"),
-          in, 0, 0, 0);
-    }
-    if (!cur.attr("minlon")) {
-      throw pfxml::parse_exc(
-          std::string(
-              "Could not find required attribute \"minlon\" for <bounds> tag"),
-          in, 0, 0, 0);
-    }
-    if (!cur.attr("maxlat")) {
-      throw pfxml::parse_exc(
-          std::string(
-              "Could not find required attribute \"maxlat\" for <bounds> tag"),
-          in, 0, 0, 0);
-    }
-    if (!cur.attr("maxlon")) {
-      throw pfxml::parse_exc(
-          std::string(
-              "Could not find required attribute \"maxlon\" for <bounds> tag"),
-          in, 0, 0, 0);
-    }
-
-    double minlat = atof(cur.attr("minlat"));
-    double minlon = atof(cur.attr("minlon"));
-    double maxlat = atof(cur.attr("maxlat"));
-    double maxlon = atof(cur.attr("maxlon"));
-
-    latLngBox.add(Box<double>({minlon, minlat}, {maxlon, maxlat}));
+  if (util::endsWith(out, ".pbf")) {
+    writer = new PBFWriter(out, latLngBox.getFullBox(), source);
+  } else {
+    writer = new XMLWriter(out, latLngBox.getFullBox(), source);
   }
-
-  util::xml::XmlWriter wr(out, false, 0);
-
-  wr.put("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-  wr.openTag("osm", {{"version", "0.6"},
-                     {"generator", std::string("pfaedle/") + VERSION_FULL}});
-  wr.openTag(
-      "bounds",
-      {{"minlat", std::to_string(latLngBox.getFullBox().getLowerLeft().getY())},
-       {"minlon", std::to_string(latLngBox.getFullBox().getLowerLeft().getX())},
-       {"maxlat",
-        std::to_string(latLngBox.getFullBox().getUpperRight().getY())},
-       {"maxlon",
-        std::to_string(latLngBox.getFullBox().getUpperRight().getX())}});
-  wr.closeTag();
 
   OsmFilter filter;
   AttrKeySet attrKeys[3] = {};
@@ -401,38 +374,33 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
     filter = filter.merge(OsmFilter(o.keepFilter, o.dropFilter));
   }
 
-  skipUntil(&xml, "node");
-  pfxml::parser_state nodeBeg = xml.state();
-  pfxml::parser_state edgesBeg =
-      readBBoxNds(&xml, &bboxNodes, &noHupNodes, filter, latLngBox);
+  readBBoxNds(source, &bboxNodes, &noHupNodes, filter, latLngBox);
 
-  skipUntil(&xml, "relation");
-  readRels(&xml, &rels, &nodeRels, &wayRels, filter, attrKeys[2], &rests);
+  readRels(source, &rels, &nodeRels, &wayRels, filter, attrKeys[2], &rests);
 
-  xml.set_state(edgesBeg);
-  readEdges(&xml, wayRels, filter, bboxNodes, attrKeys[1], &ways, &nodes,
+  readEdges(source, wayRels, filter, bboxNodes, attrKeys[1], &ways, &nodes,
             rels.flat);
 
-  xml.set_state(nodeBeg);
-
-  readWriteNds(&xml, &wr, nodeRels, filter, bboxNodes, &nodes, attrKeys[0],
+  readWriteNds(source, writer, nodeRels, filter, bboxNodes, &nodes, attrKeys[0],
                rels.flat);
-  readWriteWays(&xml, &wr, &ways, attrKeys[1]);
+  readWriteWays(source, writer, &ways, attrKeys[1]);
 
   std::sort(ways.begin(), ways.end());
-  skipUntil(&xml, "relation");
-  readWriteRels(&xml, &wr, &ways, &nodes, filter, attrKeys[2]);
+  readWriteRels(source, writer, &ways, &nodes, filter, attrKeys[2]);
 
-  wr.closeTags();
+  delete source;
+  delete writer;
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readWriteRels(pfxml::file* i, util::xml::XmlWriter* o,
+void OsmBuilder::readWriteRels(OsmSource* source, output::OsmWriter* o,
                                OsmIdList* ways, NIdMap* nodes,
                                const OsmFilter& filter,
                                const AttrKeySet& keepAttrs) {
+  source->seekRels();
+
   OsmRel rel;
-  while ((rel = nextRel(i, filter, keepAttrs)).id) {
+  while ((rel = nextRel(source, filter, keepAttrs)).id) {
     OsmIdList realNodes, realWays;
     std::vector<const char*> realNodeRoles, realWayRoles;
 
@@ -454,62 +422,22 @@ void OsmBuilder::readWriteRels(pfxml::file* i, util::xml::XmlWriter* o,
     }
 
     if (realNodes.size() || realWays.size()) {
-      o->openTag("relation", "id", std::to_string(rel.id));
-
-      for (size_t j = 0; j < realNodes.size(); j++) {
-        osmid nid = realNodes[j];
-        std::map<std::string, std::string> attrs;
-        attrs["type"] = "node";
-        if (strlen(realNodeRoles[j])) attrs["role"] = realNodeRoles[j];
-        attrs["ref"] = std::to_string(nid);
-        o->openTag("member", attrs);
-        o->closeTag();
-      }
-
-      for (size_t j = 0; j < realWays.size(); j++) {
-        osmid wid = realWays[j];
-        std::map<std::string, std::string> attrs;
-        attrs["type"] = "way";
-        if (strlen(realWayRoles[j])) attrs["role"] = realWayRoles[j];
-        attrs["ref"] = std::to_string(wid);
-        o->openTag("member", attrs);
-        o->closeTag();
-      }
-
-      for (const auto& kv : rel.attrs) {
-        std::map<std::string, std::string> attrs = {
-            {"k", kv.first}, {"v", pfxml::file::decode(kv.second)}};
-        o->openTag("tag", attrs);
-        o->closeTag();
-      }
-
-      o->closeTag();
+      o->writeRel(rel, realNodes, realWays, realNodeRoles, realWayRoles);
     }
   }
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readWriteWays(pfxml::file* i, util::xml::XmlWriter* o,
+void OsmBuilder::readWriteWays(OsmSource* source, output::OsmWriter* o,
                                OsmIdList* ways,
                                const AttrKeySet& keepAttrs) const {
+  source->seekWays();
+
   OsmWay w;
   NIdMultMap empty;
   for (auto wid : *ways) {
-    w = nextWayWithId(i, wid, keepAttrs);
-    assert(w.id);
-    o->openTag("way", "id", std::to_string(wid));
-    for (osmid nid : w.nodes) {
-      o->openTag("nd", "ref", std::to_string(nid));
-      o->closeTag();
-    }
-    for (const auto& kv : w.attrs) {
-      std::map<std::string, std::string> attrs;
-      attrs["k"] = kv.first;
-      attrs["v"] = pfxml::file::decode(kv.second);
-      o->openTag("tag", attrs);
-      o->closeTag();
-    }
-    o->closeTag();
+    w = nextWayWithId(source, wid, keepAttrs);
+    o->writeWay(w);
   }
 }
 
@@ -533,78 +461,66 @@ NodePL OsmBuilder::plFromGtfs(const Stop* s, const OsmReadOpts& ops) {
 }
 
 // _____________________________________________________________________________
-pfxml::parser_state OsmBuilder::readBBoxNds(pfxml::file* xml, OsmIdSet* nodes,
-                                            OsmIdSet* nohupNodes,
-                                            const OsmFilter& filter,
-                                            const BBoxIdx& bbox) const {
-  bool inNodeBlock = false;
-  uint64_t curId = 0;
+void OsmBuilder::readBBoxNds(OsmSource* source, OsmIdSet* nodes,
+                             OsmIdSet* nohupNodes, const OsmFilter& filter,
+                             const BBoxIdx& bbox) const {
+  source->seekNodes();
+  const OsmSourceNode* nd;
 
-  do {
-    const pfxml::tag& cur = xml->get();
-
-    if (inNodeBlock && xml->level() == 3 && curId &&
-        strcmp(cur.name, "tag") == 0) {
-      if (filter.nohup(cur.attr("k"), cur.attr("v"))) {
-        nohupNodes->add(curId);
-      }
+  while ((nd = source->nextNode())) {
+    if (bbox.contains(Point<double>(nd->lon, nd->lat))) {
+      nodes->add(nd->id);
+    } else {
+      nodes->nadd(nd->id);
     }
 
-    if (xml->level() != 2) continue;
-    if (!inNodeBlock && strcmp(cur.name, "node") == 0) inNodeBlock = true;
+    source->cont();
 
-    if (inNodeBlock) {
-      // block ended
-      if (strcmp(cur.name, "node")) return xml->state();
-      double y = util::atof(cur.attr("lat"), 7);
-      double x = util::atof(cur.attr("lon"), 7);
+    OsmSourceAttr attr;
 
-      curId = util::atoul(cur.attr("id"));
-
-      if (bbox.contains(Point<double>(x, y))) {
-        nodes->add(curId);
-      } else {
-        nodes->nadd(curId);
+    while ((attr = source->nextAttr()).key) {
+      if (filter.nohup(attr.key, attr.value)) {
+        nohupNodes->add(nd->id);
       }
+      source->cont();
     }
-  } while (xml->next());
-
-  return xml->state();
+  }
 }
 
 // _____________________________________________________________________________
-OsmWay OsmBuilder::nextWayWithId(pfxml::file* xml, osmid wid,
+OsmWay OsmBuilder::nextWayWithId(OsmSource* source, osmid wid,
                                  const AttrKeySet& keepAttrs) const {
   OsmWay w;
+  const OsmSourceWay* way;
 
-  do {
-    const pfxml::tag& cur = xml->get();
-    if (xml->level() == 2 || xml->level() == 0) {
-      if (w.id || strcmp(cur.name, "way")) return w;
-
-      osmid id = util::atoul(cur.attr("id"));
-      if (id == wid) w.id = id;
+  while ((way = source->nextWay())) {
+    if (way->id != wid) {
+      source->cont();
+      continue;
     }
 
-    if (w.id && xml->level() == 3) {
-      if (strcmp(cur.name, "nd") == 0) {
-        w.nodes.push_back(util::atoul(cur.attr("ref")));
-      } else if (strcmp(cur.name, "tag") == 0) {
-        if (keepAttrs.count(cur.attr("k")))
-          w.attrs[cur.attr("k")] = cur.attr("v");
-      }
-    }
-  } while (xml->next());
+    w.id = way->id;
 
-  if (w.id) return w;
+    source->cont();
+
+    uint64_t nid;
+
+    while ((nid = source->nextMemberNode())) {
+      w.nodes.push_back(nid);
+      source->cont();
+    }
+
+    OsmSourceAttr attr;
+
+    while ((attr = source->nextAttr()).key) {
+      if (keepAttrs.count(attr.key)) w.attrs[attr.key] = attr.value;
+      source->cont();
+    }
+
+    return w;
+  }
 
   return OsmWay();
-}
-
-// _____________________________________________________________________________
-void OsmBuilder::skipUntil(pfxml::file* xml, const std::string& s) const {
-  while (xml->next() && strcmp(xml->get().name, s.c_str())) {
-  }
 }
 
 // _____________________________________________________________________________
@@ -623,35 +539,38 @@ bool OsmBuilder::relKeep(osmid id, const RelMap& rels,
 }
 
 // _____________________________________________________________________________
-OsmWay OsmBuilder::nextWay(pfxml::file* xml, const RelMap& wayRels,
+OsmWay OsmBuilder::nextWay(OsmSource* source, const RelMap& wayRels,
                            const OsmFilter& filter, const OsmIdSet& bBoxNodes,
                            const AttrKeySet& keepAttrs,
                            const FlatRels& fl) const {
   OsmWay w;
+  const OsmSourceWay* way;
 
-  do {
-    const pfxml::tag& cur = xml->get();
-    if (xml->level() == 2 || xml->level() == 0) {
-      if (keepWay(w, wayRels, filter, bBoxNodes, fl)) return w;
-      if (strcmp(cur.name, "way")) return OsmWay();
+  while ((way = source->nextWay())) {
+    w.nodes.clear();
+    w.attrs.clear();
 
-      w.id = util::atoul(cur.attr("id"));
-      w.nodes.clear();
-      w.attrs.clear();
+    w.id = way->id;
+
+    source->cont();
+
+    uint64_t nid;
+
+    while ((nid = source->nextMemberNode())) {
+      w.nodes.push_back(nid);
+      source->cont();
     }
 
-    if (w.id && xml->level() == 3) {
-      if (strcmp(cur.name, "nd") == 0) {
-        osmid nid = util::atoul(cur.attr("ref"));
-        w.nodes.push_back(nid);
-      } else if (strcmp(cur.name, "tag") == 0) {
-        if (keepAttrs.count(cur.attr("k")))
-          w.attrs[cur.attr("k")] = cur.attr("v");
-      }
-    }
-  } while (xml->next());
+    OsmSourceAttr attr;
 
-  if (keepWay(w, wayRels, filter, bBoxNodes, fl)) return w;
+    while ((attr = source->nextAttr()).key) {
+      if (keepAttrs.count(attr.key)) w.attrs[attr.key] = attr.value;
+      source->cont();
+    }
+
+    if (keepWay(w, wayRels, filter, bBoxNodes, fl)) return w;
+  }
+
   return OsmWay();
 }
 
@@ -673,12 +592,15 @@ bool OsmBuilder::keepWay(const OsmWay& w, const RelMap& wayRels,
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readEdges(pfxml::file* xml, const RelMap& wayRels,
+void OsmBuilder::readEdges(OsmSource* source, const RelMap& wayRels,
                            const OsmFilter& filter, const OsmIdSet& bBoxNodes,
                            const AttrKeySet& keepAttrs, OsmIdList* ret,
                            NIdMap* nodes, const FlatRels& flat) {
+  source->seekWays();
+
   OsmWay w;
-  while ((w = nextWay(xml, wayRels, filter, bBoxNodes, keepAttrs, flat)).id) {
+  while (
+      (w = nextWay(source, wayRels, filter, bBoxNodes, keepAttrs, flat)).id) {
     ret->push_back(w.id);
     for (auto n : w.nodes) {
       (*nodes)[n] = 0;
@@ -687,7 +609,7 @@ void OsmBuilder::readEdges(pfxml::file* xml, const RelMap& wayRels,
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readEdges(pfxml::file* xml, Graph* g, const RelLst& rels,
+void OsmBuilder::readEdges(OsmSource* source, Graph* g, const RelLst& rels,
                            const RelMap& wayRels, const OsmFilter& filter,
                            const OsmIdSet& bBoxNodes, NIdMap* nodes,
                            NIdMultMap* multiNodes, const OsmIdSet& noHupNodes,
@@ -695,16 +617,18 @@ void OsmBuilder::readEdges(pfxml::file* xml, Graph* g, const RelLst& rels,
                            const Restrictions& rawRests, Restrictor* restor,
                            const FlatRels& fl, EdgTracks* eTracks,
                            const OsmReadOpts& opts) {
+  source->seekWays();
+
   OsmWay w;
-  while ((w = nextWay(xml, wayRels, filter, bBoxNodes, keepAttrs, fl)).id) {
+  while ((w = nextWay(source, wayRels, filter, bBoxNodes, keepAttrs, fl)).id) {
     Node* last = 0;
     std::vector<TransitEdgeLine*> lines;
     if (wayRels.count(w.id)) {
-      lines = getLines(wayRels.find(w.id)->second, rels, opts);
+      lines = getLines(wayRels.find(w.id)->second, rels, opts, source);
     }
     std::string track =
         getAttrByFirstMatch(opts.edgePlatformRules, w.id, w.attrs, wayRels,
-                            rels, opts.trackNormzer);
+                            rels, opts.trackNormzer, source);
 
     osmid lastnid = 0;
     for (osmid nid : w.nodes) {
@@ -770,35 +694,34 @@ void OsmBuilder::processRestr(osmid nid, osmid wid,
 }
 
 // _____________________________________________________________________________
-OsmNode OsmBuilder::nextNode(pfxml::file* xml, NIdMap* nodes,
+OsmNode OsmBuilder::nextNode(OsmSource* source, NIdMap* nodes,
                              NIdMultMap* multNodes, const RelMap& nodeRels,
                              const OsmFilter& filter, const OsmIdSet& bBoxNodes,
                              const AttrKeySet& keepAttrs,
                              const FlatRels& fl) const {
   OsmNode n;
+  const OsmSourceNode* nd;
 
-  do {
-    const pfxml::tag& cur = xml->get();
-    if (xml->level() == 2 || xml->level() == 0) {
-      if (keepNode(n, *nodes, *multNodes, nodeRels, bBoxNodes, filter, fl))
-        return n;
-      // block ended
-      if (strcmp(cur.name, "node")) return OsmNode();
+  while ((nd = source->nextNode())) {
+    n.attrs.clear();
 
-      n.attrs.clear();
-      n.lat = util::atof(cur.attr("lat"), 7);
-      n.lng = util::atof(cur.attr("lon"), 7);
-      n.id = util::atoul(cur.attr("id"));
+    n.id = nd->id;
+    n.lat = nd->lat;
+    n.lng = nd->lon;
+
+    source->cont();
+
+    OsmSourceAttr attr;
+
+    while ((attr = source->nextAttr()).key) {
+      if (keepAttrs.count(attr.key)) n.attrs[attr.key] = attr.value;
+      source->cont();
     }
 
-    if (xml->level() == 3 && n.id && strcmp(cur.name, "tag") == 0) {
-      if (keepAttrs.count(cur.attr("k")))
-        n.attrs[cur.attr("k")] = cur.attr("v");
-    }
-  } while (xml->next());
+    if (keepNode(n, *nodes, *multNodes, nodeRels, bBoxNodes, filter, fl))
+      return n;
+  }
 
-  if (keepNode(n, *nodes, *multNodes, nodeRels, bBoxNodes, filter, fl))
-    return n;
   return OsmNode();
 }
 
@@ -820,37 +743,34 @@ bool OsmBuilder::keepNode(const OsmNode& n, const NIdMap& nodes,
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readWriteNds(pfxml::file* i, util::xml::XmlWriter* o,
+void OsmBuilder::readWriteNds(OsmSource* source, OsmWriter* o,
                               const RelMap& nRels, const OsmFilter& filter,
                               const OsmIdSet& bBoxNds, NIdMap* nds,
                               const AttrKeySet& keepAttrs,
                               const FlatRels& f) const {
+  source->seekNodes();
+
   OsmNode nd;
   NIdMultMap empt;
   while (
-      (nd = nextNode(i, nds, &empt, nRels, filter, bBoxNds, keepAttrs, f)).id) {
+      (nd = nextNode(source, nds, &empt, nRels, filter, bBoxNds, keepAttrs, f))
+          .id) {
     (*nds)[nd.id] = 0;
-    o->openTag("node", {{"id", std::to_string(nd.id)},
-                        {"lat", std::to_string(nd.lat)},
-                        {"lon", std::to_string(nd.lng)}});
-    for (const auto& kv : nd.attrs) {
-      o->openTag("tag",
-                 {{"k", kv.first}, {"v", pfxml::file::decode(kv.second)}});
-      o->closeTag();
-    }
-    o->closeTag();
+    o->writeNode(nd);
   }
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readNodes(pfxml::file* xml, Graph* g, const RelLst& rels,
+void OsmBuilder::readNodes(OsmSource* source, Graph* g, const RelLst& rels,
                            const RelMap& nodeRels, const OsmFilter& filter,
                            const OsmIdSet& bBoxNodes, NIdMap* nodes,
                            NIdMultMap* multNodes, NodeSet* orphanStations,
                            const AttrKeySet& keepAttrs, const FlatRels& fl,
                            const OsmReadOpts& opts) const {
+  source->seekNodes();
+
   OsmNode nd;
-  while ((nd = nextNode(xml, nodes, multNodes, nodeRels, filter, bBoxNodes,
+  while ((nd = nextNode(source, nodes, multNodes, nodeRels, filter, bBoxNodes,
                         keepAttrs, fl))
              .id) {
     Node* n = 0;
@@ -859,7 +779,7 @@ void OsmBuilder::readNodes(pfxml::file* xml, Graph* g, const RelLst& rels,
       n = (*nodes)[nd.id];
       n->pl().setGeom(pos);
       if (filter.station(nd.attrs)) {
-        auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts);
+        auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts, source);
         if (!si.isNull()) n->pl().setSI(si);
       } else if (filter.blocker(nd.attrs)) {
         n->pl().setBlocker();
@@ -870,7 +790,7 @@ void OsmBuilder::readNodes(pfxml::file* xml, Graph* g, const RelLst& rels,
       for (auto* n : (*multNodes)[nd.id]) {
         n->pl().setGeom(pos);
         if (filter.station(nd.attrs)) {
-          auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts);
+          auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts, source);
           if (!si.isNull()) n->pl().setSI(si);
         } else if (filter.blocker(nd.attrs)) {
           n->pl().setBlocker();
@@ -882,7 +802,7 @@ void OsmBuilder::readNodes(pfxml::file* xml, Graph* g, const RelLst& rels,
       // these are nodes without any connected edges
       if (filter.station(nd.attrs)) {
         auto tmp = g->addNd(NodePL(pos));
-        auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts);
+        auto si = getStatInfo(nd.id, nd.attrs, nodeRels, rels, opts, source);
         if (!si.isNull()) tmp->pl().setSI(si);
         if (tmp->pl().getSI()) {
           orphanStations->insert(tmp);
@@ -893,86 +813,71 @@ void OsmBuilder::readNodes(pfxml::file* xml, Graph* g, const RelLst& rels,
 }
 
 // _____________________________________________________________________________
-OsmRel OsmBuilder::nextRel(pfxml::file* xml, const OsmFilter& filter,
+OsmRel OsmBuilder::nextRel(OsmSource* source, const OsmFilter& filter,
                            const AttrKeySet& keepAttrs) const {
-  OsmRel rel;
+  OsmRel r;
+  const OsmSourceRelation* rel;
 
-  do {
-    const pfxml::tag& cur = xml->get();
-    if (xml->level() == 2 || xml->level() == 0) {
-      uint64_t keepFlags = 0;
-      uint64_t dropFlags = 0;
-      if (rel.id && rel.attrs.size() &&
-          (keepFlags = filter.keep(rel.attrs, OsmFilter::REL)) &&
-          !(dropFlags = filter.drop(rel.attrs, OsmFilter::REL))) {
-        rel.keepFlags = keepFlags;
-        rel.dropFlags = dropFlags;
-        return rel;
+  while ((rel = source->nextRel())) {
+    r.id = rel->id;
+    r.nodes.clear();
+    r.nodeRoles.clear();
+    r.ways.clear();
+    r.wayRoles.clear();
+    r.attrs.clear();
+
+    source->cont();
+
+    const OsmSourceRelationMember* member;
+
+    while ((member = source->nextMember())) {
+      if (member->type == 0) {
+        osmid id = member->id;
+        // TODO(patrick): no need to push IDs that have been filtered out by
+        // the bounding box!!!!
+        r.nodes.push_back(id);
+        r.nodeRoles.push_back(member->role);
       }
 
-      // block ended
-      if (strcmp(cur.name, "relation")) return OsmRel();
-
-      rel.attrs.clear();
-      rel.nodes.clear();
-      rel.ways.clear();
-      rel.nodeRoles.clear();
-      rel.wayRoles.clear();
-      rel.keepFlags = 0;
-      rel.dropFlags = 0;
-      rel.id = util::atoul(cur.attr("id"));
-    }
-
-    if (xml->level() == 3 && rel.id) {
-      if (strcmp(cur.name, "member") == 0) {
-        if (strcmp(cur.attr("type"), "node") == 0) {
-          osmid id = util::atoul(cur.attr("ref"));
-          // TODO(patrick): no need to push IDs that have been filtered out by
-          // the bounding box!!!!
-          rel.nodes.push_back(id);
-          if (cur.attr("role")) {
-            rel.nodeRoles.push_back(cur.attr("role"));
-          } else {
-            rel.nodeRoles.push_back("");
-          }
-        }
-        if (strcmp(cur.attr("type"), "way") == 0) {
-          osmid id = util::atoul(cur.attr("ref"));
-          rel.ways.push_back(id);
-          if (cur.attr("role")) {
-            rel.wayRoles.push_back(cur.attr("role"));
-          } else {
-            rel.wayRoles.push_back("");
-          }
-        }
-      } else if (strcmp(cur.name, "tag") == 0) {
-        if (keepAttrs.count(cur.attr("k")))
-          rel.attrs[cur.attr("k")] = cur.attr("v");
+      if (member->type == 1) {
+        osmid id = member->id;
+        r.ways.push_back(id);
+        r.wayRoles.push_back(member->role);
       }
-    }
-  } while (xml->next());
 
-  // dont forget last relation
-  uint64_t keepFlags = 0;
-  uint64_t dropFlags = 0;
-  if (rel.id && rel.attrs.size() &&
-      (keepFlags = filter.keep(rel.attrs, OsmFilter::REL)) &&
-      !(dropFlags = filter.drop(rel.attrs, OsmFilter::REL))) {
-    rel.keepFlags = keepFlags;
-    rel.dropFlags = dropFlags;
-    return rel;
+      source->cont();
+    }
+
+    OsmSourceAttr attr;
+
+    while ((attr = source->nextAttr()).key) {
+      if (keepAttrs.count(attr.key)) r.attrs[attr.key] = attr.value;
+      source->cont();
+    }
+
+    uint64_t keepFlags = 0;
+    uint64_t dropFlags = 0;
+    if (r.id && r.attrs.size() &&
+        (keepFlags = filter.keep(r.attrs, OsmFilter::REL)) &&
+        !(dropFlags = filter.drop(r.attrs, OsmFilter::REL))) {
+      r.keepFlags = keepFlags;
+      r.dropFlags = dropFlags;
+      return r;
+    }
   }
 
   return OsmRel();
 }
 
 // _____________________________________________________________________________
-void OsmBuilder::readRels(pfxml::file* xml, RelLst* rels, RelMap* nodeRels,
+void OsmBuilder::readRels(OsmSource* source, RelLst* rels, RelMap* nodeRels,
                           RelMap* wayRels, const OsmFilter& filter,
                           const AttrKeySet& keepAttrs,
                           Restrictions* rests) const {
+  source->seekRels();
+
   OsmRel rel;
-  while ((rel = nextRel(xml, filter, keepAttrs)).id) {
+  while ((rel = nextRel(source, filter, keepAttrs)).id) {
     rels->rels.push_back(rel.attrs);
     if (rel.keepFlags & osm::REL_NO_DOWN) {
       rels->flat.insert(rels->rels.size() - 1);
@@ -1031,10 +936,11 @@ std::string OsmBuilder::getAttrByFirstMatch(const DeepAttrLst& rule, osmid id,
                                             const AttrMap& am,
                                             const RelMap& entRels,
                                             const RelLst& rels,
-                                            const Normalizer& normzer) const {
+                                            const Normalizer& normzer,
+                                            const OsmSource* source) const {
   std::string ret;
   for (const auto& s : rule) {
-    ret = normzer.norm(pfxml::file::decode(getAttr(s, id, am, entRels, rels)));
+    ret = normzer.norm(source->decode(getAttr(s, id, am, entRels, rels)));
     if (!ret.empty()) return ret;
   }
 
@@ -1044,11 +950,11 @@ std::string OsmBuilder::getAttrByFirstMatch(const DeepAttrLst& rule, osmid id,
 // _____________________________________________________________________________
 std::vector<std::string> OsmBuilder::getAttrMatchRanked(
     const DeepAttrLst& rule, osmid id, const AttrMap& am, const RelMap& entRels,
-    const RelLst& rels, const Normalizer& norm) const {
+    const RelLst& rels, const Normalizer& norm, const OsmSource* source) const {
   std::vector<std::string> ret;
   for (const auto& s : rule) {
     std::string tmp =
-        norm.norm(pfxml::file::decode(getAttr(s, id, am, entRels, rels)));
+        norm.norm(source->decode(getAttr(s, id, am, entRels, rels)));
     if (!tmp.empty()) ret.push_back(tmp);
   }
 
@@ -1081,14 +987,15 @@ std::string OsmBuilder::getAttr(const DeepAttrRule& s, osmid id,
 Nullable<StatInfo> OsmBuilder::getStatInfo(osmid nid, const AttrMap& m,
                                            const RelMap& nodeRels,
                                            const RelLst& rels,
-                                           const OsmReadOpts& ops) const {
+                                           const OsmReadOpts& ops,
+                                           const OsmSource* source) const {
   std::string platform;
   std::vector<std::string> names;
 
   names = getAttrMatchRanked(ops.statAttrRules.nameRule, nid, m, nodeRels, rels,
-                             ops.statNormzer);
+                             ops.statNormzer, source);
   platform = getAttrByFirstMatch(ops.statAttrRules.platformRule, nid, m,
-                                 nodeRels, rels, ops.trackNormzer);
+                                 nodeRels, rels, ops.trackNormzer, source);
 
   if (!names.size()) return Nullable<StatInfo>();
 
@@ -1118,8 +1025,8 @@ void OsmBuilder::writeGeoms(Graph* g, const OsmReadOpts& opts) {
         e->pl().addPoint(*e->getTo()->pl().getGeom());
       }
 
-      e->pl().setCost(costToInt(e->pl().getLength() /
-                                opts.levelDefSpeed[e->pl().lvl()]));
+      e->pl().setCost(
+          costToInt(e->pl().getLength() / opts.levelDefSpeed[e->pl().lvl()]));
     }
   }
 }
@@ -1363,7 +1270,7 @@ void OsmBuilder::snapStation(Graph* g, NodePL* s, EdgeGrid* eg, NodeGrid* sng,
 // _____________________________________________________________________________
 std::vector<TransitEdgeLine*> OsmBuilder::getLines(
     const std::vector<size_t>& edgeRels, const RelLst& rels,
-    const OsmReadOpts& ops) {
+    const OsmReadOpts& ops, const OsmSource* source) {
   std::vector<TransitEdgeLine*> ret;
   for (size_t relId : edgeRels) {
     TransitEdgeLine* elp = 0;
@@ -1378,8 +1285,7 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.sNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.shortName =
-                ops.lineNormzer.norm(pfxml::file::decode(relAttr.second));
+            el.shortName = ops.lineNormzer.norm(source->decode(relAttr.second));
             if (!el.shortName.empty()) found = true;
           }
         }
@@ -1390,8 +1296,7 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.fromNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.fromStr =
-                ops.statNormzer.norm(pfxml::file::decode(relAttr.second));
+            el.fromStr = ops.statNormzer.norm(source->decode(relAttr.second));
             if (!el.fromStr.empty()) found = true;
           }
         }
@@ -1402,8 +1307,7 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.toNameRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            el.toStr =
-                ops.statNormzer.norm(pfxml::file::decode(relAttr.second));
+            el.toStr = ops.statNormzer.norm(source->decode(relAttr.second));
             if (!el.toStr.empty()) found = true;
           }
         }
@@ -1414,7 +1318,7 @@ std::vector<TransitEdgeLine*> OsmBuilder::getLines(
       for (const auto& r : ops.relLinerules.colorRule) {
         for (const auto& relAttr : rels.rels[relId]) {
           if (relAttr.first == r) {
-            auto dec = pfxml::file::decode(relAttr.second);
+            auto dec = source->decode(relAttr.second);
             auto color = parseHexColor(dec);
             if (color == ad::cppgtfs::gtfs::NO_COLOR)
               color = parseHexColor(std::string("#") + dec);

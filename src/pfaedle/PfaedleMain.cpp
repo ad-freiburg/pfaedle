@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
   }
 
   if (cfg.writeOsm.size()) {
-    LOG(INFO) << "Writing filtered XML to " << cfg.writeOsm << " ...";
+    LOG(INFO) << "Writing filtered OSM file to " << cfg.writeOsm << " ...";
     BBoxIdx box(cfg.boxPadding);
 
     for (size_t i = 0; i < cfg.feedPaths.size(); i++) {

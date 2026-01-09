@@ -22,8 +22,8 @@
 #include "pfaedle/osm/OsmFilter.h"
 #include "pfaedle/osm/Restrictor.h"
 #include "pfaedle/osm/output/OsmWriter.h"
-#include "pfaedle/osm/output/XMLWriter.h"
 #include "pfaedle/osm/output/PBFWriter.h"
+#include "pfaedle/osm/output/XMLWriter.h"
 #include "pfaedle/osm/source/PBFSource.h"
 #include "pfaedle/osm/source/XMLSource.h"
 #include "util/Misc.h"
@@ -40,8 +40,8 @@ using pfaedle::osm::OsmNode;
 using pfaedle::osm::OsmRel;
 using pfaedle::osm::OsmWay;
 using pfaedle::osm::output::OsmWriter;
-using pfaedle::osm::output::XMLWriter;
 using pfaedle::osm::output::PBFWriter;
+using pfaedle::osm::output::XMLWriter;
 using pfaedle::osm::source::OsmSource;
 using pfaedle::osm::source::OsmSourceAttr;
 using pfaedle::osm::source::OsmSourceNode;
@@ -102,10 +102,24 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
     OsmFilter filter(opts);
     OsmSource* source;
 
-    if (util::endsWith(path, ".pbf")) {
-      source = new PBFSource(path);
-    } else {
+    auto lPath = util::toLower(path);
+    if (util::endsWith(lPath, ".pbf")) {
+      source = new PBFSource(lPath);
+    } else if (util::endsWith(lPath, ".osm") ||
+               util::endsWith(lPath, ".osm.gz") ||
+               util::endsWith(lPath, ".osm.bz2") ||
+               util::endsWith(lPath, ".xml") ||
+               util::endsWith(lPath, ".xml.gz") ||
+               util::endsWith(lPath, ".xml.bz2")) {
       source = new XMLSource(path);
+    } else if (util::endsWith(lPath, ".o5m")) {
+      throw std::runtime_error(".o5m inputs not supported.");
+    } else if (util::endsWith(lPath, "json")) {
+      throw std::runtime_error("JSON inputs not supported.");
+    } else {
+      throw std::runtime_error(
+          "Unrecognized input format, use either .osm, .osm.bz2, .osm.gz, "
+          ".xml, .xml.bz2, .xml.gz, .pbf");
     }
 
     // we do four passes of the file here to be as memory creedy as possible:
@@ -332,6 +346,9 @@ void OsmBuilder::overpassQryWrite(std::ostream* out,
 void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
                              const std::vector<OsmReadOpts>& opts,
                              const BBoxIdx& box) {
+  if (in == out)
+    throw std::runtime_error("OSM input and output file are the same");
+
   OsmIdSet bboxNodes, noHupNodes;
   MultAttrMap emptyF;
 
@@ -350,20 +367,48 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
   OsmSource* source;
   OsmWriter* writer;
 
-  if (util::endsWith(in, ".pbf")) {
-    source = new PBFSource(in);
-  } else {
+  auto lPath = util::toLower(in);
+  if (util::endsWith(lPath, ".pbf")) {
+    source = new PBFSource(lPath);
+  } else if (util::endsWith(lPath, ".osm") ||
+             util::endsWith(lPath, ".osm.gz") ||
+             util::endsWith(lPath, ".osm.bz2") ||
+             util::endsWith(lPath, ".xml") ||
+             util::endsWith(lPath, ".xml.gz") ||
+             util::endsWith(lPath, ".xml.bz2")) {
     source = new XMLSource(in);
+  } else if (util::endsWith(lPath, ".o5m")) {
+    throw std::runtime_error(".o5m inputs not supported.");
+  } else if (util::endsWith(lPath, "json")) {
+    throw std::runtime_error("JSON inputs not supported.");
+  } else {
+    throw std::runtime_error(
+        "Unrecognized input format, use either .osm, .osm.bz2, .osm.gz, .xml, "
+        ".xml.bz2, .xml.gz, .pbf");
   }
 
   BBoxIdx latLngBox = box;
 
   if (latLngBox.size() == 0) latLngBox.add(source->getBounds());
 
-  if (util::endsWith(out, ".pbf")) {
+  lPath = util::toLower(out);
+  if (util::endsWith(lPath, ".pbf")) {
     writer = new PBFWriter(out, latLngBox.getFullBox(), source);
-  } else {
+  } else if (util::endsWith(lPath, ".osm") ||
+             util::endsWith(lPath, ".osm.gz") ||
+             util::endsWith(lPath, ".osm.bz2") ||
+             util::endsWith(lPath, ".xml") ||
+             util::endsWith(lPath, ".xml.gz") ||
+             util::endsWith(lPath, ".xml.bz2")) {
     writer = new XMLWriter(out, latLngBox.getFullBox(), source);
+  } else if (util::endsWith(lPath, ".o5m")) {
+    throw std::runtime_error(".o5m output not supported.");
+  } else if (util::endsWith(lPath, "json")) {
+    throw std::runtime_error("JSON output not supported.");
+  } else {
+    throw std::runtime_error(
+        "Unrecognized output format, use either .osm, .osm.bz2, .osm.gz, .xml, "
+        ".xml.bz2, .xml.gz, .pbf");
   }
 
   OsmFilter filter;

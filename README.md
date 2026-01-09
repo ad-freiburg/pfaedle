@@ -48,7 +48,7 @@ $ make install
 $ pfaedle -x <OSM FILE> <GTFS INPUT FEED>
 ```
 
-The OSM file may be given in the following formats: OSM XML, OSM XML BZ2, PBF.
+The OSM file may be given in the following formats: OSM XML (`.osm`, `.osm.gz`, `.osm.bz2`, `.xml`, `.xml.gz`, `.xml.bz2`), PBF (`.pbf`).
 
 A shape'd version of the input GTFS feed will be written to `./gtfs-out`.
 

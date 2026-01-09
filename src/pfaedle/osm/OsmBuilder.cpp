@@ -104,7 +104,7 @@ void OsmBuilder::read(const std::string& path, const OsmReadOpts& opts,
 
     auto lPath = util::toLower(path);
     if (util::endsWith(lPath, ".pbf")) {
-      source = new PBFSource(lPath);
+      source = new PBFSource(path);
     } else if (util::endsWith(lPath, ".osm") ||
                util::endsWith(lPath, ".osm.gz") ||
                util::endsWith(lPath, ".osm.bz2") ||
@@ -369,7 +369,7 @@ void OsmBuilder::filterWrite(const std::string& in, const std::string& out,
 
   auto lPath = util::toLower(in);
   if (util::endsWith(lPath, ".pbf")) {
-    source = new PBFSource(lPath);
+    source = new PBFSource(in);
   } else if (util::endsWith(lPath, ".osm") ||
              util::endsWith(lPath, ".osm.gz") ||
              util::endsWith(lPath, ".osm.bz2") ||

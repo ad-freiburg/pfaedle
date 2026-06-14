@@ -569,11 +569,11 @@ void PBFSource::parseNode(unsigned char*& c) {
     } else if (typeId.second == 8) {  // lat
       _curNode.lat =
           RES * (_curBlock.latOffset +
-                 (util::protobuf::parseInt(typeId, c) * _curBlock.granularity));
+                 ((double)util::protobuf::parseInt(typeId, c) * _curBlock.granularity));
     } else if (typeId.second == 9) {  // lon
       _curNode.lon =
           RES * (_curBlock.lonOffset +
-                 (util::protobuf::parseInt(typeId, c) * _curBlock.granularity));
+                 ((double)util::protobuf::parseInt(typeId, c) * _curBlock.granularity));
     } else if (typeId.second == 2) {  // attr keys
       size_t len = util::protobuf::parseVarUInt(c);
       auto start = c;
